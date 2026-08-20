@@ -1,6 +1,6 @@
 {
   "name": "github_issues_manager",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Local MCP server for managing GitHub issues",
   "type": "module",
   "scripts": {
@@ -17,9 +17,11 @@
   "license": "ISC",
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
+    "dotenv": "^17.4.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2"
   }
