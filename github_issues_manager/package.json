@@ -1,0 +1,26 @@
+{
+  "name": "github_issues_manager",
+  "version": "1.0.0",
+  "description": "Local MCP server for managing GitHub issues",
+  "type": "module",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "build": "tsc",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "github",
+    "lm-studio"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  }
+}

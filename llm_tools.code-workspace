@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"editor.formatOnSave": true,
+		"files.exclude": {
+			"**/llm_tools.code-workspace": true
+		}
+	}
+}
