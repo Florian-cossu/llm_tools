@@ -36,11 +36,6 @@ export function mapGithubMilestone(
     title: milestone.title,
     state: milestone.state,
     description: milestone.description,
-    openIssues: milestone.open_issues,
-    closedIssues: milestone.closed_issues,
-    dueOn: milestone.due_on,
-    closedAt: milestone.closed_at,
-    url: milestone.html_url,
   };
 }
 
@@ -50,7 +45,6 @@ export function mapGithubIssue(
   return {
     number: issue.number,
     title: issue.title,
-    url: issue.html_url,
     state: issue.state,
     labels: issue.labels.map((label) => label.name),
     assignees: issue.assignees.map((assignee) => assignee.login),
