@@ -16,22 +16,12 @@ credentials stay in a local `.env`.
 
 ## Available tools
 
-| Server | Version | Description | Tools exposed |
-| --- | --- | --- | --- |
-| [github_issues_manager](github_issues_manager/) | 1.1.0 | Local MCP server for managing GitHub issues | `list_github_issues` |
+| Tool                                                     | Version | Description                                 | Tools exposed        |
+| -------------------------------------------------------- | ------- | ------------------------------------------- | -------------------- |
+| [github_issues_manager](github_issues_manager/README.md) | 1.1.0   | Local MCP server for managing GitHub issues | `list_github_issues` |
 
-### `github_issues_manager`
-
-Reads issues from the GitHub REST API and returns a **compact** payload (number, title,
-url, state, labels, assignees, milestone) instead of the full GitHub response — which
-keeps the context window usable on a local model.
-
-| Tool | What it does | Parameters |
-| --- | --- | --- |
-| `list_github_issues` | Lists issues of a repository, newest-updated first. Pull requests are filtered out. | `owner` *(optional)*, `repository` *(optional)*, `state` (`open` \| `closed` \| `all`, default `open`), `limit` (1–100, default 30) |
-
-`owner` and `repository` fall back to the values configured in `.env`, so in practice you
-can just ask *"list the open issues"* without naming the repo.
+Each folder has its own README covering the tools it exposes, its parameters and its
+configuration. This file only covers what is common to all of them.
 
 ---
 
@@ -39,21 +29,11 @@ can just ask *"list the open issues"* without naming the repo.
 
 ```
 llm_tools/
-├── README.md
-├── llm_tools.code-workspace
-└── github_issues_manager/          # one folder = one MCP server
-    ├── .env.example                # credentials template (copy to .env)
-    ├── package.json
-    ├── tsconfig.json
-    ├── src/
-    │   ├── index.ts                # server bootstrap + tool registration
-    │   ├── metadata.ts             # constants & defaults (name, version, API base URL)
-    │   ├── models/                 # compact domain types returned to the LLM
-    │   │   ├── github_issues.ts
-    │   │   └── github_milestones.ts
-    │   └── mappers/                # GitHub API payload -> compact model
-    │       └── github_compact_mappers.ts
-    └── dist/                       # build output (git-ignored) — what LM Studio runs
+├── README.md                   # you are here — catalogue + shared setup
+├── scripts/
+│   └── setup-tools.mjs         # installs, builds and registers every tool
+└── github_issues_manager/      # one folder = one MCP server, with its own README
+    └── tool.json               # how to install, build and launch this server
 ```
 
 ---
@@ -67,101 +47,130 @@ llm_tools/
 
 ---
 
-## Setup
+## Getting started
+
+Clone the repository, then let the setup script do the rest:
 
 ```bash
 git clone <this-repo> llm_tools
-cd llm_tools/github_issues_manager
+cd llm_tools
 
-npm install
-cp .env.example .env      # then fill in your values
-npm run build             # compiles src/ -> dist/
+node scripts/setup-tools.mjs
 ```
 
-### Environment variables
+It walks every tool directory, runs its setup and build steps, and prints an `mcp.json`
+fragment covering all of them, with absolute paths already filled in. Add `--write` to
+merge that fragment straight into `~/.lmstudio/mcp.json`:
 
-`github_issues_manager/.env` — all optional, but strongly recommended:
+```bash
+node scripts/setup-tools.mjs --write
+```
 
-| Variable | Purpose |
-| --- | --- |
-| `GITHUB_TOKEN` | Personal access token. Without it you're limited to public repos and 60 requests/hour. A classic token with `repo` (or fine-grained *Issues: read*) is enough. |
-| `GITHUB_DEFAULT_OWNER` | Owner used when the model doesn't provide one. |
-| `GITHUB_DEFAULT_REPOSITORY` | Repository used when the model doesn't provide one. Must belong to `GITHUB_DEFAULT_OWNER`. |
+| Option           | Effect                                                                                             |
+| ---------------- | -------------------------------------------------------------------------------------------------- |
+| `--only <name>`  | Restrict to one tool directory. Repeatable.                                                        |
+| `--dev`          | Emit the "run from TypeScript sources" launch command instead of the built entry point.            |
+| `--skip-install` | Don't run the setup step.                                                                          |
+| `--skip-build`   | Don't run the build step.                                                                          |
+| `--json-only`    | Print the fragment only — no setup, no build. Logs go to stderr, so this is pipeable.              |
+| `--write`        | Merge into `~/.lmstudio/mcp.json`. The existing file is backed up and other servers are preserved. |
+| `-h`, `--help`   | Show the help.                                                                                     |
 
-`.env` files are git-ignored (only `.env.example` is tracked).
+Each tool still needs its credentials. The script warns when a tool has an `.env.example`
+but no `.env`:
+
+```bash
+cp github_issues_manager/.env.example github_issues_manager/.env
+```
+
+`.env` files are git-ignored (only `.env.example` is tracked), so your tokens never leave
+your machine. The variables each tool understands are documented in its own README.
+
+Prefer doing it by hand? Every step is just `npm install` / `npm run build` inside the tool
+folder, followed by the manual registration below.
 
 ---
 
-## Plugging a tool into LM Studio
+## Registering a server in LM Studio by hand
+
+This is what `scripts/setup-tools.mjs` automates — useful to know when something
+misbehaves, or when you'd rather not run the script.
 
 1. **Build the server** so LM Studio has a plain JS entry point to run:
 
    ```bash
-   cd github_issues_manager
+   cd <tool_name>
    npm run build
    ```
 
-2. **Open the MCP config** in LM Studio: right sidebar → **Program** → *Install* →
+2. **Open the MCP config** in LM Studio: right sidebar → **Program** → _Install_ →
    **Edit `mcp.json`**. (The file lives at `~/.lmstudio/mcp.json`.)
 
-3. **Register the server**, using an absolute path to the built file:
+3. **Register the server** with an absolute path to the built file, where `/abs/path`
+   stands for the absolute path to your local clone:
 
    ```json
    {
      "mcpServers": {
-       "github_issues_manager": {
+       "<tool_name>": {
          "command": "node",
-         "args": [
-           "/Users/<you>/Documents/llm_tools/github_issues_manager/dist/index.js"
-         ]
+         "args": ["/abs/path/llm_tools/<tool_name>/dist/index.js"]
        }
      }
    }
    ```
 
-   Add one entry per server as the collection grows. If you prefer running the
-   TypeScript directly (no build step, slower start), use
-   `"command": "npx"` with `"args": ["tsx", "/abs/path/src/index.ts"]`.
+   Add one entry per server as the collection grows. If you prefer running the TypeScript
+   directly — no build step, slower start, handy while iterating — point the command at
+   the tool's local `tsx` binary instead:
+
+   ```json
+   {
+     "mcpServers": {
+       "<tool_name>": {
+         "command": "/abs/path/llm_tools/<tool_name>/node_modules/.bin/tsx",
+         "args": ["/abs/path/llm_tools/<tool_name>/src/index.ts"]
+       }
+     }
+   }
+   ```
 
 4. **Save.** LM Studio starts the server and the tool appears in the chat's plugin
    picker. Enable it there.
 
-5. **Load a tool-capable model**, then ask something like:
+5. **Load a tool-capable model** and ask for something the tool covers. LM Studio shows a
+   confirmation prompt before the first call — MCP tool calls are always user-approved.
 
-   > *List the open issues of the default repository.*
-
-   LM Studio shows a confirmation prompt before the first call — MCP tool calls are
-   always user-approved.
+Each tool's README repeats this snippet with its real name and paths, ready to paste.
 
 ### If it doesn't show up
 
-- Check the path in `mcp.json` is absolute and that `dist/index.js` exists (`npm run build`).
+- Check the path in `mcp.json` is absolute and that `dist/index.js` exists
+  (`npm run build`).
 - Check LM Studio's MCP logs (developer/console panel) — a crash on startup is usually a
   missing `npm install` or a malformed `.env`.
 - Make sure the loaded model actually advertises tool support.
 - Anything the server writes to stdout that isn't MCP protocol will break the transport,
   so keep debug logging on `stderr`.
+- After rebuilding, restart the server from LM Studio to pick up the changes.
 
 ---
 
 ## Local development & testing
 
-Run the server against the official MCP Inspector to exercise tools without going
+Run a server against the official MCP Inspector to exercise its tools without going
 through LM Studio:
 
 ```bash
-cd github_issues_manager
+cd <tool_name>
 npx @modelcontextprotocol/inspector npx tsx src/index.ts
 ```
 
-Or start it directly (it will just wait for stdio traffic):
+Or start it directly — it will just wait for stdio traffic:
 
 ```bash
 npm start
 ```
-
-Rebuild with `npm run build` once the behaviour is satisfying, and restart the MCP
-server from LM Studio to pick up the changes.
 
 ---
 
@@ -175,8 +184,52 @@ server from LM Studio to pick up the changes.
    `server.registerTool(...)` and the stdio transport.
 4. Write **descriptions for the LLM, not for humans** — the tool and parameter
    descriptions are the entire prompt the model gets. Mentioning fallbacks explicitly
-   (*"Do not ask for owner or repository"*) noticeably reduces useless clarifying
+   (_"Do not ask for owner or repository"_) noticeably reduces useless clarifying
    questions from smaller local models.
 5. Keep responses compact. Local models have small context windows; map away every field
    the model doesn't need.
-6. Add a `.env.example`, build, and register it in `mcp.json`.
+6. Add a `tool.json` (see below) so `scripts/setup-tools.mjs` picks the folder up.
+7. Add a `.env.example` and a `README.md` following the same structure as the existing
+   tools, then add a row to the [Available tools](#available-tools) table above.
+
+---
+
+## The `tool.json` manifest
+
+Each tool declares how it is installed, built and launched, so the root script stays
+runtime-agnostic — a Python or Go MCP server drops in without touching
+`scripts/setup-tools.mjs`.
+
+```json
+{
+  "mcpServerName": "github_issues_manager",
+  "setup": "npm install",
+  "build": "npm run build",
+  "command": "node",
+  "args": ["dist/index.js"],
+  "dev": {
+    "command": "node_modules/.bin/tsx",
+    "args": ["src/index.ts"]
+  }
+}
+```
+
+| Field           | Meaning                                                                                                     |
+| --------------- | ----------------------------------------------------------------------------------------------------------- |
+| `mcpServerName` | Key used in `mcp.json`. Defaults to the `name` in `package.json`, then the folder name.                     |
+| `setup`         | Shell command for the install step. `null` means "no setup step".                                           |
+| `build`         | Shell command for the build step. `null` means "no build step".                                             |
+| `command`       | Executable the client launches. Relative paths are resolved against the tool folder; bare names hit `PATH`. |
+| `args`          | Arguments passed to it. Any value containing a `/` is turned into an absolute path.                         |
+| `dev`           | Alternative `command` / `args` used by `--dev`.                                                             |
+| `env`           | Extra environment variables to write into the `mcp.json` entry. Optional — secrets belong in `.env`.        |
+| `description`   | Shown while the script runs. Falls back to `package.json`.                                                  |
+| `version`       | Same, falls back to `package.json`.                                                                         |
+
+Everything is optional. A tool with no `tool.json` at all still works if it has a
+`package.json`: the script falls back to `npm install`, `npm run build` (only when that
+script exists) and `node dist/index.js`.
+
+For steps that don't fit on one line, drop an executable `setup.sh` or `build.sh` in the
+tool folder — the script prefers it over the npm defaults. Precedence per step is
+`tool.json` → `setup.sh` / `build.sh` → npm default.
