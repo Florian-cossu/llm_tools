@@ -6,7 +6,6 @@ import { GithubCompactMilestone } from "./github_milestones.js";
 export type GithubCompactIssue = {
   number: number;
   title: string;
-  url: string;
   state: "open" | "closed";
   labels: string[];
   assignees: string[];
