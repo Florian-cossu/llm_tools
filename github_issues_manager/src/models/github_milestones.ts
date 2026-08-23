@@ -6,4 +6,9 @@ export type GithubCompactMilestone = {
   title: string;
   state: "open" | "closed";
   description: string | null;
+  openIssues: number;
+  closedIssues: number;
+  dueOn: string | null;
+  closedAt: string | null;
+  url: string;
 };
