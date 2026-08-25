@@ -21,9 +21,10 @@ export type GithubApiIssue = {
   labels: Array<{
     name: string;
   }>;
-  assignees: Array<{
+  /** The search endpoint omits this field entirely on unassigned issues. */
+  assignees?: Array<{
     login: string;
-  }>;
+  }> | null;
   milestone: GithubApiMilestone | null;
   pull_request?: unknown;
 };
@@ -48,7 +49,7 @@ export function mapGithubIssue(
     title: issue.title,
     state: issue.state,
     labels: issue.labels.map((label) => label.name),
-    assignees: issue.assignees.map((assignee) => assignee.login),
+    assignees: (issue.assignees ?? []).map((assignee) => assignee.login),
     milestone: issue.milestone
       ? mapGithubMilestone(issue.milestone)
       : null,
