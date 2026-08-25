@@ -3,11 +3,16 @@ import { DEFAULT_ISSUE_LIMIT, DEFAULT_ISSUE_STATE } from "../../metadata.js";
 import { ToolInstance } from "../index.js";
 import { Octokit } from "octokit";
 import { isStringUsable } from "../../utils/string_utils.js";
+import { buildIssueSearchQuery } from "../../utils/github_search_query.js";
 import {
   GithubApiIssue,
   mapGithubIssue,
 } from "../../mappers/github_compact_mappers.js";
 import { GithubCompactIssue } from "../../models/github_issues.js";
+import {
+  describeDefault,
+  optionalWhenConfigured,
+} from "../../utils/tool_description.js";
 
 export const TOOL_NAME = "list_github_issues";
 
@@ -16,30 +21,67 @@ export const listGithubIssuesByRepoTool: ToolInstance = (server, config) => {
     TOOL_NAME,
     {
       description:
-        `List GitHub issues using ${config.serverName} v${config.serverVersion} ` +
-        `in a condensed format (issue number, title, state, labes, assignees and milestone)` +
-        `If the user does not specify a owner or repository, ` +
-        `the configured default repository will be used instead. ` +
-        `Do not ask for owner or repository.`,
+        `Search the issues of a GitHub repository and return one page of ` +
+        `matches in a compact form: number, title, state, label names, ` +
+        `assignee logins and milestone. Pull requests are never ` +
+        `included. Issue bodies and comments are not returned, so this ` +
+        `tool shows which issues exist, not what they say. Use the ` +
+        `"search" parameter to narrow the results by keyword, label, ` +
+        `author, assignee or date rather than listing everything and ` +
+        `filtering afterwards. Returns {"totalCount": number, ` +
+        `"returned": number, "issues": [{"number", "title", "state", ` +
+        `"labels", "assignees", "milestone"}]}, where "totalCount" is ` +
+        `how many issues match in the repository and "returned" is how ` +
+        `many are in this page - when they differ, the page is ` +
+        `truncated and only "totalCount" may be reported as a total. ` +
+        `This tool is rate limited to about 30 calls per minute, so ` +
+        `prefer one well-targeted search over many broad ones.`,
       inputSchema: z.object({
-        owner: z
-          .string()
-          .optional()
-          .describe(
-            "GitHub repository owner. Defaults to the configured owner if omitted.",
-          ),
+        owner: optionalWhenConfigured(config.defaultOwner).describe(
+          "GitHub repository owner (user or organisation). " +
+            describeDefault(
+              config.defaultOwner,
+              `Required, as no default owner is configured on this ` +
+                `server.`,
+            ),
+        ),
 
-        repository: z
+        repository: optionalWhenConfigured(
+          config.defaultRepository,
+        ).describe(
+          "GitHub repository name without its owner. " +
+            describeDefault(
+              config.defaultRepository,
+              `Required, as no default repository is configured on this ` +
+                `server.`,
+            ),
+        ),
+
+        search: z
           .string()
           .optional()
           .describe(
-            "GitHub repository name. Defaults to the configured repository if omitted.",
+            `What to look for, as GitHub issue search syntax. Bare ` +
+              `words match the title, body and comments; GitHub ` +
+              `qualifiers narrow further, for example "label:bug", ` +
+              `"author:octocat", "assignee:@me", "no:assignee", ` +
+              `"milestone:v2" or "created:>2026-01-01". Combine them ` +
+              `with spaces to require all of them, and quote phrases ` +
+              `containing spaces. Omit this parameter to match every ` +
+              `issue in the repository. The repository, the state and ` +
+              `the exclusion of pull requests are applied for you, so ` +
+              `do not repeat them here.`,
           ),
 
         state: z
           .enum(["open", "closed", "all"])
           .default(DEFAULT_ISSUE_STATE)
-          .describe("Filter issues by state"),
+          .describe(
+            `Which issues to include. Defaults to ` +
+              `"${DEFAULT_ISSUE_STATE}". A closed issue may have been ` +
+              `completed or dismissed as not planned; this tool does not ` +
+              `distinguish the two.`,
+          ),
 
         limit: z
           .number()
@@ -47,10 +89,34 @@ export const listGithubIssuesByRepoTool: ToolInstance = (server, config) => {
           .min(1)
           .max(100)
           .default(DEFAULT_ISSUE_LIMIT)
-          .describe("Maximum number of issues to return"),
+          .describe(
+            `Maximum number of issues to return, between 1 and 100. ` +
+              `Defaults to ${DEFAULT_ISSUE_LIMIT}. This is a single ` +
+              `page and there is no way to fetch the next one, so raise ` +
+              `this rather than expecting to paginate.`,
+          ),
+
+        sortBy: z
+          .enum(["created", "updated", "comments"])
+          .default("updated")
+          .describe(
+            `What to sort on: "created" (when the issue was opened), ` +
+              `"updated" (last activity, comments included) or ` +
+              `"comments" (comment count). Defaults to "updated".`,
+          ),
+
+        sortOrder: z
+          .enum(["asc", "desc"])
+          .default("desc")
+          .describe(
+            `Sort direction: "desc" for the most recent or highest ` +
+              `first, "asc" for the oldest or lowest first. Defaults to ` +
+              `"desc", which with the default sortBy puts the most ` +
+              `recently active issues first.`,
+          ),
       }),
     },
-    async ({ owner, repository, state, limit }) => {
+    async ({ owner, repository, search, state, limit, sortBy, sortOrder }) => {
       const octokit = new Octokit({ auth: config.token });
 
       const effectiveOwner = owner?.trim() || config.defaultOwner;
@@ -66,35 +132,48 @@ export const listGithubIssuesByRepoTool: ToolInstance = (server, config) => {
         );
       }
 
-      const response = await octokit.rest.issues.listForRepo({
+      const query = buildIssueSearchQuery({
         owner: effectiveOwner,
-        repo: effectiveRepository,
+        repository: effectiveRepository,
         state,
-        per_page: limit,
-        sort: "updated",
-        direction: "desc",
+        search,
       });
 
-      if (response.status !== 200) {
-        throw new Error(`GitHub API error: ${response.status}\n`);
-      }
+      const response = await octokit.rest.search
+        .issuesAndPullRequests({
+          q: query,
+          advanced_search: "true",
+          sort: sortBy,
+          order: sortOrder,
+          per_page: limit,
+        })
+        .catch((error: unknown) => {
+          const reason =
+            error instanceof Error ? error.message : String(error);
+          throw new Error(
+            `GitHub rejected the search "${query}": ${reason}`,
+          );
+        });
 
-      const githubIssues = (await response.data) as GithubApiIssue[];
+      const githubIssues = response.data.items as GithubApiIssue[];
 
-      const compactIssues: GithubCompactIssue[] = githubIssues
-        .filter((issue) => !issue.pull_request)
-        .map(mapGithubIssue);
+      const compactIssues: GithubCompactIssue[] =
+        githubIssues.map(mapGithubIssue);
 
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(
-              {
-                count: compactIssues.length,
-                issues: compactIssues,
-              },
-            ),
+            text: JSON.stringify({
+              totalCount: response.data.total_count,
+              returned: compactIssues.length,
+              // Set by GitHub when the search timed out and the results
+              // are a partial view of what matches.
+              ...(response.data.incomplete_results
+                ? { incompleteResults: true }
+                : {}),
+              issues: compactIssues,
+            }),
           },
         ],
       };
