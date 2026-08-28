@@ -1,15 +1,10 @@
 import z from "zod";
 import { DEFAULT_ISSUE_LIMIT, DEFAULT_ISSUE_STATE } from "../../metadata.js";
 import { ToolInstance } from "../index.js";
-import { isStringUsable } from "../../utils/string_utils.js";
 import { buildIssueSearchQuery } from "../../utils/github_search_query.js";
 import { mapGithubIssue } from "../../mappers/github_compact_mappers.js";
 import { GithubApiIssue, GithubCompactIssue } from "../../models/github_issues.js";
-import {
-  describeConfiguredRepository,
-  describeDefault,
-  optionalWhenConfigured,
-} from "../../utils/tool_description.js";
+import { describeConfiguredRepository, describeDefault, isStringUsable, optionalWhenConfigured } from "@llm-tools/shared";
 
 export const TOOL_NAME = "list_github_issues";
 
