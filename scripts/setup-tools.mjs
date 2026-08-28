@@ -29,9 +29,9 @@ import { basename, dirname, isAbsolute, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { fileURLToPath } from "node:url";
 
-const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..", "tools");
 const MANIFEST_FILE = "tool.json";
-const IGNORED_DIRS = new Set(["scripts", "node_modules", "dist"]);
+const IGNORED_DIRS = new Set(["scripts", "node_modules", "dist", "shared"]);
 const LM_STUDIO_CONFIG = join(homedir(), ".lmstudio", "mcp.json");
 
 // Logs go to stderr so `--json-only` can be piped straight into a file.

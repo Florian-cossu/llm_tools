@@ -1,11 +1,11 @@
 {
-  "mcpServerName": "github_issues_manager",
-  "setup": "npm install",
-  "build": "npm run build",
-  "command": "node",
-  "args": ["dist/index.js"],
+  "mcpServerName": "github",
+  "setup": "bun install",
+  "build": null,
+  "command": "bun",
+  "args": ["run", "src/index.ts"],
   "dev": {
-    "command": "node_modules/.bin/tsx",
-    "args": ["src/index.ts"]
+    "command": "bun",
+    "args": ["run", "src/index.ts"]
   }
 }
