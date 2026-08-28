@@ -1,15 +1,12 @@
 import z from "zod";
 import { DEFAULT_ISSUE_LIMIT, DEFAULT_ISSUE_STATE } from "../../metadata.js";
 import { ToolInstance } from "../index.js";
-import { Octokit } from "octokit";
 import { isStringUsable } from "../../utils/string_utils.js";
 import { buildIssueSearchQuery } from "../../utils/github_search_query.js";
+import { mapGithubIssue } from "../../mappers/github_compact_mappers.js";
+import { GithubApiIssue, GithubCompactIssue } from "../../models/github_issues.js";
 import {
-  GithubApiIssue,
-  mapGithubIssue,
-} from "../../mappers/github_compact_mappers.js";
-import { GithubCompactIssue } from "../../models/github_issues.js";
-import {
+  describeConfiguredRepository,
   describeDefault,
   optionalWhenConfigured,
 } from "../../utils/tool_description.js";
@@ -21,11 +18,16 @@ export const listGithubIssuesByRepoTool: ToolInstance = (server, config) => {
     TOOL_NAME,
     {
       description:
+        describeConfiguredRepository(
+          config.defaultOwner,
+          config.defaultRepository,
+        ) +
         `Search the issues of a GitHub repository and return one page of ` +
         `matches in a compact form: number, title, state, label names, ` +
         `assignee logins and milestone. Pull requests are never ` +
         `included. Issue bodies and comments are not returned, so this ` +
-        `tool shows which issues exist, not what they say. Use the ` +
+        `tool shows which issues exist, not what they say; read one with ` +
+        `get_github_issue, passing the "number" it returned here. Use the ` +
         `"search" parameter to narrow the results by keyword, label, ` +
         `author, assignee or date rather than listing everything and ` +
         `filtering afterwards. Returns {"totalCount": number, ` +
@@ -67,7 +69,10 @@ export const listGithubIssuesByRepoTool: ToolInstance = (server, config) => {
               `"author:octocat", "assignee:@me", "no:assignee", ` +
               `"milestone:v2" or "created:>2026-01-01". Combine them ` +
               `with spaces to require all of them, and quote phrases ` +
-              `containing spaces. Omit this parameter to match every ` +
+              `containing spaces. "@me" resolves to the account this ` +
+              `server is configured with, so "my issues" means ` +
+              `"assignee:@me" and needs no question to the user. Omit ` +
+              `this parameter to match every ` +
               `issue in the repository. The repository, the state and ` +
               `the exclusion of pull requests are applied for you, so ` +
               `do not repeat them here.`,
@@ -117,8 +122,6 @@ export const listGithubIssuesByRepoTool: ToolInstance = (server, config) => {
       }),
     },
     async ({ owner, repository, search, state, limit, sortBy, sortOrder }) => {
-      const octokit = new Octokit({ auth: config.token });
-
       const effectiveOwner = owner?.trim() || config.defaultOwner;
       const effectiveRepository =
         repository?.trim() || config.defaultRepository;
@@ -139,7 +142,7 @@ export const listGithubIssuesByRepoTool: ToolInstance = (server, config) => {
         search,
       });
 
-      const response = await octokit.rest.search
+      const response = await config.octokit.rest.search
         .issuesAndPullRequests({
           q: query,
           advanced_search: "true",
