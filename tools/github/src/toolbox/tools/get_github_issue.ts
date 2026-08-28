@@ -1,12 +1,7 @@
 import z from "zod";
 import { ToolInstance } from "../index.js";
-import {
-  describeConfiguredRepository,
-  describeDefault,
-  optionalWhenConfigured,
-} from "../../utils/tool_description.js";
-import { isStringUsable } from "../../utils/string_utils.js";
 import { mapGithubLabelNames, mapGithubMilestone } from "../../mappers/github_compact_mappers.js";
+import { describeConfiguredRepository, describeDefault, isStringUsable, optionalWhenConfigured } from "@llm-tools/shared";
 
 export const TOOL_NAME = "get_github_issue";
 

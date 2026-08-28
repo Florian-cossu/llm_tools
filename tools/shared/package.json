@@ -1,0 +1,10 @@
+{
+  "name": "@llm-tools/shared",
+  "version": "1.0.0",
+  "private": true,
+  "module": "src/index.ts",
+  "type": "module",
+  "dependencies": {
+    "zod": "^4.4.3"
+  }
+}

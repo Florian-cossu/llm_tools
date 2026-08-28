@@ -1,6 +1,6 @@
+import { isStringUsable } from "@llm-tools/shared";
 import { GithubApiIssue, GithubCompactIssue } from "../models/github_issues.js";
 import { GithubApiMilestone, GithubCompactMilestone } from "../models/github_milestones.js";
-import { isStringUsable } from "../utils/string_utils.js";
 
 export function mapGithubMilestone(
   milestone: GithubApiMilestone,

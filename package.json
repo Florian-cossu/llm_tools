@@ -1,0 +1,12 @@
+{
+  "name": "llm-tools",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "tools/*",
+    "tools/shared/*"
+  ],
+  "scripts": {
+    "start:github": "bun run tools/github/src/index.ts"
+  }
+}

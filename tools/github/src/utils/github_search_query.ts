@@ -1,4 +1,4 @@
-import { isStringUsable } from "./string_utils.js";
+import { isStringUsable } from "@llm-tools/shared";
 
 /**
  * Builds the `q` value for GitHub's issue search endpoint.

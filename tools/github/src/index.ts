@@ -8,7 +8,7 @@ import {
   APP_VERSION
 } from "./metadata.js";
 import { Octokit } from "octokit";
-import { stringOrNull } from "./utils/string_utils.js";
+import { stringOrNull } from "@llm-tools/shared";
 import { TOOL_INSTANCES } from "./toolbox/index.js";
 import { buildServerInstructions } from "./server_instructions.js";
 
