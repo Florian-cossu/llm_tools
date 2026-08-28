@@ -1,33 +1,6 @@
-import type { GithubCompactIssue } from "../models/github_issues.js";
-import type { GithubCompactMilestone } from "../models/github_milestones.js";
-
-export type GithubApiMilestone = {
-  number: number;
-  title: string;
-  state: "open" | "closed";
-  description: string | null;
-  open_issues: number;
-  closed_issues: number;
-  due_on: string | null;
-  closed_at: string | null;
-  html_url: string;
-};
-
-export type GithubApiIssue = {
-  number: number;
-  title: string;
-  html_url: string;
-  state: "open" | "closed";
-  labels: Array<{
-    name: string;
-  }>;
-  /** The search endpoint omits this field entirely on unassigned issues. */
-  assignees?: Array<{
-    login: string;
-  }> | null;
-  milestone: GithubApiMilestone | null;
-  pull_request?: unknown;
-};
+import { GithubApiIssue, GithubCompactIssue } from "../models/github_issues.js";
+import { GithubApiMilestone, GithubCompactMilestone } from "../models/github_milestones.js";
+import { isStringUsable } from "../utils/string_utils.js";
 
 export function mapGithubMilestone(
   milestone: GithubApiMilestone,
@@ -48,10 +21,18 @@ export function mapGithubIssue(
     number: issue.number,
     title: issue.title,
     state: issue.state,
-    labels: issue.labels.map((label) => label.name),
+    labels: mapGithubLabelNames(issue.labels),
     assignees: (issue.assignees ?? []).map((assignee) => assignee.login),
     milestone: issue.milestone
-      ? mapGithubMilestone(issue.milestone)
-      : null,
+    ? mapGithubMilestone(issue.milestone)
+    : null,
   };
+}
+
+export function mapGithubLabelNames(
+  labels: Array<string | { name?: string }>,
+): string[] {
+  return labels
+    .map((label) => (typeof label === "string" ? label : label.name))
+    .filter(isStringUsable);
 }
