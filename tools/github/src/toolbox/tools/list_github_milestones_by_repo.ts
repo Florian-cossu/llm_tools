@@ -6,11 +6,10 @@ import {
   isStringUsable,
   optionalWhenConfigured,
 } from "@llm-tools/shared";
-import { mapGithubMilestone } from "../../mappers/github_compact_mappers.js";
 
-export const TOOL_NAME = "get_github_milestone";
+export const TOOL_NAME = "list_github_milestones_by_repo";
 
-export const getGithubMilestone: ToolInstance = (server, config) => {
+export const listGithubMilestonesByRepo: ToolInstance = (server, config) => {
   server.registerTool(
     TOOL_NAME,
     {
@@ -19,7 +18,7 @@ export const getGithubMilestone: ToolInstance = (server, config) => {
           config.defaultOwner,
           config.defaultRepository,
         ) +
-        `Read a single milestone of a Github repository`,
+        `Search the milestones of a Github repository and return one page of matches in a compact form:`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -39,12 +38,13 @@ export const getGithubMilestone: ToolInstance = (server, config) => {
             ),
         ),
 
+        // TODO: replace with the parameters this tool actually takes.
         number: z
           .number()
           .int()
           .positive()
           .describe(
-            `The number identifying the milestone within its repository, as ` +
+            `The number identifying the issue within its repository, as ` +
               `shown in the GitHub interface.`,
           ),
       }),
@@ -63,17 +63,18 @@ export const getGithubMilestone: ToolInstance = (server, config) => {
       }
 
       // TODO: call the GitHub API and map the response into a compact shape.
-      const response = await config.octokit.rest.issues.getMilestone({
+      const response = await config.octokit.rest.issues
+        .get({
           owner: effectiveOwner,
           repo: effectiveRepository,
-          milestone_number: number,
+          issue_number: number,
         })
         .catch((error: unknown) => {
           const reason = error instanceof Error ? error.message : String(error);
           throw new Error(`${TOOL_NAME} failed for "${number}": ${reason}`);
         });
 
-      const payload = mapGithubMilestone(response.data);
+      const payload = response.data;
 
       return {
         content: [

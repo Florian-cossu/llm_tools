@@ -1,36 +1,49 @@
 # github
 
-> Local MCP server for managing GitHub issues — part of the
+> Local MCP server for reading GitHub issues and milestones — part of the
 > [llm_tools](../../README.md) collection.
 
-Reads issues from the GitHub REST API and hands the model a **compact** payload instead of
-the full GitHub response, which keeps the context window usable on a local model.
+Read-only. Talks to the GitHub REST API and hands the model a **compact** payload instead
+of the full GitHub response, which keeps the context window usable on a local model.
 
-Owner and repository can be configured once in `.env`, so in practice you just ask
-_"list the open issues"_ without naming the repo.
+Owner and repository are configured once in `.env`, so in practice you just ask _"list the
+open issues"_ without naming the repo.
 
-See the [root README](../../README.md) for requirements, the generic LM Studio walkthrough
-and the conventions shared by every tool in this repository.
+See the [root README](../../README.md) for requirements and setup, and
+[tools/README.md](../README.md) for the conventions shared by every server here.
 
 ---
 
 ## Tools exposed
 
+| Tool                                                                | Purpose                                        |
+| ------------------------------------------------------------------- | ---------------------------------------------- |
+| [`list_github_issues`](#list_github_issues)                         | Search issues, compact list, no bodies         |
+| [`get_github_issue`](#get_github_issue)                             | Read one issue, body included                  |
+| [`get_github_milestone`](#get_github_milestone)                     | Read one milestone by number                   |
+| [`list_github_milestones_by_repo`](#list_github_milestones_by_repo) | **Work in progress — not implemented yet**     |
+
+Every tool takes `owner` and `repository`, both optional once the matching `.env` default
+is set, and both omitted from the tables below for brevity.
+
+---
+
 ### `list_github_issues`
 
-Searches the issues of a repository using GitHub's search API and returns one page of
-matches in compact form. Pull requests are never included. Issue bodies and comments are
-not returned — use `get_github_issue` to read a specific issue's content.
+Searches issues with GitHub's search API and returns one page in compact form. Pull
+requests are never included. Bodies and comments are not returned — use
+`get_github_issue` to read an issue's content.
 
-| Parameter    | Type                                 | Default                     | Description                                                                                                                                                       |
-| ------------ | ------------------------------------ | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `owner`      | string, optional                     | `GITHUB_DEFAULT_OWNER`      | Repository owner, e.g. `DiabdataApp`.                                                                                                                             |
-| `repository` | string, optional                     | `GITHUB_DEFAULT_REPOSITORY` | Repository name, e.g. `diab-data-android`.                                                                                                                        |
-| `search`     | string, optional                     | —                           | GitHub issue search syntax. Bare words match title/body/comments; qualifiers narrow further (`label:bug`, `assignee:@me`, `milestone:v2`, `created:>2026-01-01`). |
-| `state`      | `open` \| `closed` \| `all`          | `open`                      | Filter issues by state.                                                                                                                                           |
-| `limit`      | integer, 1–100                       | `30`                        | Maximum number of issues to return. No pagination — raise this instead.                                                                                           |
-| `sortBy`     | `created` \| `updated` \| `comments` | `updated`                   | What to sort on.                                                                                                                                                  |
-| `sortOrder`  | `asc` \| `desc`                      | `desc`                      | Sort direction.                                                                                                                                                   |
+| Parameter   | Type                                 | Default   | Description                                                                                                                                                       |
+| ----------- | ------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search`    | string, optional                     | —         | GitHub issue search syntax. Bare words match title/body/comments; qualifiers narrow further (`label:bug`, `assignee:@me`, `milestone:v2`, `created:>2026-01-01`). |
+| `state`     | `open` \| `closed` \| `all`          | `open`    | Which issues to include.                                                                                                                                          |
+| `limit`     | integer, 1–100                       | `30`      | Maximum number of issues. Single page, no pagination — raise this instead.                                                                                        |
+| `sortBy`    | `created` \| `updated` \| `comments` | `updated` | What to sort on.                                                                                                                                                  |
+| `sortOrder` | `asc` \| `desc`                      | `desc`    | Sort direction.                                                                                                                                                   |
+
+The repository, the state and the exclusion of pull requests are applied for you — don't
+repeat them in `search`.
 
 **Example prompts**
 
@@ -42,7 +55,7 @@ not returned — use `get_github_issue` to read a specific issue's content.
 >
 > _List all issues on DiabdataApp/diab-data-android._
 
-**Response shape**
+**Response**
 
 ```json
 {
@@ -52,7 +65,6 @@ not returned — use `get_github_issue` to read a specific issue's content.
     {
       "number": 42,
       "title": "Crash on glucose import",
-      "url": "https://github.com/DiabdataApp/diab-data-android/issues/42",
       "state": "open",
       "labels": ["bug"],
       "assignees": ["fcossu"],
@@ -61,33 +73,29 @@ not returned — use `get_github_issue` to read a specific issue's content.
         "title": "v1.2",
         "state": "open",
         "description": null,
-        "openIssues": 4,
-        "closedIssues": 11,
-        "dueOn": null,
-        "closedAt": null,
-        "url": "https://github.com/DiabdataApp/diab-data-android/milestone/3"
+        "dueOn": null
       }
     }
   ]
 }
 ```
 
-When `totalCount` and `returned` differ, results are truncated — raise `limit` to get more.
-When the search timed out, `incompleteResults: true` is added to the response.
+When `totalCount` and `returned` differ, the page is truncated — raise `limit`. When the
+search timed out, `incompleteResults: true` is added.
+
+GitHub rate-limits search to about 30 calls per minute, so one well-targeted search beats
+several broad ones.
 
 ---
 
 ### `get_github_issue`
 
-Reads a single issue by its number, including the body that `list_github_issues` leaves
-out. Use `list_github_issues` first when the number is not already known. Comments are
-not returned.
+Reads a single issue by number, including the body that `list_github_issues` leaves out.
+Use `list_github_issues` first when the number isn't known. Comments are not returned.
 
-| Parameter    | Type             | Default                     | Description                       |
-| ------------ | ---------------- | --------------------------- | --------------------------------- |
-| `owner`      | string, optional | `GITHUB_DEFAULT_OWNER`      | Repository owner.                 |
-| `repository` | string, optional | `GITHUB_DEFAULT_REPOSITORY` | Repository name.                  |
-| `number`     | integer          | —                           | Issue number, as shown on GitHub. |
+| Parameter | Type    | Description                       |
+| --------- | ------- | --------------------------------- |
+| `number`  | integer | Issue number, as shown on GitHub. |
 
 **Example prompts**
 
@@ -95,7 +103,7 @@ not returned.
 >
 > _What does issue 42 say?_
 
-**Response shape**
+**Response**
 
 ```json
 {
@@ -109,27 +117,64 @@ not returned.
 }
 ```
 
-`body` is the issue description in Markdown, or `null` when empty.
+`body` is Markdown, or `null` when empty.
+
+---
+
+### `get_github_milestone`
+
+Reads a single milestone by its number.
+
+| Parameter | Type    | Description                                        |
+| --------- | ------- | -------------------------------------------------- |
+| `number`  | integer | Milestone number, as shown in the milestone's URL. |
+
+**Example prompts**
+
+> _What's in milestone 3?_
+>
+> _When is milestone 2 due?_
+
+**Response**
+
+```json
+{
+  "number": 3,
+  "title": "v1.2",
+  "state": "open",
+  "description": "Import pipeline hardening",
+  "dueOn": "2026-09-30T07:00:00Z"
+}
+```
+
+`dueOn` is an ISO 8601 timestamp, or `null` when no due date is set.
+
+---
+
+### `list_github_milestones_by_repo`
+
+**Work in progress.** The file exists and the tool is registered, but it is still the
+scaffold: it takes a `number` parameter and calls the *issue* endpoint. Don't rely on it
+until it is wired to `octokit.rest.issues.listMilestones`.
 
 ---
 
 ## Configuration
 
-Copy the template and fill it in:
-
 ```bash
 cp .env.example .env
 ```
 
-| Variable                    | Purpose                                                                                                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GITHUB_TOKEN`              | Personal access token. Without it you are limited to public repos and 60 requests/hour. A classic token with `repo` (or fine-grained _Issues: read_) is enough. |
-| `GITHUB_DEFAULT_OWNER`      | Owner used when the model does not provide one.                                                                                                                 |
-| `GITHUB_DEFAULT_REPOSITORY` | Repository used when the model does not provide one. Must belong to `GITHUB_DEFAULT_OWNER`.                                                                     |
-| `GITHUB_DEFAULT_USERNAME`   | GitHub login substituted for the `@me` assignee sentinel in search queries.                                                                                     |
+| Variable                    | Purpose                                                                                                                                                      |
+| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GITHUB_TOKEN`              | Personal access token. Without it you're limited to public repos and 60 requests/hour. A classic token with `repo` (or fine-grained _Issues: read_) is enough. |
+| `GITHUB_DEFAULT_OWNER`      | Owner used when a call omits it.                                                                                                                             |
+| `GITHUB_DEFAULT_REPOSITORY` | Repository used when a call omits it. Must belong to `GITHUB_DEFAULT_OWNER`.                                                                                 |
+| `GITHUB_DEFAULT_USERNAME`   | GitHub login the `@me` sentinel resolves to in search queries.                                                                                                |
 
-All variables are optional, but configuring the defaults lets you skip naming the
-repository in every prompt.
+All are optional, but setting the defaults is what lets you skip naming the repository in
+every prompt — they're also injected into the server instructions and the tool
+descriptions, so the model stops asking.
 
 ---
 
@@ -139,32 +184,11 @@ From the repository root:
 
 ```bash
 bun install
-node scripts/setup-tools.mjs --write
-```
-
-Or to register only this tool:
-
-```bash
 node scripts/setup-tools.mjs --only github --write
 ```
 
----
-
-## Register in LM Studio by hand
-
-Add this to `~/.lmstudio/mcp.json`, replacing `/abs/path` with the absolute path to your
-local clone:
-
-```json
-{
-  "mcpServers": {
-    "github": {
-      "command": "bun",
-      "args": ["/abs/path/llm_tools/tools/github/src/index.ts"]
-    }
-  }
-}
-```
+To register it by hand instead, see
+[scripts/README.md](../../scripts/README.md#registering-a-server-by-hand).
 
 ---
 
@@ -172,43 +196,62 @@ local clone:
 
 ```
 tools/github/
-├── .env.example                # credentials template — copy to .env
-├── tool.json                   # install / launch contract for the root script
+├── .env.example                    # credentials template — copy to .env
+├── tool.json                       # install / launch contract
 ├── package.json
 ├── tsconfig.json
+├── scripts/
+│   └── add-new-implementation.mjs  # scaffolds a new tool in the toolbox
 └── src/
-    ├── index.ts                # server bootstrap, config and tool registration
-    ├── metadata.ts             # constants (name, version, API defaults)
-    ├── server_instructions.ts  # system prompt injected into the MCP session
-    ├── models/                 # compact domain types handed to the LLM
+    ├── index.ts                    # bootstrap: .env → ServerConfig → tool registration
+    ├── metadata.ts                 # name, version, API defaults
+    ├── server_instructions.ts      # system prompt injected into the MCP session
+    ├── models/                     # GitHub API shapes + the compact shapes sent to the LLM
     │   ├── github_issues.ts
     │   └── github_milestones.ts
-    ├── mappers/                # GitHub API payload → compact model
+    ├── mappers/
     │   └── github_compact_mappers.ts
     ├── utils/
     │   └── github_search_query.ts  # builds the GitHub search query string
     └── toolbox/
-        ├── index.ts            # registers all tools with the MCP server
+        ├── index.ts                # TOOL_INSTANCES
         └── tools/
             ├── list_github_issues_by_repo.ts
-            └── get_github_issue.ts
+            ├── get_github_issue.ts
+            ├── get_github_milestone.ts
+            └── list_github_milestones_by_repo.ts
 ```
+
+---
+
+## Adding a tool
+
+```bash
+node tools/github/scripts/add-new-implementation.mjs close_github_issue \
+  --description "Close a single issue of a GitHub repository by its number."
+```
+
+Run from the repository root. It writes `src/toolbox/tools/<tool_name>.ts` from the
+server's own template — owner/repository parameters, `.env` fallbacks and error handling
+already in place — and registers the export in `src/toolbox/index.ts`.
+
+Then replace the two `TODO`s: the `inputSchema` parameters, and the API call plus its
+mapping into a compact shape. Finally document the tool in this README.
 
 ---
 
 ## Development
 
-Exercise the tools through the MCP Inspector without going through LM Studio:
+Exercise the tools through the MCP Inspector, without going through LM Studio:
 
 ```bash
 npx @modelcontextprotocol/inspector bun run src/index.ts
 ```
 
-Or start the server directly — it will wait for stdio traffic:
+Or start the server directly — it waits for stdio traffic:
 
 ```bash
 bun run start
 ```
 
-After changing a tool, restart the server from LM Studio to pick up the changes.
-No build step is needed — Bun runs TypeScript directly.
+No build step; restart the server from LM Studio to pick up changes.
