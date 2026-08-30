@@ -1,0 +1,46 @@
+{
+  "_comment": "Expected tool result for the scenario, derived from ../../fixtures/github/issue-list.json by mapGithubIssue. Synthetic data only. Nothing consumes this today - see ../../overview.md (status: planned).",
+  "totalCount": 3,
+  "returned": 3,
+  "issues": [
+    {
+      "number": 42,
+      "title": "Crash on glucose import",
+      "state": "open",
+      "labels": ["bug", "priority:high"],
+      "assignees": ["example-user"],
+      "milestone": {
+        "number": 3,
+        "title": "v1.2",
+        "state": "open",
+        "description": "Import pipeline hardening",
+        "dueOn": "2026-09-30T07:00:00Z"
+      }
+    },
+    {
+      "number": 41,
+      "title": "Add CSV export",
+      "state": "open",
+      "labels": ["enhancement"],
+      "assignees": [],
+      "milestone": null
+    },
+    {
+      "number": 37,
+      "title": "Typo in onboarding copy",
+      "state": "open",
+      "labels": [],
+      "assignees": [],
+      "milestone": null
+    }
+  ],
+  "_assertions": [
+    "assignees is [] on issues 41 and 37 - the search endpoint omits the field entirely, the mapper normalises it",
+    "the nameless label on issue 37 is dropped by mapGithubLabelNames, leaving []",
+    "milestone.dueOn is renamed from the API's due_on",
+    "no body field appears anywhere - list_github_issues never returns bodies",
+    "no html_url, open_issues, closed_issues or closed_at - dropped by the mappers",
+    "totalCount equals returned, so the page is not truncated",
+    "incompleteResults is absent, not false - it appears only when true"
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "_comment": "Expected tool results for the scenario, derived from ../../fixtures/github/milestone-list.json and milestone-detail.json by mapGithubMilestone. Synthetic data only. Nothing consumes this today - see ../../overview.md (status: planned).",
+  "step_1_list_github_milestones_by_repo": {
+    "_arguments": { "state": "all" },
+    "returned": 4,
+    "truncated": false,
+    "milestones": [
+      {
+        "number": 3,
+        "title": "v1.2",
+        "state": "open",
+        "description": "Import pipeline hardening",
+        "dueOn": "2026-09-30T07:00:00Z"
+      },
+      {
+        "number": 4,
+        "title": "Backlog",
+        "state": "open",
+        "description": null,
+        "dueOn": null
+      },
+      {
+        "number": 2,
+        "title": "v1.1",
+        "state": "closed",
+        "description": "Offline sync",
+        "dueOn": "2026-06-15T07:00:00Z"
+      },
+      {
+        "number": 1,
+        "title": "v1.0",
+        "state": "closed",
+        "description": "First release",
+        "dueOn": "2026-03-01T08:00:00Z"
+      }
+    ]
+  },
+  "step_2_get_github_milestone": {
+    "_arguments": { "number": 3 },
+    "number": 3,
+    "title": "v1.2",
+    "state": "open",
+    "description": "Import pipeline hardening",
+    "dueOn": "2026-09-30T07:00:00Z",
+    "openIssues": 4,
+    "closedIssues": 11
+  },
+  "_assertions": [
+    "step 1 carries no totalCount - the milestones endpoint reports no total, unlike search",
+    "truncated is false because 4 rows came back against the default limit of 60",
+    "dueOn is renamed from the API's due_on in both steps",
+    "description and dueOn are null on milestone 4, carried through rather than omitted",
+    "no open_issues, closed_issues, closed_at or html_url appear in step 1 - the compact shape drops them",
+    "openIssues and closedIssues appear ONLY in step 2 - this is the whole difference between the two tools",
+    "the number passed to step 2 is 3, read from the row whose title is v1.2, never guessed",
+    "milestone 3 here is a different object from issue 3 in issue-list.json - the sequences are unrelated",
+    "milestone 1 is closed with openIssues outstanding, so closed does not imply complete"
+  ]
+}

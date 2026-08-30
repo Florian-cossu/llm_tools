@@ -1,0 +1,19 @@
+{
+  "_comment": "Input descriptor for a future eval runner. Nothing consumes this today - see ../../overview.md (status: planned).",
+  "scenario": "github-list-issues",
+  "server": "github",
+  "prompt": "List the open issues.",
+  "config": {
+    "defaultOwner": "example-org",
+    "defaultRepository": "example-repo",
+    "defaultUsername": "example-user"
+  },
+  "expectedToolCall": {
+    "name": "list_github_issues",
+    "arguments": {
+      "state": "open"
+    },
+    "argumentsMustNotContain": ["owner", "repository"]
+  },
+  "fixture": "../../fixtures/github/issue-list.json"
+}

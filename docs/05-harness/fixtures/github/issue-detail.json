@@ -1,0 +1,31 @@
+{
+  "_comment": "SYNTHETIC fixture - a GET /repos/{owner}/{repo}/issues/{n} response. Never captured from a real repository. Consumed by nothing today; see ../../overview.md.",
+  "_quirks": {
+    "assignees": "present as [] here, unlike the search endpoint which omits the key - the inconsistency the mapper absorbs.",
+    "labels": "returned as objects; other endpoints return bare strings, which mapGithubLabelNames also accepts.",
+    "body": "Markdown, and may be null on a body-less issue - the detail shape adds this field, which no list_* tool returns."
+  },
+  "number": 42,
+  "title": "Crash on glucose import",
+  "html_url": "https://github.com/example-org/example-repo/issues/42",
+  "state": "open",
+  "body": "## Steps to reproduce\n\n1. Open the import screen\n2. Select a CSV exported before 2026-01\n3. Confirm\n\n**Expected:** rows are imported.\n**Actual:** the app closes without a message.\n",
+  "labels": [
+    { "name": "bug" },
+    { "name": "priority:high" }
+  ],
+  "assignees": [
+    { "login": "example-user" }
+  ],
+  "milestone": {
+    "number": 3,
+    "title": "v1.2",
+    "state": "open",
+    "description": "Import pipeline hardening",
+    "open_issues": 4,
+    "closed_issues": 11,
+    "due_on": "2026-09-30T07:00:00Z",
+    "closed_at": null,
+    "html_url": "https://github.com/example-org/example-repo/milestone/3"
+  }
+}

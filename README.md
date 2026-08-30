@@ -2,26 +2,53 @@
 
 A personal collection of **local MCP servers** (Model Context Protocol) that add custom
 tools to a local LLM runtime — primarily [LM Studio](https://lmstudio.ai), but any
-MCP-compatible client (Claude Code, Claude Desktop, Cline, …) can use them.
+MCP-compatible client (Claude Code, Claude Desktop, Cline, …) works.
 
-Each tool lives under `tools/`, is written in TypeScript, talks to the client over
-**stdio**, and runs entirely on your machine via [Bun](https://bun.sh): no proxy, no
-hosted gateway, your credentials stay in a local `.env`.
+Each server lives under `tools/`, is written in TypeScript, talks to the client over
+**stdio** and runs entirely on your machine via [Bun](https://bun.sh): no proxy, no hosted
+gateway, credentials stay in a local `.env`.
 
 > **Heads up:** tool calling only works with models that support it. In LM Studio, look
-> for the **tool use / function calling** badge on the model card (e.g. Qwen 3, Llama 3.x,
-> Mistral, Gemma 4). A model without that capability will simply ignore the tools.
+> for the **tool use / function calling** badge on the model card (Qwen 3, Llama 3.x,
+> Mistral, Gemma 4, …). A model without it silently ignores the tools.
 
 ---
 
 ## Available tools
 
-| Tool                               | Version | Description                      | Tools exposed                                    |
-|------------------------------------|---------|----------------------------------|--------------------------------------------------|
-| [github](tools/github/README.md)   | 1.3.0   | MCP server for managing GitHub issues | `list_github_issues_by_repo`, `get_github_issue` |
+| Tool                             | Version | Description                             | Tools exposed                                                                                       |
+| -------------------------------- | ------- | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [github](tools/github/README.md) | 1.4.0   | GitHub issues and milestones, read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones_by_repo` |
 
-Each folder has its own README covering the tools it exposes, its parameters and its
-configuration. This file only covers what is common to all of them.
+---
+
+## Requirements
+
+- **Bun 1.3+** — `curl -fsSL https://bun.sh/install | bash`
+- **LM Studio 0.3.17+** (the release that introduced MCP support), or any other
+  MCP-compatible client
+
+---
+
+## Getting started
+
+```bash
+git clone <this-repo> llm_tools
+cd llm_tools
+
+bun install                          # installs every workspace in one pass
+node scripts/setup-tools.mjs --write # registers every server in ~/.lmstudio/mcp.json
+```
+
+Then give each server its credentials:
+
+```bash
+cp tools/github/.env.example tools/github/.env
+# edit the file and fill in your values
+```
+
+`.env` files are git-ignored (only `.env.example` is tracked), so tokens never leave your
+machine. Restart the servers from LM Studio after any change.
 
 ---
 
@@ -29,186 +56,114 @@ configuration. This file only covers what is common to all of them.
 
 ```
 llm_tools/
-├── README.md                   # you are here — catalogue + shared setup
-├── package.json                # Bun workspace root
-├── bun.lock                    # single lockfile for all tools
-├── tsconfig.json               # shared TypeScript config
-├── scripts/
-│   ├── setup-tools.mjs         # installs and registers every tool in LM Studio
-│   └── create-tool.mjs         # scaffolds a new tool from a template
-└── tools/
-    ├── shared/                 # shared utilities (@llm-tools/shared)
-    └── github/                 # one folder = one MCP server
-        └── tool.json           # how to install and launch this server
+├── README.md          # you are here — catalogue + setup
+├── CLAUDE.md          # Claude context file
+├── docs/              # architecture, contracts, workflows, harness
+├── package.json       # Bun workspace root
+├── tsconfig.json      # shared TypeScript config
+├── scripts/           # setup-tools.mjs, create-tool.mjs — see scripts/README.md
+└── tools/             # one folder = one MCP server — see tools/README.md
+    ├── shared/        # @llm-tools/shared, used by every server
+    └── github/
 ```
 
----
-
-## Requirements
-
-- **Bun 1.3+** — install with `curl -fsSL https://bun.sh/install | bash`
-- **LM Studio 0.3.17 or later** (the version that introduced MCP support), or any other
-  MCP-compatible client
+- **[scripts/README.md](scripts/README.md)** — the setup and scaffolding scripts, their
+  flags, and how to register a server by hand when something misbehaves.
+- **[tools/README.md](tools/README.md)** — the anatomy of a server, the `tool.json`
+  manifest, the shared package and the conventions for writing tools local models
+  actually call correctly.
 
 ---
 
-## Getting started
+## Documentation
 
-Clone the repository, install all dependencies and register the tools in LM Studio:
+`docs/` is an Obsidian vault. Every note carries frontmatter (`type`, `status`,
+`scope`, `summary`, `read_when`, `code_refs`) so a reader — human or agent — can
+tell what a note is and whether to open it before opening it.
+
+**Start at the [documentation index](docs/00-index.md)** and follow its
+*Route by task* table.
+
+| Section | Holds |
+| --- | --- |
+| [Conventions](docs/00-conventions.md) | Frontmatter schema and linking rules |
+| [Context](docs/01-context/README.md) | Purpose, goals and non-goals, constraints, glossary |
+| [Architecture](docs/02-architecture/README.md) | How the pieces fit, data flows, security model |
+| [Decisions](docs/03-decisions/README.md) | ADRs — the rationale |
+| [Contracts](docs/04-contracts/README.md) | MCP, tool, agent, schema and security contracts |
+| [Harness](docs/05-harness/README.md) | Testing, evals, failure modes — mostly *planned* |
+| [Workflows](docs/06-workflows/README.md) | Setup, debugging, validation |
+
+> A note marked `status: planned` describes intent, not behaviour that exists.
+
+Validate the vault (frontmatter, links, code references) with:
 
 ```bash
-git clone <this-repo> llm_tools
-cd llm_tools
-
-bun install
-node scripts/setup-tools.mjs --write
+node scripts/check-docs.mjs
 ```
-
-`bun install` installs dependencies for every workspace in one pass. The setup script
-then walks every tool directory and merges a ready-to-use `mcp.json` fragment into
-`~/.lmstudio/mcp.json`.
-
-Each tool still needs its credentials:
-
-```bash
-cp tools/github/.env.example tools/github/.env
-# then edit the file and fill in your values
-```
-
-`.env` files are git-ignored (only `.env.example` is tracked), so your tokens never leave
-your machine.
 
 ---
 
-## Setup script options
+## Security
 
-| Option           | Effect                                                                                             |
-|------------------|----------------------------------------------------------------------------------------------------|
-| `--only <name>`  | Restrict to one tool directory. Repeatable.                                                        |
-| `--dev`          | Emit the "run from TypeScript sources" launch command (same as default with Bun).                  |
-| `--skip-install` | Don't run the setup step.                                                                          |
-| `--skip-build`   | Don't run the build step.                                                                          |
-| `--json-only`    | Print the fragment only — no setup, no build. Logs go to stderr, so this is pipeable.              |
-| `--write`        | Merge into `~/.lmstudio/mcp.json`. The existing file is backed up and other servers are preserved. |
-| `-h`, `--help`   | Show the help.                                                                                     |
-
----
-
-## Registering a server in LM Studio by hand
-
-This is what `scripts/setup-tools.mjs` automates — useful to know when something
-misbehaves.
-
-1. **Open the MCP config** in LM Studio: right sidebar → **Program** → _Install_ →
-   **Edit `mcp.json`**. (The file lives at `~/.lmstudio/mcp.json`.)
-
-2. **Register the server** with absolute paths, where `/abs/path` stands for the absolute
-   path to your local clone:
-
-   ```json
-   {
-     "mcpServers": {
-       "github": {
-         "command": "bun",
-         "args": ["/abs/path/llm_tools/tools/github/src/index.ts"]
-       }
-     }
-   }
-   ```
-
-3. **Save.** LM Studio starts the server and the tool appears in the chat's plugin
-   picker.
-
-4. **Load a tool-capable model** and ask for something the tool covers.
-
-### If it doesn't show up
-
-- Check the path in `mcp.json` is absolute and that `src/index.ts` exists.
-- Check LM Studio's MCP logs — a crash on startup is usually a missing `.env` or a
-  misconfigured variable.
-- Make sure the loaded model actually advertises tool support.
-- Anything the server writes to `stdout` that isn't MCP protocol will break the
-  transport — keep debug logging on `stderr`.
-
----
-
-## Local development & testing
-
-Run a server against the official MCP Inspector without going through LM Studio:
-
-```bash
-npx @modelcontextprotocol/inspector bun run tools/github/src/index.ts
-```
-
-Or start it directly — it will wait for stdio traffic:
-
-```bash
-bun run start:github
-```
+- Never commit `.env` files.
+- Never put credentials in documentation, fixtures, logs, or test snapshots.
+- Use synthetic or anonymized data in fixtures.
+- Keep tools read-only unless write access is explicitly reviewed.
+- Review tool permissions before registering a server in an MCP client.
 
 ---
 
 ## Adding a new tool
 
-Use the scaffolding script to generate a ready-to-use skeleton:
-
 ```bash
 node scripts/create-tool.mjs <tool-name> --description "What it does"
 ```
 
-This creates the full directory structure under `tools/<tool-name>/` with a working
-`index.ts`, `metadata.ts`, `server_instructions.ts`, a toolbox with an example tool,
-`package.json`, `tool.json`, `tsconfig.json` and `.env.example`.
-
-Then:
-
-1. Fill in `tools/<tool-name>/.env.example`, then copy it to `.env`.
-2. Implement your tools in `src/toolbox/tools/`.
-3. Register them in `src/toolbox/index.ts`.
-4. Run `node scripts/setup-tools.mjs --write` to register the server in LM Studio.
-5. Add a row to the [Available tools](#available-tools) table above.
-6. Add a `README.md` in the tool folder.
-
-A few guidelines for writing tools for local models:
-
-- **Write descriptions for the LLM, not for humans.** The tool and parameter descriptions
-  are the main signal the model uses to decide when and how to call a tool.
-- **State fallbacks explicitly.** Phrases like _"Do not ask for owner or repository when
-  defaults are configured"_ noticeably reduce useless clarifying questions from smaller
-  models.
-- **Keep responses compact.** Local models have small context windows. Map away every
-  field the model doesn't need; consider separate list and detail tools.
-- **Never build.** Bun runs TypeScript directly — no compilation step needed.
-- **Shared utilities** live in `tools/shared` and are available as `@llm-tools/shared`.
+This scaffolds a working server under `tools/<tool-name>/`. See
+[tools/README.md](tools/README.md) for what to do next.
 
 ---
 
-## The `tool.json` manifest
+## Validation
 
-Each tool declares how it is installed and launched, keeping the root script
-runtime-agnostic — a Python or Go MCP server drops in without touching
-`scripts/setup-tools.mjs`.
+Before opening a change:
 
-```json
-{
-  "mcpServerName": "github",
-  "setup": "bun install",
-  "build": null,
-  "command": "bun",
-  "args": ["run", "src/index.ts"],
-  "dev": {
-    "command": "bun",
-    "args": ["run", "src/index.ts"]
-  }
-}
+```bash
+bun run test                  # clean reinstall + docs validation. Runs no tests
+bun run start:github          # must start silently and wait on stdio
+npx @modelcontextprotocol/inspector bun run tools/github/src/index.ts
 ```
 
-| Field           | Meaning                                                                                                     |
-|-----------------|-------------------------------------------------------------------------------------------------------------|
-| `mcpServerName` | Key used in `mcp.json`. Defaults to the `name` in `package.json`, then the folder name.                     |
-| `setup`         | Shell command for the install step. `null` means "no setup step".                                           |
-| `build`         | Shell command for the build step. `null` means "no build step".                                             |
-| `command`       | Executable the client launches. Bare names hit `PATH`.                                                      |
-| `args`          | Arguments passed to it. Any value containing a `/` is turned into an absolute path.                         |
-| `dev`           | Alternative `command` / `args` used by `--dev`.                                                             |
-| `env`           | Extra environment variables to write into the `mcp.json` entry. Optional — secrets belong in `.env`.        |
+> **`bun run test` is not `bun test`.** The script above reinstalls from clean
+> and validates the docs vault. The **`bun test` runner** matches zero files and
+> exits successfully having verified nothing — there is no test suite yet. Use
+> the manual checklist in [testing](docs/06-workflows/testing.md) until one
+> exists.
+
+For a new tool, verify:
+
+- the server starts without credentials leaking to stdout;
+- the tool appears with the expected public name;
+- invalid parameters produce a useful error;
+- the result is compact and structured;
+- the tool does not perform unexpected writes.
+
+---
+
+## Local development
+
+Run any server against the official MCP Inspector, without going through LM Studio:
+
+```bash
+npx @modelcontextprotocol/inspector bun run tools/github/src/index.ts
+```
+
+Or start it directly — it waits for stdio traffic:
+
+```bash
+bun run start:github
+```
+
+No build step: Bun runs TypeScript directly. After changing a tool, restart its server
+from LM Studio to pick up the changes.

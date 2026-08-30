@@ -2,6 +2,8 @@ import { McpServer } from "@modelcontextprotocol/server";
 import { ServerConfig } from "../index.js";
 import { listGithubIssuesByRepoTool } from "./tools/list_github_issues_by_repo.js";
 import { getGithubIssue } from "./tools/get_github_issue.js";
+import { getGithubMilestone } from "./tools/get_github_milestone.js";
+import { listGithubMilestonesByRepo } from "./tools/list_github_milestones_by_repo.js";
 
 /**
  * Registers one tool on the server.
@@ -21,6 +23,8 @@ export type ToolInstance = (
  * `ToolInstance`, then add it to this list. Nothing else needs to change.
  */
 export const TOOL_INSTANCES: ToolInstance[] = [
+  getGithubIssue,
+  getGithubMilestone,
   listGithubIssuesByRepoTool,
-  getGithubIssue
+  listGithubMilestonesByRepo,
 ];
