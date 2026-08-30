@@ -7,6 +7,7 @@ orchestrator itself never needs installing or building.
 | ------------------------------------------ | --------------------------------------------------- |
 | [setup-tools.mjs](setup-tools.mjs)         | Installs, builds and registers every server in LM Studio |
 | [create-tool.mjs](create-tool.mjs)         | Scaffolds a new MCP server under `tools/`           |
+| [check-docs.mjs](check-docs.mjs)           | Validates the `docs/` vault: frontmatter, links, code refs |
 
 ---
 
@@ -103,3 +104,28 @@ misbehaves.
 - Make sure the loaded model actually advertises tool support.
 - Anything a server writes to `stdout` that isn't MCP protocol breaks the transport —
   keep debug logging on `stderr`.
+
+---
+
+## `check-docs.mjs`
+
+Validates the `docs/` Obsidian vault against
+[docs/00-conventions.md](../docs/00-conventions.md). Exits non-zero on any
+problem, so it works as a pre-commit or CI gate.
+
+```bash
+node scripts/check-docs.mjs
+node scripts/check-docs.mjs --quiet   # errors only
+```
+
+It checks three things:
+
+| Check | Catches |
+| ----- | ------- |
+| **Frontmatter** | Missing required fields; a `type`, `status` or `scope` outside the controlled vocabulary; a malformed `last_reviewed` date |
+| **Links** | Broken relative links, links to a directory instead of its index note, anchors that match no heading, and wikilinks (`[[…]]`), which break outside Obsidian |
+| **`code_refs`** | Frontmatter pointing at a file or directory that no longer exists — the doc↔code bridge going stale |
+
+Links inside fenced blocks and code spans are ignored, since those are
+illustrative rather than navigation. Anchors are resolved with GitHub's heading
+slug rule.

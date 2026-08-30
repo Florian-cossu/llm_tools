@@ -1,0 +1,57 @@
+{
+  "_comment": "SYNTHETIC fixture - a GET /search/issues response as GithubApiIssue[]. Never captured from a real repository. Deliberately awkward: see _quirks. Consumed by nothing today; see ../../overview.md.",
+  "_quirks": {
+    "issue-41": "assignees field is ABSENT entirely, not [] - the search endpoint omits it on unassigned issues. mapGithubIssue must normalise with ?? [].",
+    "issue-37": "assignees is explicitly null, and one label has no name - mapGithubLabelNames must drop it via isStringUsable.",
+    "pull_request": "no item carries a pull_request key, because is:issue excludes PRs before GitHub counts them."
+  },
+  "total_count": 3,
+  "incomplete_results": false,
+  "items": [
+    {
+      "number": 42,
+      "title": "Crash on glucose import",
+      "html_url": "https://github.com/example-org/example-repo/issues/42",
+      "state": "open",
+      "labels": [
+        { "name": "bug" },
+        { "name": "priority:high" }
+      ],
+      "assignees": [
+        { "login": "example-user" }
+      ],
+      "milestone": {
+        "number": 3,
+        "title": "v1.2",
+        "state": "open",
+        "description": "Import pipeline hardening",
+        "open_issues": 4,
+        "closed_issues": 11,
+        "due_on": "2026-09-30T07:00:00Z",
+        "closed_at": null,
+        "html_url": "https://github.com/example-org/example-repo/milestone/3"
+      }
+    },
+    {
+      "number": 41,
+      "title": "Add CSV export",
+      "html_url": "https://github.com/example-org/example-repo/issues/41",
+      "state": "open",
+      "labels": [
+        { "name": "enhancement" }
+      ],
+      "milestone": null
+    },
+    {
+      "number": 37,
+      "title": "Typo in onboarding copy",
+      "html_url": "https://github.com/example-org/example-repo/issues/37",
+      "state": "open",
+      "labels": [
+        { "name": "" }
+      ],
+      "assignees": null,
+      "milestone": null
+    }
+  ]
+}

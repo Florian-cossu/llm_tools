@@ -1,0 +1,42 @@
+# Scenario descriptor for a future eval runner. Nothing consumes this today.
+# See ../../overview.md (status: planned).
+id: github-list-issues
+title: List open issues without naming the repository
+status: planned
+server: github
+tool: list_github_issues
+tags:
+  - autonomy
+  - defaults
+  - read-only
+
+# The behaviour under test, in one line.
+asserts: >
+  With owner and repository configured in .env, the model calls
+  list_github_issues once, omits both parameters, and asks the user nothing.
+
+# Must all be set for the scenario to be valid.
+preconditions:
+  env:
+    - GITHUB_TOKEN
+    - GITHUB_DEFAULT_OWNER
+    - GITHUB_DEFAULT_REPOSITORY
+    - GITHUB_DEFAULT_USERNAME
+  model_requires_tool_calling: true
+  fresh_conversation: true
+  server_restarted_after_env_change: true
+
+prompt: "List the open issues."
+
+# Dimensions from ../../eval-rubric.md, 0-2 each.
+rubric:
+  dimensions: [D1, D2, D3, D4, D5, D6]
+  primary: D2          # autonomy - the reason this scenario exists
+  max_score: 12
+  passing_score: 10
+
+# Non-deterministic: score is only meaningful over several runs.
+runs_required: 3
+
+fixtures:
+  - ../../fixtures/github/issue-list.json

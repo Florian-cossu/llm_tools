@@ -1,0 +1,138 @@
+---
+type: contract
+status: active
+scope: github
+last_reviewed: 2026-08-30
+summary: The GitHub REST endpoints this server calls, their quirks, and the rate limits that shape tool design.
+read_when:
+  - adding a tool that calls the GitHub API
+  - a GitHub call behaves unexpectedly
+  - reasoning about rate limits or authentication
+code_refs:
+  - tools/github/src/toolbox/tools/
+  - tools/github/src/utils/github_search_query.ts
+  - tools/github/src/metadata.ts
+tags:
+  - mcp
+  - github
+  - read-only
+---
+
+# GitHub API contract
+
+Base URL `https://api.github.com`, accessed through **Octokit**, one instance
+per server on `config.octokit`. Authenticated with `GITHUB_TOKEN`, or
+unauthenticated when it is absent.
+
+## Endpoints in use
+
+| Octokit call | REST | Used by | Read-only |
+| --- | --- | --- | --- |
+| `search.issuesAndPullRequests` | `GET /search/issues` | `list_github_issues` | ✅ |
+| `issues.get` | `GET /repos/{owner}/{repo}/issues/{n}` | `get_github_issue` | ✅ |
+| `issues.getMilestone` | `GET /repos/{owner}/{repo}/milestones/{n}` | `get_github_milestone` | ✅ |
+| `issues.listMilestones` | `GET /repos/{owner}/{repo}/milestones` | *(needed by `list_github_milestones_by_repo`)* | ✅ |
+
+> [!warning]
+> `list_github_milestones_by_repo` currently calls **`issues.get`** — leftover
+> scaffold, and a bug. See [github server](../02-architecture/components/github-server.md#list_github_milestones_by_repo--scaffold).
+
+Every endpoint above is a read. Adding a mutating one requires an ADR
+superseding [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md).
+
+## Search, and why it is used for listing
+
+`list_github_issues` goes through **search**, not
+`GET /repos/{owner}/{repo}/issues`. The reason is pull requests: the issues
+endpoint returns them mixed in, so they must be filtered client-side — which
+corrupts the count, since the total reflects pre-filter results. Search takes
+`is:issue` as a *query term*, so PRs are excluded before counting and
+`totalCount` stays honest.
+
+### Query construction
+
+Built by [`buildIssueSearchQuery`](../../tools/github/src/utils/github_search_query.ts):
+
+```
+repo:{owner}/{repository} is:issue [state:{state}] [user search terms]
+```
+
+| Rule | Why |
+| --- | --- |
+| `is:issue` always present | Excludes pull requests before counting |
+| `state:all` is **never emitted** | **Not a valid GitHub qualifier.** Both states = omit it entirely |
+| User terms appended verbatim | Full GitHub search syntax stays available |
+| Repo/state/PR-exclusion applied automatically | The description tells the model not to repeat them |
+
+`advanced_search: "true"` is passed on the call.
+
+### Parameters
+
+| Octokit | Source | Range |
+| --- | --- | --- |
+| `q` | `buildIssueSearchQuery` | — |
+| `sort` | `sortBy` | `created` \| `updated` \| `comments` |
+| `order` | `sortOrder` | `asc` \| `desc` |
+| `per_page` | `limit` | 1–100, default 30 |
+
+**One page only.** No `page` parameter is sent and no cursor is exposed — see
+[data flows](../02-architecture/data-flows.md#truncation-not-pagination).
+
+### Response fields consumed
+
+`total_count` → `totalCount`; `incomplete_results` → `incompleteResults` (only
+when true — it means the *search timed out*, not that the page was truncated);
+`items` → mapped to compact issues.
+
+## Rate limits
+
+| Limit | Authenticated | Unauthenticated |
+| --- | --- | --- |
+| **Search** | **~30 req/min** | 10 req/min |
+| Core (`issues.get`, …) | 5 000 req/h | 60 req/h |
+
+The search limit is the binding one and is **separate** from the core budget. It
+is stated in the `list_github_issues` description precisely because the model
+decides how many calls to make — see
+[agent contract](agent-contract.md#what-the-model-is-expected-to-do).
+
+The budget belongs to the token, so it is shared across every call in a session
+and across every client using that token
+([execution lifecycle](../02-architecture/components/execution-lifecycle.md#what-is-not-fixed)).
+
+## Authentication
+
+```ts
+const token = stringOrNull(process.env.GITHUB_TOKEN);
+const octokit = new Octokit({ auth: token });
+```
+
+`auth: null` is valid — the server **starts without a token** (S9 in the
+[server contract](mcp-server-contract.md)) and degrades to public repos at 60
+req/h. Scope needed: classic `repo`, or fine-grained **Issues: read**. See
+[security and secrets](security-and-secrets.md).
+
+## Quirks that have bitten
+
+| Quirk | Handling |
+| --- | --- |
+| `state:all` is not a qualifier | Omit the qualifier |
+| Search omits `assignees` entirely on unassigned issues; `issues.get` returns `[]` | Mapper normalises with `?? []` — [data schemas](data-schemas.md) |
+| `labels` is polymorphic (`string` or `{name}`) | `mapGithubLabelNames` accepts both |
+| Search returns PRs unless `is:issue` | Always in the query |
+| `incomplete_results` ≠ truncation | Surfaced as a distinct field |
+| Closed-as-completed vs closed-as-not-planned | Not distinguished; the description says so |
+
+## Error handling
+
+Octokit rejects on non-2xx. Every call is wrapped:
+
+```ts
+.catch((error: unknown) => {
+  const reason = error instanceof Error ? error.message : String(error);
+  throw new Error(`Unable to retrieve issue "${number}": ${reason}`);
+});
+```
+
+Status-code meanings and their model-facing messages:
+[failure modes](../05-harness/failure-modes.md).

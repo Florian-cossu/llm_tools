@@ -59,6 +59,8 @@ machine. Restart the servers from LM Studio after any change.
 ```
 llm_tools/
 ├── README.md          # you are here — catalogue + setup
+├── CLAUDE.md          # Claude context file
+├── docs/              # architecture, contracts, workflows, harness
 ├── package.json       # Bun workspace root
 ├── tsconfig.json      # shared TypeScript config
 ├── scripts/           # setup-tools.mjs, create-tool.mjs — see scripts/README.md
@@ -75,6 +77,45 @@ llm_tools/
 
 ---
 
+## Documentation
+
+`docs/` is an Obsidian vault. Every note carries frontmatter (`type`, `status`,
+`scope`, `summary`, `read_when`, `code_refs`) so a reader — human or agent — can
+tell what a note is and whether to open it before opening it.
+
+**Start at the [documentation index](docs/00-index.md)** and follow its
+*Route by task* table.
+
+| Section | Holds |
+| --- | --- |
+| [Conventions](docs/00-conventions.md) | Frontmatter schema and linking rules |
+| [Context](docs/01-context/README.md) | Purpose, goals and non-goals, constraints, glossary |
+| [Architecture](docs/02-architecture/README.md) | How the pieces fit, data flows, security model |
+| [Decisions](docs/03-decisions/README.md) | ADRs — the rationale |
+| [Contracts](docs/04-contracts/README.md) | MCP, tool, agent, schema and security contracts |
+| [Harness](docs/05-harness/README.md) | Testing, evals, failure modes — mostly *planned* |
+| [Workflows](docs/06-workflows/README.md) | Setup, debugging, validation |
+
+> A note marked `status: planned` describes intent, not behaviour that exists.
+
+Validate the vault (frontmatter, links, code references) with:
+
+```bash
+node scripts/check-docs.mjs
+```
+
+---
+
+## Security
+
+- Never commit `.env` files.
+- Never put credentials in documentation, fixtures, logs, or test snapshots.
+- Use synthetic or anonymized data in fixtures.
+- Keep tools read-only unless write access is explicitly reviewed.
+- Review tool permissions before registering a server in an MCP client.
+
+---
+
 ## Adding a new tool
 
 ```bash
@@ -83,6 +124,30 @@ node scripts/create-tool.mjs <tool-name> --description "What it does"
 
 This scaffolds a working server under `tools/<tool-name>/`. See
 [tools/README.md](tools/README.md) for what to do next.
+
+---
+
+## Validation
+
+Before opening a change:
+
+```bash
+bun run start:github          # must start silently and wait on stdio
+node scripts/check-docs.mjs   # docs vault still consistent
+npx @modelcontextprotocol/inspector bun run tools/github/src/index.ts
+```
+
+> **`bun test` currently matches zero files.** There is no test suite yet, so it
+> exits successfully having verified nothing. Use the manual checklist in
+> [testing](docs/06-workflows/testing.md) until one exists.
+
+For a new tool, verify:
+
+- the server starts without credentials leaking to stdout;
+- the tool appears with the expected public name;
+- invalid parameters produce a useful error;
+- the result is compact and structured;
+- the tool does not perform unexpected writes.
 
 ---
 

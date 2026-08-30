@@ -1,0 +1,243 @@
+{
+  "main": {
+    "id": "8d6abd669edf7569",
+    "type": "split",
+    "children": [
+      {
+        "id": "ee227be480514e05",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "5c9b63ee04650dca",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "00-index.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "00-index"
+            }
+          }
+        ]
+      },
+      {
+        "id": "96a465128bd96c15",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "04d027c49a19a247",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Graph view"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "5f48c5270db126e1",
+    "type": "split",
+    "children": [
+      {
+        "id": "d2830b03e2fdf85b",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "31040363c9d04ded",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Files"
+            }
+          },
+          {
+            "id": "76a46f9c0b7ca30c",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Search"
+            }
+          },
+          {
+            "id": "80b43e8a74c52f26",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-bookmark",
+              "title": "Bookmarks"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "f8d5f7896092867c",
+    "type": "split",
+    "children": [
+      {
+        "id": "616e0d60b5e387f5",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "122553d59bd4cfd7",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Backlinks"
+            }
+          },
+          {
+            "id": "f26722868e2bc7d0",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Outgoing links"
+            }
+          },
+          {
+            "id": "d8335e899fb61aa4",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Tags"
+            }
+          },
+          {
+            "id": "15fd538d1f0f36a0",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "All properties"
+            }
+          },
+          {
+            "id": "7b0819a32c79100d",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Outline"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Open quick switcher": false,
+      "graph:Open graph view": false,
+      "canvas:Create new canvas": false,
+      "daily-notes:Open today's daily note": false,
+      "templates:Insert template": false,
+      "command-palette:Open command palette": false,
+      "bases:Create new base": false
+    }
+  },
+  "active": "04d027c49a19a247",
+  "lastOpenFiles": [
+    "00-index.md",
+    "07-plans/current.md",
+    "06-workflows/README.md",
+    "05-harness/scenarios/README.md",
+    "05-harness/README.md",
+    "04-contracts/README.md",
+    "02-architecture/components/README.md",
+    "02-architecture/README.md",
+    "01-context/README.md",
+    "99-archive/README.md",
+    "90-generated/README.md",
+    "07-plans/archive/README.md",
+    "07-plans/README.md",
+    "00-conventions.md",
+    "05-harness/fixtures/github/README.md",
+    "02-architecture/components/github-server.md",
+    "05-harness/eval-rubric.md",
+    "03-decisions/ADR-0003-read-only-by-default.md",
+    "05-harness/evals/cases/github-list-issues.md",
+    "05-harness/fixtures/github/issue-detail.json",
+    "05-harness/fixtures/github/issue-list.json",
+    "05-harness/fixtures/github",
+    "05-harness/scenarios/github-list-issues/metadata.yml",
+    "05-harness/scenarios/github-list-issues/expected-output.json",
+    "05-harness/scenarios/github-list-issues/input.json",
+    "05-harness/scenarios/github-list-issues/scenario.md",
+    "05-harness/scenarios/github-list-issues",
+    "03-decisions/ADR-0004-server-per-integration.md",
+    "03-decisions/ADR-0003-read-only-by-deault.md",
+    "03-decisions/ADR-0002-bun-workspaces.md",
+    "03-decisions/ADR-0001-local-stdio-transport.md",
+    "02-architecture/components/execution-lifecycle.md",
+    "02-architecture/components/setup-and-registration.md",
+    "99-archive",
+    "90-generated",
+    "07-plans/archive"
+  ]
+}
