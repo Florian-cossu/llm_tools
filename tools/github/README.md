@@ -20,8 +20,8 @@ See the [root README](../../README.md) for requirements and setup, and
 | ------------------------------------------------------------------- | ---------------------------------------------- |
 | [`list_github_issues`](#list_github_issues)                         | Search issues, compact list, no bodies         |
 | [`get_github_issue`](#get_github_issue)                             | Read one issue, body included                  |
-| [`get_github_milestone`](#get_github_milestone)                     | Read one milestone by number                   |
-| [`list_github_milestones_by_repo`](#list_github_milestones_by_repo) | **Work in progress — not implemented yet**     |
+| [`get_github_milestone`](#get_github_milestone)                     | Read one milestone, issue counts included      |
+| [`list_github_milestones_by_repo`](#list_github_milestones_by_repo) | List milestones, compact, no counts            |
 
 Every tool takes `owner` and `repository`, both optional once the matching `.env` default
 is set, and both omitted from the tables below for brevity.
@@ -123,15 +123,19 @@ Use `list_github_issues` first when the number isn't known. Comments are not ret
 
 ### `get_github_milestone`
 
-Reads a single milestone by its number.
+Reads a single milestone by its number, including the issue counts that
+`list_github_milestones_by_repo` leaves out. Use it when you want a milestone's progress.
 
 | Parameter | Type    | Description                                        |
 | --------- | ------- | -------------------------------------------------- |
 | `number`  | integer | Milestone number, as shown in the milestone's URL. |
 
+> **Milestone numbers are not issue numbers.** Milestone 3 has nothing to do with issue 3
+> — they are separate sequences. Get the number from `list_github_milestones_by_repo`.
+
 **Example prompts**
 
-> _What's in milestone 3?_
+> _How far along is milestone 3?_
 >
 > _When is milestone 2 due?_
 
@@ -143,19 +147,68 @@ Reads a single milestone by its number.
   "title": "v1.2",
   "state": "open",
   "description": "Import pipeline hardening",
-  "dueOn": "2026-09-30T07:00:00Z"
+  "dueOn": "2026-09-30T07:00:00Z",
+  "openIssues": 4,
+  "closedIssues": 11
 }
 ```
 
-`dueOn` is an ISO 8601 timestamp, or `null` when no due date is set.
+`dueOn` is an ISO 8601 timestamp, or `null` when no due date is set. `description` is
+`null` when the milestone has none. The issues *in* the milestone are not returned — ask
+`list_github_issues` for `milestone:"v1.2"`.
 
 ---
 
 ### `list_github_milestones_by_repo`
 
-**Work in progress.** The file exists and the tool is registered, but it is still the
-scaffold: it takes a `number` parameter and calls the *issue* endpoint. Don't rely on it
-until it is wired to `octokit.rest.issues.listMilestones`.
+Lists a repository's milestones in compact form. Unlike `list_github_issues` this is a
+plain listing, not a search: GitHub's milestone endpoint takes no query, so there is no
+`search` parameter. Progress counts are not included — use `get_github_milestone` for
+one milestone's counts.
+
+| Parameter   | Type                          | Default  | Description                                                                       |
+| ----------- | ----------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `state`     | `open` \| `closed` \| `all`   | `open`   | Which milestones to include.                                                      |
+| `limit`     | integer, 1–100                | `60`     | Maximum number of milestones. Single page, no pagination — raise this instead.    |
+| `sortBy`    | `due_on` \| `completeness`    | —        | What to sort on. Omitted by default, which lets GitHub sort by `due_on`.          |
+| `sortOrder` | `asc` \| `desc`               | `desc`   | Sort direction. Use `asc` with `due_on` to see what's due next.                   |
+
+**Example prompts**
+
+> _List the open milestones._
+>
+> _What milestone is due next?_
+>
+> _Show me every milestone, closed ones included._
+
+**Response**
+
+```json
+{
+  "returned": 2,
+  "truncated": false,
+  "milestones": [
+    {
+      "number": 3,
+      "title": "v1.2",
+      "state": "open",
+      "description": "Import pipeline hardening",
+      "dueOn": "2026-09-30T07:00:00Z"
+    },
+    {
+      "number": 2,
+      "title": "v1.1",
+      "state": "closed",
+      "description": null,
+      "dueOn": null
+    }
+  ]
+}
+```
+
+There is **no `totalCount`** here, unlike `list_github_issues`: the milestone endpoint
+doesn't report one. `truncated` is `true` when the page came back full, meaning
+milestones were left out — raise `limit`.
 
 ---
 

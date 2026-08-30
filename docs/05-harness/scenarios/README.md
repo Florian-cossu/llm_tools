@@ -20,6 +20,7 @@ runner — **nothing consumes them today**
 | Scenario | Measures |
 | --- | --- |
 | [github-list-issues](github-list-issues/scenario.md) | **Autonomy** — the model lists open issues without asking which repository |
+| [github-milestone-progress](github-milestone-progress/scenario.md) | **Chaining** — the model resolves a milestone title to a number before reading it, rather than guessing |
 
 Scored with the [eval rubric](../eval-rubric.md). Evals are advisory and must
 never gate a commit.

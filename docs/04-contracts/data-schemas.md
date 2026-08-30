@@ -60,12 +60,20 @@ context window, and makes dropping a field a one-line change in one file.
 | `state` | `state` | |
 | `description` | `description` | `string \| null` |
 | `due_on` | `dueOn` | **Renamed** — ISO 8601 or `null` |
-| `open_issues`, `closed_issues` | — | Dropped |
+| `open_issues`, `closed_issues` | — | Dropped from the compact shape; **kept in the milestone detail** below |
 | `closed_at`, `html_url` | — | Dropped |
 
-`open_issues`/`closed_issues` would answer "how much is left in this milestone?"
-— worth reconsidering when `list_github_milestones_by_repo` is finished
-([current plan](../07-plans/current.md)).
+### Milestone detail
+
+`get_github_milestone` returns the compact milestone **plus `openIssues` and
+`closedIssues`** (from `open_issues` / `closed_issues`). It spreads
+`mapGithubMilestone` and adds the two counts, mirroring how `get_github_issue`
+adds `body`.
+
+The counts answer "how much is left in this milestone?", and they are what makes
+the `get_*` tool worth calling at all — without them it would return exactly the
+compact shape that `list_github_milestones_by_repo` already emits for every
+milestone ([T21](tool-contract.md#responses): `list_*` omits, `get_*` includes).
 
 ### Issue detail
 

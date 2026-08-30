@@ -1,12 +1,12 @@
 ---
 type: component
-status: draft
+status: active
 scope: github
 last_reviewed: 2026-08-30
-summary: The github MCP server - its four tools, its configuration, and the one that is still scaffold.
+summary: The github MCP server - its four tools, their response shapes, and its configuration.
 read_when:
   - working on any github tool
-  - checking which github capabilities exist and which are stubs
+  - checking which github capabilities exist
 code_refs:
   - tools/github/src/toolbox/index.ts
   - tools/github/src/toolbox/tools/
@@ -19,15 +19,11 @@ tags:
 
 # github server
 
-`@llm-tools/github` v1.3.0 — read-only access to GitHub issues and milestones.
+`@llm-tools/github` v1.4.0 — read-only access to GitHub issues and milestones.
 
 User-facing reference (parameters, example prompts, response samples):
 [`tools/github/README.md`](../../../tools/github/README.md). This note covers
 structure and status.
-
-> [!warning] `status: draft`
-> One of the four registered tools is still scaffold — see
-> [below](#list_github_milestones_by_repo--scaffold).
 
 ## Registered tools
 
@@ -39,7 +35,7 @@ Registration order is `TOOL_INSTANCES` in
 | `list_github_issues` | `listGithubIssuesByRepoTool` | `search.issuesAndPullRequests` | Complete |
 | `get_github_issue` | `getGithubIssue` | `issues.get` | Complete |
 | `get_github_milestone` | `getGithubMilestone` | `issues.getMilestone` | Complete |
-| `list_github_milestones_by_repo` | `listGithubMilestonesByRepo` | `issues.get` ← **wrong** | **Scaffold** |
+| `list_github_milestones_by_repo` | `listGithubMilestonesByRepo` | `issues.listMilestones` | Complete |
 
 > [!note]
 > The public tool name and the file name do not always match:
@@ -78,27 +74,47 @@ because the detail shape adds `body`. It still uses `mapGithubMilestone` and
 
 ## `get_github_milestone`
 
-Single milestone by number → `mapGithubMilestone`. Complete and correct, though
-a leftover `// TODO` comment above the call is stale, and its description is one
-short line where the other complete tools describe their response shape — worth
-bringing up to the [tool contract](../../04-contracts/tool-contract.md#descriptions)
-standard.
+Single milestone by number. Like `get_github_issue`, it spreads the shared
+mapper and **adds detail the list tool omits** — here `openIssues` and
+`closedIssues`, taken from `open_issues` / `closed_issues`. Without them the
+tool would return exactly what `list_github_milestones_by_repo` already
+returns, which is why the counts live in the detail shape rather than the
+compact one ([data schemas](../../04-contracts/data-schemas.md#milestone)).
 
-## `list_github_milestones_by_repo` — scaffold
+Its description states the trap that matters most: **milestone numbers are
+independent of issue numbers**, so milestone 1 is unrelated to issue 1. The
+issues *in* a milestone are not returned — that is
+`list_github_issues` with `milestone:"<title>"`.
 
-**Registered and callable, but wrong.** It is the untouched output of
-`add-new-implementation.mjs`:
+## `list_github_milestones_by_repo`
 
-- takes a `number` parameter described as *"the issue within its repository"*;
-- calls `octokit.rest.issues.get` — the **issue** endpoint;
-- returns the raw payload with no mapper;
-- has a truncated description ending in a bare colon.
+One page of milestones through `issues.listMilestones`, mapped with
+`mapGithubMilestone`.
 
-Because it is in `TOOL_INSTANCES`, the model can and will call it. Finishing it
-means: replace the schema with `state`/`sort`/`direction`/`limit`, call
-`octokit.rest.issues.listMilestones`, and map through `mapGithubMilestone`.
+- A **plain listing, not a search** — unlike `list_github_issues` there is no
+  `search` parameter, because the endpoint takes no query. The model narrows
+  with `state` and reads titles.
+- Envelope: `{ returned, truncated, milestones }`. **No `totalCount`** — see
+  [below](#no-totalcount-on-the-milestone-list).
+- `sortBy` is `due_on` | `completeness`, and is **optional**: omitting it lets
+  GitHub apply its own `due_on` default.
+- Defaults: `state=open`, `limit=60`, `sortOrder=desc`, the first two from
+  [`metadata.ts`](../../../tools/github/src/metadata.ts).
 
-Tracked in [current plan](../../07-plans/current.md).
+### No `totalCount` on the milestone list
+
+[T18](../../04-contracts/tool-contract.md#responses) asks lists for
+`{ totalCount, returned, …, items }`. This tool cannot honour it: `totalCount`
+in `list_github_issues` comes from the **search** endpoint's `total_count`, and
+`GET /repos/{owner}/{repo}/milestones` returns no equivalent. Emitting
+`totalCount === returned` would satisfy the letter of T18 while making
+truncation invisible, which is exactly what
+[T19](../../04-contracts/tool-contract.md#responses) forbids.
+
+So the envelope carries a boolean `truncated` instead, true when the page came
+back full. It over-reports by one case — a repository with exactly `limit`
+milestones — and that is the safe direction to be wrong in: the model raises
+`limit` and sees the same list again.
 
 ## Configuration
 
@@ -123,7 +139,8 @@ node tools/github/scripts/add-new-implementation.mjs <tool_name> \
 Run from the repo root. Writes the file from the server's own template and
 registers the export. Then replace the two `TODO`s — schema, and API call +
 mapping — and document it in the server README. `list_github_milestones_by_repo`
-is what happens when that second step is skipped.
+shipped registered with that second step skipped, and stayed a callable, wrong
+tool until it was finished; that is the failure this step exists to prevent.
 
 ## Related
 

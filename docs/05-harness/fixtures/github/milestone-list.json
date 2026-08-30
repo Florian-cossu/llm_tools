@@ -1,0 +1,58 @@
+{
+  "_comment": "SYNTHETIC fixture - a GET /repos/{owner}/{repo}/milestones response as GithubApiMilestone[]. Never captured from a real repository. Note the response is a BARE ARRAY: unlike /search/issues there is no envelope and no total_count, which is why list_github_milestones_by_repo emits `truncated` instead of `totalCount`. Deliberately awkward: see _quirks. Consumed by nothing today; see ../../overview.md.",
+  "_quirks": {
+    "no-envelope": "The real payload is the array below, not this object. The wrapper exists only to carry _comment and _quirks; a consumer must read `milestones`.",
+    "no-total": "GitHub sends no total_count and no incomplete_results here. There is nothing to map to totalCount - see ../../../04-contracts/github-api.md#listing-milestones.",
+    "milestone-3": "The ordinary case: description and due_on both set, work still open.",
+    "milestone-2": "state closed with closed_at set, and open_issues 0 - closed AND complete.",
+    "milestone-1": "state closed with open_issues 3 still outstanding. Closed does NOT mean delivered; the state description says so.",
+    "milestone-4": "description and due_on are both explicitly null - the compact shape must carry null through, not omit the keys.",
+    "numbering": "These numbers are the MILESTONE sequence. Milestone 3 is unrelated to issue 3 in issue-list.json, which is the trap both milestone tool descriptions warn about."
+  },
+  "milestones": [
+    {
+      "number": 3,
+      "title": "v1.2",
+      "state": "open",
+      "description": "Import pipeline hardening",
+      "open_issues": 4,
+      "closed_issues": 11,
+      "due_on": "2026-09-30T07:00:00Z",
+      "closed_at": null,
+      "html_url": "https://github.com/example-org/example-repo/milestone/3"
+    },
+    {
+      "number": 4,
+      "title": "Backlog",
+      "state": "open",
+      "description": null,
+      "open_issues": 27,
+      "closed_issues": 0,
+      "due_on": null,
+      "closed_at": null,
+      "html_url": "https://github.com/example-org/example-repo/milestone/4"
+    },
+    {
+      "number": 2,
+      "title": "v1.1",
+      "state": "closed",
+      "description": "Offline sync",
+      "open_issues": 0,
+      "closed_issues": 18,
+      "due_on": "2026-06-15T07:00:00Z",
+      "closed_at": "2026-06-14T16:22:41Z",
+      "html_url": "https://github.com/example-org/example-repo/milestone/2"
+    },
+    {
+      "number": 1,
+      "title": "v1.0",
+      "state": "closed",
+      "description": "First release",
+      "open_issues": 3,
+      "closed_issues": 40,
+      "due_on": "2026-03-01T08:00:00Z",
+      "closed_at": "2026-03-04T09:10:00Z",
+      "html_url": "https://github.com/example-org/example-repo/milestone/1"
+    }
+  ]
+}

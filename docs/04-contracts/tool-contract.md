@@ -106,12 +106,21 @@ at a different moment — see the
 | --- | --- |
 | T16 | `{ content: [{ type: "text", text: JSON.stringify(payload) }] }` |
 | T17 | The payload is a **compact shape** from `mappers/`, never a raw API response |
-| T18 | Lists return an envelope: `{ totalCount, returned, …, items }` |
-| T19 | Truncation is signalled, not hidden — `totalCount ≠ returned` |
+| T18 | Lists return an envelope: `{ totalCount, returned, …, items }` — see the exception below |
+| T19 | Truncation is signalled, not hidden — `totalCount ≠ returned`, or an explicit flag |
 | T20 | No pagination cursors. Raise `limit` instead |
 | T21 | `list_*` omits expensive fields (bodies); `get_*` includes them |
 
 Shapes: [data schemas](data-schemas.md).
+
+> [!note] When the endpoint has no total
+> T18 assumes the upstream API reports one. `list_github_milestones_by_repo`
+> calls a REST list endpoint that does not, so it emits
+> `{ returned, truncated, milestones }`. T19 is what actually matters — a
+> `totalCount` copied from `returned` would satisfy T18 while hiding truncation
+> entirely. **A list with no honest total carries a boolean `truncated`
+> instead.** Rationale:
+> [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-milestone-list).
 
 ## Errors
 
@@ -138,8 +147,9 @@ Catalogue: [failure modes](../05-harness/failure-modes.md).
 - Reshape a payload inline — that is a mapper's job.
 - Read `process.env` directly. Use `config`.
 - Hold state between calls.
-- Ship registered while still scaffold. `list_github_milestones_by_repo`
-  currently violates this — see [current plan](../07-plans/current.md).
+- Ship registered while still scaffold. `list_github_milestones_by_repo` did
+  exactly this and stayed callable-but-wrong until it was finished — the
+  cautionary case, not an open defect.
 
 ## Review checklist
 

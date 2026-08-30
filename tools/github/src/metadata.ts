@@ -9,3 +9,6 @@ export const GITHUB_API_BASE_URL = "https://api.github.com";
 
 export const DEFAULT_ISSUE_STATE = "open" as const;
 export const DEFAULT_ISSUE_LIMIT = 30;
+
+export const DEFAULT_MILESTONE_STATE = "open" as const;
+export const DEFAULT_MILESTONE_LIMIT = 60;

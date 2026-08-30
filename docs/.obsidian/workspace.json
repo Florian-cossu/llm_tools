@@ -20,8 +20,23 @@
               "icon": "lucide-file",
               "title": "00-index"
             }
+          },
+          {
+            "id": "1339a708396a865d",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "00-index.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "00-index"
+            }
           }
-        ]
+        ],
+        "currentTab": 1
       },
       {
         "id": "96a465128bd96c15",
@@ -205,6 +220,12 @@
   "lastOpenFiles": [
     "00-index.md",
     "07-plans/current.md",
+    "03-decisions/ADR-0005-root-dependencies.md",
+    "05-harness/scenarios/github-milestone-progress/expected-output.json",
+    "05-harness/scenarios/github-milestone-progress/scenario.md",
+    "05-harness/scenarios/github-milestone-progress",
+    "05-harness/fixtures/github/milestone-detail.json",
+    "05-harness/fixtures/github/milestone-list.json",
     "06-workflows/README.md",
     "05-harness/scenarios/README.md",
     "05-harness/README.md",
@@ -229,15 +250,9 @@
     "05-harness/scenarios/github-list-issues/expected-output.json",
     "05-harness/scenarios/github-list-issues/input.json",
     "05-harness/scenarios/github-list-issues/scenario.md",
-    "05-harness/scenarios/github-list-issues",
     "03-decisions/ADR-0004-server-per-integration.md",
     "03-decisions/ADR-0003-read-only-by-deault.md",
     "03-decisions/ADR-0002-bun-workspaces.md",
-    "03-decisions/ADR-0001-local-stdio-transport.md",
-    "02-architecture/components/execution-lifecycle.md",
-    "02-architecture/components/setup-and-registration.md",
-    "99-archive",
-    "90-generated",
-    "07-plans/archive"
+    "03-decisions/ADR-0001-local-stdio-transport.md"
   ]
 }

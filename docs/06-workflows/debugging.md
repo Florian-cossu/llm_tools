@@ -130,9 +130,11 @@ Call it directly in the Inspector with the exact arguments the model used.
 | `rate limit exceeded` | ~30/min search budget — [github API](../04-contracts/github-api.md#rate-limits) |
 | `Bad credentials` | Token invalid or expired. Rotate, **restart** |
 | Missing assignees | Mapper normalisation — [data schemas](../04-contracts/data-schemas.md) |
+| A valid schema rejected, or `instanceof` failing on a zod type | Two copies of `zod`. Run `bun run check:deps`, then `bun run deps:reset` — [ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#no-overrides-no-resolutions-ever) |
 | Pull requests present | `is:issue` missing from the query |
 | Closed issues absent with `state: "all"` | `state:all` emitted as a qualifier — it is not valid GitHub syntax |
-| Milestone data looks like an issue | **Known bug**: `list_github_milestones_by_repo` calls `issues.get` — [current plan](../07-plans/current.md) |
+| Milestone list has no `totalCount` | Expected — the endpoint reports no total; check `truncated` instead ([github api](../04-contracts/github-api.md#listing-milestones)) |
+| `get_github_milestone` says "not found" for a number you can see | Milestone numbers are **not** issue numbers; get the number from `list_github_milestones_by_repo` |
 
 ---
 

@@ -65,7 +65,7 @@ The things missing, in the order they would matter:
 
 1. A per-server `CHANGELOG.md` — the model-facing surface changes silently
    today.
-2. Git tags (`github-v1.3.0`), since versions are per server, not per repo.
+2. Git tags (`github-v1.4.0`), since versions are per server, not per repo.
 3. CI running typecheck and tests — neither exists
    ([testing](testing.md)).
 4. Only then, any form of distribution.

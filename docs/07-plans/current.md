@@ -20,33 +20,11 @@ tags:
 
 ## Known broken
 
-### `list_github_milestones_by_repo` is registered scaffold
-
-The tool is in `TOOL_INSTANCES`, so the model can and will call it, but it is
-the untouched output of `add-new-implementation.mjs`:
-
-- calls `octokit.rest.issues.get` — the **issue** endpoint;
-- takes `number`, described as *"the issue within its repository"*;
-- returns the raw payload, no mapper;
-- description truncated mid-sentence, ending in a bare colon.
-
-Violates the [tool contract](../04-contracts/tool-contract.md) at T11, T13, T17
-and the no-scaffold rule.
-
-**Fix:** schema of `state` / `sort` / `direction` / `limit`; call
-`issues.listMilestones`; map through `mapGithubMilestone`; return a
-`{ totalCount, returned, milestones }` envelope; write the description properly.
-Worth adding `open_issues` / `closed_issues` to the compact milestone at the
-same time — a milestone list without progress counts answers little
-([data schemas](../04-contracts/data-schemas.md#milestone)).
-
-**Meanwhile:** either finish it or remove it from `TOOL_INSTANCES`. Leaving a
-broken tool registered is worse than not shipping it.
-
 ### `bun test` is a false green
 
-No test files exist; the command exits successfully having run nothing. It is
-advertised in [`CLAUDE.md`](../../CLAUDE.md) and the root README.
+No test files exist; the runner exits successfully having run nothing. Note this
+is **`bun test`**, not `bun run test` — the latter now runs a clean reinstall
+plus `check-docs.mjs`, which is real work but still runs no tests.
 See [testing](../06-workflows/testing.md).
 
 ## Smaller defects
@@ -54,25 +32,26 @@ See [testing](../06-workflows/testing.md).
 | Item | Where |
 | --- | --- |
 | Read-only paragraph commented out, so the model may ask permission for every read | `server_instructions.ts` |
-| Stale `// TODO: call the GitHub API…` above a finished call | `get_github_milestone.ts` |
-| `get_github_milestone`'s description is one line and does not state its response shape (T11) | `get_github_milestone.ts` |
-| Root README lists `list_github_milestones_by_repo` without marking it broken in the table itself | `README.md` |
+| No CI, so `bun run test` only runs when someone remembers to | — |
+| No eval scenario for either milestone tool, and the one that exists is `status: planned` | `docs/05-harness/scenarios/` |
+| No milestone fixtures, so the mappers have nothing to be tested against | `docs/05-harness/fixtures/github/` |
 
 ## Next, in value order
 
-1. **Finish or unregister `list_github_milestones_by_repo`.** It is the only
-   thing here a user can actually hit.
-2. **Add `tsc --noEmit` as a `typecheck` script.** Cheapest possible win: with
+1. **Add `tsc --noEmit` as a `typecheck` script.** Cheapest possible win: with
    no build step there is currently no compile-time gate at all
-   ([ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md#consequences)).
-3. **Test the pure functions** — mappers, `buildIssueSearchQuery`, the string
+   ([ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md#consequences)). It has
+   already earned its keep — run by hand, it is what confirmed the milestone
+   handler fixes compiled.
+2. **Test the pure functions** — mappers, `buildIssueSearchQuery`, the string
    guards — against the [fixtures](../05-harness/fixtures/github/README.md), which already
-   encode the awkward cases.
-4. **Add the registration sanity test** (every `TOOL_INSTANCES` entry has a real
-   description and no `TODO`). This would have caught defect #1.
-5. **Re-enable the read-only instruction paragraph** and re-run the
+   encode the awkward cases. Milestone fixtures still need writing.
+3. **Add the registration sanity test** (every `TOOL_INSTANCES` entry has a real
+   description and no `TODO`). This is what would have caught the milestone
+   scaffold before it shipped registered.
+4. **Re-enable the read-only instruction paragraph** and re-run the
    [scenario](../05-harness/scenarios/github-list-issues/scenario.md).
-6. **Description/schema tests** for the
+5. **Description/schema tests** for the
    [three-places rule](../02-architecture/components/shared-package.md#the-three-places-rule)
    — the repo's most important convention, currently unverified.
 
@@ -83,9 +62,38 @@ See [testing](../06-workflows/testing.md).
   [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md#alternatives).
 - Is a second integration close enough to matter? It would test whether
   `@llm-tools/shared` generalises beyond GitHub.
-- Should milestone progress counts be in the compact shape by default?
+- Should milestone progress counts be in the compact shape by default? They now
+  live in the **detail** shape only
+  ([data schemas](../04-contracts/data-schemas.md#milestone-detail)), so a list
+  answers "which milestones exist" but never "how far along is each one".
+- Is a boolean `truncated` the right answer for a list whose endpoint reports no
+  total, or should such tools count pages to get a real one?
+  ([T18 exception](../04-contracts/tool-contract.md#responses))
 
 ## Done
 
+- **`list_github_milestones_by_repo` finished.** Was registered scaffold calling
+  `issues.get`; now calls `issues.listMilestones`, maps through
+  `mapGithubMilestone`, and returns `{ returned, truncated, milestones }`. Two
+  defects were found in the half-written version while finishing it: `limit` was
+  passed to Octokit as `limit` rather than `per_page`, so it was silently
+  ignored; and the `map` callback had no `return`, so the payload was
+  `[null, null, …]`.
+- **`get_github_milestone` completed.** Stale `// TODO` removed, description
+  brought up to T11, and `openIssues` / `closedIssues` added — until then it
+  returned exactly what the list tool returns for every milestone, so it had no
+  reason to exist.
+- **`check-deps.mjs` added**, wired into `bun run test` alongside
+  `bun install --frozen-lockfile`. Enforces
+  [ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#no-overrides-no-resolutions-ever) on every run: no pins, no
+  third-party declarations in workspace manifests, no shadowing nested trees, no
+  duplicate installs, no lockfile drift. `bun run deps:reset` is the deliberate
+  escape hatch. `typescript` also moved to `devDependencies`.
+- **`zod` deduplicated to a single root install.** It resolved three ways at
+  once — a stale `tools/github/node_modules/`, a second range in
+  `tools/shared/package.json`, and a stale transitive resolution in the
+  lockfile. Fixed by removing all three causes and regenerating `bun.lock` from
+  clean; **no `overrides`, no pin**
+  ([ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#no-overrides-no-resolutions-ever)).
 - Documentation vault built out under `docs/` — [index](../00-index.md).
 - Docs given frontmatter and cross-links — [conventions](../00-conventions.md).

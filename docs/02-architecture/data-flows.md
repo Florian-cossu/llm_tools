@@ -91,6 +91,19 @@ Returning bodies from the list would put N issue descriptions into a small
 context window to answer "which issues exist?". See
 [tool contract](../04-contracts/tool-contract.md#responses).
 
+The milestone tools follow the same split, with progress counts in the place of
+the body:
+
+```
+list_github_milestones_by_repo ──► [{ number, title, state, description, dueOn }]
+                                              │  no counts
+                                              ▼  model picks a number
+get_github_milestone           ──► { …, openIssues, closedIssues }
+```
+
+`get_*` must return something the `list_*` does not, or it is dead weight —
+[T21](../04-contracts/tool-contract.md#responses).
+
 ## Truncation, not pagination
 
 The list envelope carries `totalCount` (matches in the repo) and `returned`
@@ -98,6 +111,13 @@ The list envelope carries `totalCount` (matches in the repo) and `returned`
 told, in the tool description, to raise `limit` rather than paginate — there is
 no cursor. `incompleteResults: true` is added only when GitHub reports the
 search itself timed out, which is a different thing from truncation.
+
+**When the endpoint reports no total**, as
+`GET /repos/{owner}/{repo}/milestones` does, the comparison is unavailable and
+the envelope carries a boolean `truncated` instead — true when the page came
+back full. Signalling truncation is the requirement; `totalCount` is only the
+usual way of doing it
+([github server](components/github-server.md#no-totalcount-on-the-milestone-list)).
 
 ## Error flow
 

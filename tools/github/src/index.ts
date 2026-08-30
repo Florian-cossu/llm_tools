@@ -1,8 +1,6 @@
 import dotenv from "dotenv";
-import { fileURLToPath } from "node:url";
 import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
-
 import {
   APP_NAME,
   APP_VERSION
@@ -11,6 +9,7 @@ import { Octokit } from "octokit";
 import { stringOrNull } from "@llm-tools/shared";
 import { TOOL_INSTANCES } from "./toolbox/index.js";
 import { buildServerInstructions } from "./server_instructions.js";
+import { fileURLToPath } from "node:url";
 
 export type ServerConfig = {
   /** Server Name */

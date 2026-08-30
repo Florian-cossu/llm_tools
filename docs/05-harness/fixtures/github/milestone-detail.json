@@ -1,0 +1,17 @@
+{
+  "_comment": "SYNTHETIC fixture - a GET /repos/{owner}/{repo}/milestones/{n} response as GithubApiMilestone. Never captured from a real repository. Same shape as one element of milestone-list.json: the endpoint returns no extra fields, so the difference between the list and the detail tool is what the SERVER chooses to map, not what GitHub sends. See _quirks.",
+  "_quirks": {
+    "identical-api-shape": "GithubApiMilestone is returned by three endpoints - search results (nested in an issue), the milestone list, and this one. Only get_github_milestone maps open_issues/closed_issues through; the compact shape drops them.",
+    "progress": "open_issues 4 + closed_issues 11 = 15 issues, 73% closed. These two fields are the only reason get_github_milestone returns more than the list tool - see ../../../04-contracts/data-schemas.md#milestone-detail.",
+    "counts-exclude-nothing": "GitHub counts pull requests in these totals as well as issues, so they may exceed what list_github_issues reports for the same milestone."
+  },
+  "number": 3,
+  "title": "v1.2",
+  "state": "open",
+  "description": "Import pipeline hardening",
+  "open_issues": 4,
+  "closed_issues": 11,
+  "due_on": "2026-09-30T07:00:00Z",
+  "closed_at": null,
+  "html_url": "https://github.com/example-org/example-repo/milestone/3"
+}

@@ -19,7 +19,20 @@ export const getGithubMilestone: ToolInstance = (server, config) => {
           config.defaultOwner,
           config.defaultRepository,
         ) +
-        `Read a single milestone of a Github repository`,
+        `Read a single milestone of a GitHub repository by its number, ` +
+        `including the issue counts that list_github_milestones_by_repo ` +
+        `leaves out. Milestones are numbered independently of issues, so ` +
+        `milestone 1 has nothing to do with issue 1; call ` +
+        `list_github_milestones_by_repo first when the number is not ` +
+        `already known. The issues belonging to the milestone are not ` +
+        `returned - list them with list_github_issues and a "search" of ` +
+        `milestone:"<title>". Returns {"number", "title", "state", ` +
+        `"description", "dueOn", "openIssues", "closedIssues"}, where ` +
+        `"description" and "dueOn" are null when unset, "dueOn" is an ISO ` +
+        `8601 timestamp, and "openIssues" and "closedIssues" count the ` +
+        `issues assigned to the milestone and so give its progress. The ` +
+        `call fails when the repository has no milestone with this ` +
+        `number.`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -44,8 +57,11 @@ export const getGithubMilestone: ToolInstance = (server, config) => {
           .int()
           .positive()
           .describe(
-            `The number identifying the milestone within its repository, as ` +
-              `shown in the GitHub interface.`,
+            `The number identifying the milestone within its repository, ` +
+              `as shown in the GitHub interface and returned in the ` +
+              `"number" field of list_github_milestones_by_repo results. ` +
+              `This is the milestone's own number, not the number of an ` +
+              `issue it contains.`,
           ),
       }),
     },
@@ -62,24 +78,34 @@ export const getGithubMilestone: ToolInstance = (server, config) => {
         );
       }
 
-      // TODO: call the GitHub API and map the response into a compact shape.
-      const response = await config.octokit.rest.issues.getMilestone({
+      const response = await config.octokit.rest.issues
+        .getMilestone({
           owner: effectiveOwner,
           repo: effectiveRepository,
           milestone_number: number,
         })
         .catch((error: unknown) => {
           const reason = error instanceof Error ? error.message : String(error);
-          throw new Error(`${TOOL_NAME} failed for "${number}": ${reason}`);
+          throw new Error(
+            `Unable to retrieve milestone "${number}": ${reason}`,
+          );
         });
 
-      const payload = mapGithubMilestone(response.data);
+      const githubMilestone = response.data;
+
+      // The compact shape shared with list_github_milestones_by_repo, plus
+      // the issue counts that justify reading a milestone one at a time.
+      const detailedMilestone = {
+        ...mapGithubMilestone(githubMilestone),
+        openIssues: githubMilestone.open_issues,
+        closedIssues: githubMilestone.closed_issues,
+      };
 
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(payload),
+            text: JSON.stringify(detailedMilestone),
           },
         ],
       };

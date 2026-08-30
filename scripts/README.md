@@ -47,6 +47,29 @@ failed build), and a tool that has a `.env.example` but no `.env`.
 
 ---
 
+## `check-deps.mjs`
+
+```bash
+node scripts/check-deps.mjs [--quiet]
+```
+
+Enforces [ADR-0005](../docs/03-decisions/ADR-0005-root-dependencies.md): one
+declaration site, one copy installed. Zero dependencies, run by Node. Exits
+non-zero listing what it found.
+
+| Check | Fails when |
+| --- | --- |
+| `PIN` | A manifest carries `overrides` or `resolutions` — a forced resolution hides a disagreement rather than removing it |
+| `DECLARED` | A workspace manifest declares a non-`workspace:` dependency — it belongs in the root |
+| `SHADOWED` | `tools/<name>/node_modules/` holds anything but the `@llm-tools` symlink; a nested tree shadows the root beneath it |
+| `DUPLICATE` | A root-declared package has two versions in `node_modules/.bun` — two copies of `zod` means `instanceof` fails across the shared/tool boundary |
+| `LOCK-STALE` | A workspace `version` has moved on from `bun.lock`. **`bun install --frozen-lockfile` does not catch this**, which is why the check exists |
+
+`DUPLICATE`, `SHADOWED` and `LOCK-STALE` are all cleared by `bun run deps:reset`.
+`PIN` and `DECLARED` are edits.
+
+---
+
 ## `create-tool.mjs`
 
 Scaffolds a working MCP server — it starts up and answers immediately, with one
@@ -65,6 +88,11 @@ The name is lowercased and non-alphanumerics become dashes; the script refuses t
 overwrite an existing directory. It writes `package.json`, `tool.json`, `tsconfig.json`,
 `.env.example` and `src/` (`index.ts`, `metadata.ts`, `server_instructions.ts`,
 `toolbox/index.ts`, `toolbox/tools/example_tool.ts`).
+
+The scaffolded `package.json` declares **only** `@llm-tools/shared`. Third-party
+packages belong in the root manifest, added with `bun add` from the repository root
+([ADR-0005](../docs/03-decisions/ADR-0005-root-dependencies.md)) — a new server inherits
+them and needs no dependency block of its own.
 
 It does **not** write a `README.md` — add one by hand, and a row in the root
 [Available tools](../README.md#available-tools) table.

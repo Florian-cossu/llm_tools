@@ -15,7 +15,8 @@ tags:
 Testing, evaluation and observability.
 
 > [!warning] Mostly not implemented
-> **No test suite, no eval runner.** `bun test` matches zero files. Check each
+> **No test suite, no eval runner.** The `bun test` runner matches zero files;
+> `bun run test` is a reinstall-and-validate script, not a test run. Check each
 > note's `status` before treating it as fact.
 
 | Note | Status | Covers |

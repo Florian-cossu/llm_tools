@@ -87,13 +87,11 @@ write(
       scripts: {
         start: "bun run src/index.ts",
       },
+      // Workspace siblings only. Third-party dependencies are declared once
+      // in the root package.json — ADR-0005. Adding them here reintroduces the
+      // duplicate-resolution bug that decision exists to prevent.
       dependencies: {
         "@llm-tools/shared": "workspace:*",
-        "@modelcontextprotocol/server": "^2.0.0",
-        zod: "^4.4.3",
-      },
-      devDependencies: {
-        typescript: "^7.0.2",
       },
     },
     null,

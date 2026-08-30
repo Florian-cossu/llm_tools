@@ -72,7 +72,7 @@ Thrown, surfaced to the model as an error result.
 | `GitHub rejected the search "…": Validation Failed` | Malformed qualifier | Simplify the query |
 | `… API rate limit exceeded` | ~30/min search budget spent | Wait; make fewer, narrower calls |
 | `… Bad credentials` | Invalid or expired token | Rotate, restart |
-| Wrong-shaped milestone data | `list_github_milestones_by_repo` calls `issues.get` | **Known bug** — [current plan](../07-plans/current.md) |
+| Milestone number treated as an issue number | The two sequences are unrelated; a valid issue number is often an invalid milestone number | 404 from `issues.getMilestone`, surfaced as `Unable to retrieve milestone "N"` |
 
 ### HTTP status → meaning
 

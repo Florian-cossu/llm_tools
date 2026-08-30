@@ -46,16 +46,27 @@ decide whether to trust it. Schema: `docs/00-conventions.md`.
 ## Commands
 
 ```bash
-bun install
+bun install                        # run at the ROOT — deps live there (ADR-0005)
+bun add <pkg>                      # also at the root, never in tools/<name>/
 bun run start:github               # server waits on stdio
-node scripts/check-docs.mjs        # validate the docs vault
-node scripts/setup-tools.mjs --write
+bun run test                       # docs + frozen install + dependency layout
+bun run check:docs                 # validate the docs vault
+bun run check:deps                 # one declaration site, one copy of each
+bun run deps:reset                 # nuke node_modules AND bun.lock, reinstall
+bun run setup                      # = node scripts/setup-tools.mjs --write
 npx @modelcontextprotocol/inspector bun run tools/github/src/index.ts
 ```
 
-> **`bun test` currently matches zero files** and exits successfully having run
-> nothing. There is no test suite and no type-check step yet — see
-> `docs/06-workflows/testing.md`. Validation is the manual checklist there.
+> **`bun run deps:reset` deletes `bun.lock`**, re-resolving every transitive
+> range. Deliberate act, not part of the loop — use it when `check:deps`
+> reports a duplicate, then confirm the server still starts.
+
+> **`bun run test` and `bun test` are different commands.** `bun run test` runs
+> the root `test` script — a clean reinstall plus `check-docs.mjs` — and does
+> real work. **`bun test`, the test runner, still matches zero files** and exits
+> successfully having verified nothing. There is no unit-test suite and no
+> type-check script yet — see `docs/06-workflows/testing.md`. Validation is the
+> manual checklist there.
 
 ## Documentation map
 
@@ -77,5 +88,6 @@ workflows.
 
 ## Known broken
 
-- `list_github_milestones_by_repo` is registered but is still scaffold: it calls
-  the *issue* endpoint. See `docs/07-plans/current.md`.
+- Nothing registered is known broken. `list_github_milestones_by_repo` was
+  scaffold calling the *issue* endpoint; it now calls `issues.listMilestones`
+  and maps through `mapGithubMilestone`. See `docs/07-plans/current.md`.

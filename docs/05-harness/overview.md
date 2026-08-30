@@ -19,10 +19,11 @@ tags:
 
 > [!warning] Not implemented
 > **There is no test suite and no eval runner in this repository.**
-> `bun test` is listed in [`CLAUDE.md`](../../CLAUDE.md) but matches **zero
-> files** — it exits successfully having run nothing, which is worse than
-> failing. Everything below describes intent, not reality. Do not report any of
-> it as existing.
+> The `bun test` **runner** matches **zero files** — it exits successfully
+> having run nothing, which is worse than failing. (The root `test` *script*,
+> `bun run test`, is a different thing: a clean reinstall plus `check-docs.mjs`.
+> It also runs no tests.) Everything below describes intent, not reality. Do not
+> report any of it as existing.
 
 ## What verification exists today
 

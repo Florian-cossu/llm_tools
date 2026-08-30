@@ -18,7 +18,7 @@ Scaffold a new one with
 tools/<name>/
 ├── .env.example                # credentials template — copy to .env
 ├── tool.json                   # install / launch contract for setup-tools.mjs
-├── package.json
+├── package.json                # identity + @llm-tools/shared; no third-party deps
 ├── tsconfig.json               # extends ../../tsconfig.json
 ├── README.md
 └── src/

@@ -30,6 +30,7 @@ contradicts an accepted ADR is a bug in the note.
 | [0002](ADR-0002-bun-workspaces.md) | Bun workspaces, TypeScript run directly, no build step | Accepted |
 | [0003](ADR-0003-read-only-by-default.md) | Tools are read-only unless explicitly reviewed | Accepted |
 | [0004](ADR-0004-server-per-integration.md) | One MCP server per integration, not one gateway | Accepted |
+| [0005](ADR-0005-root-dependencies.md) | Dependencies declared once in the root `package.json` | Accepted |
 
 ## When to write one
 

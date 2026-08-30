@@ -18,23 +18,54 @@ tags:
 
 # Testing
 
-> [!warning] `bun test` currently proves nothing
-> There are **no test files** in this repository. `bun test` matches zero files
-> and exits **successfully**, having verified nothing — a green result that
-> means nothing at all. It is listed as a command in
-> [`CLAUDE.md`](../../CLAUDE.md) and in the root README; treat both as
-> aspirational until a suite exists
-> ([harness overview](../05-harness/overview.md)).
+> [!warning] `bun test` and `bun run test` are not the same command
+> **`bun test`** — the test runner — matches **zero files** and exits
+> **successfully**, having verified nothing. There are no test files in this
+> repository ([harness overview](../05-harness/overview.md)).
+>
+> **`bun run test`** runs the root `test` *script*, which is something else
+> entirely:
+>
+> ```bash
+> rm -rf node_modules && node scripts/check-docs.mjs && bun install
+> ```
+>
+> That validates the docs vault and proves the workspace installs from clean —
+> worth running, and the check that catches a dependency missing from the root
+> `package.json` since [ADR-0005](../03-decisions/ADR-0005-root-dependencies.md).
+> It runs **no tests**. Do not read a green `bun run test` as "the code works".
 >
 > There is also **no type-check step**: with no build
 > ([ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md)), nothing checks types
-> before runtime.
+> before runtime. `npx tsc --noEmit -p tools/<name>/tsconfig.json` works by hand.
 
 The checklist below is the actual gate.
 
 ---
 
 ## Manual validation
+
+### 0. Workspace
+
+```bash
+bun run test        # docs + frozen install + dependency layout. Runs no tests
+```
+
+Four steps, each failing loudly:
+
+- [ ] `check-docs.mjs` passes
+- [ ] The install completes from clean — a dependency used but missing from the
+      root `package.json` shows up here
+- [ ] `--frozen-lockfile` holds: a manifest that declares something `bun.lock`
+      does not have fails with *"lockfile had changes, but lockfile is frozen"*.
+      Commit the lockfile rather than working around it
+- [ ] `check-deps.mjs` passes — one declaration site, one copy of each
+      ([ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#no-overrides-no-resolutions-ever))
+
+`bun run test` deliberately does **not** delete `bun.lock`. Regenerating it every
+run would make each run resolve a different tree and turn an upstream publish
+into an unattributable break. When the tree really is wrong, `bun run deps:reset`
+is the deliberate act — and `check-deps.mjs` is what tells you it is needed.
 
 ### 1. Server health
 
@@ -72,7 +103,9 @@ For each tool:
 - [ ] An invalid parameter is rejected with a useful message, not a crash
 - [ ] A missing owner/repository with no default throws the documented error
 - [ ] A nonexistent resource yields an actionable message
-- [ ] Lists carry `totalCount` and `returned`; truncation is visible
+- [ ] Lists carry `returned` and a truncation signal — `totalCount` when the
+      endpoint reports one, otherwise `truncated`
+      ([T18 exception](../04-contracts/tool-contract.md#responses))
 - [ ] No raw API payload reaches the output
 - [ ] No credential appears in any response or error
 

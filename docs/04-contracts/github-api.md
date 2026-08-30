@@ -31,11 +31,7 @@ unauthenticated when it is absent.
 | `search.issuesAndPullRequests` | `GET /search/issues` | `list_github_issues` | ✅ |
 | `issues.get` | `GET /repos/{owner}/{repo}/issues/{n}` | `get_github_issue` | ✅ |
 | `issues.getMilestone` | `GET /repos/{owner}/{repo}/milestones/{n}` | `get_github_milestone` | ✅ |
-| `issues.listMilestones` | `GET /repos/{owner}/{repo}/milestones` | *(needed by `list_github_milestones_by_repo`)* | ✅ |
-
-> [!warning]
-> `list_github_milestones_by_repo` currently calls **`issues.get`** — leftover
-> scaffold, and a bug. See [github server](../02-architecture/components/github-server.md#list_github_milestones_by_repo--scaffold).
+| `issues.listMilestones` | `GET /repos/{owner}/{repo}/milestones` | `list_github_milestones_by_repo` | ✅ |
 
 Every endpoint above is a read. Adding a mutating one requires an ADR
 superseding [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md).
@@ -84,6 +80,32 @@ repo:{owner}/{repository} is:issue [state:{state}] [user search terms]
 when true — it means the *search timed out*, not that the page was truncated);
 `items` → mapped to compact issues.
 
+## Listing milestones
+
+`list_github_milestones_by_repo` uses the **per-repo** endpoint, not search —
+milestones are not searchable and the endpoint takes no query, which is why the
+tool exposes no `search` parameter.
+
+| Octokit | Source | Range |
+| --- | --- | --- |
+| `state` | `state` | `open` \| `closed` \| `all`, default `open` |
+| `per_page` | `limit` | 1–100, default 60 |
+| `sort` | `sortBy` | `due_on` \| `completeness`; **omitted when unset**, letting GitHub default to `due_on` |
+| `direction` | `sortOrder` | `asc` \| `desc`, default `desc` |
+
+Unlike search, `state: "all"` **is** valid here and is passed straight through —
+the `state:all` prohibition applies only to the search query string.
+
+> [!important]
+> The response carries **no total count**. Search returns `total_count`; this
+> endpoint returns only the page. The tool therefore emits
+> `{ returned, truncated, milestones }` rather than the usual `totalCount`
+> envelope — rationale in
+> [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-milestone-list).
+
+Milestone numbers are their own sequence, unrelated to issue numbers: milestone
+`1` and issue `1` are different objects in the same repository.
+
 ## Rate limits
 
 | Limit | Authenticated | Unauthenticated |
@@ -122,6 +144,8 @@ req/h. Scope needed: classic `repo`, or fine-grained **Issues: read**. See
 | Search returns PRs unless `is:issue` | Always in the query |
 | `incomplete_results` ≠ truncation | Surfaced as a distinct field |
 | Closed-as-completed vs closed-as-not-planned | Not distinguished; the description says so |
+| `listMilestones` reports no total | Envelope uses `truncated` instead of `totalCount` |
+| Milestone numbers ≠ issue numbers | Stated in both milestone tool descriptions |
 
 ## Error handling
 

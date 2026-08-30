@@ -1,12 +1,28 @@
 {
   "name": "llm-tools",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "workspaces": [
     "tools/*",
     "tools/shared/*"
   ],
   "scripts": {
+    "test": "rm -rf node_modules && node scripts/check-docs.mjs && bun install --frozen-lockfile && node scripts/check-deps.mjs",
+    "check:docs": "node scripts/check-docs.mjs",
+    "check:deps": "node scripts/check-deps.mjs",
+    "deps:reset": "rm -rf node_modules tools/*/node_modules bun.lock && bun install",
+    "setup": "node scripts/setup-tools.mjs --write",
     "start:github": "bun run tools/github/src/index.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/server": "^2.0.0",
+    "dotenv": "^17.4.2",
+    "octokit": "^5.0.5",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "@types/node": "^26.4.0",
+    "bun-types": "^1.4.0"
   }
 }

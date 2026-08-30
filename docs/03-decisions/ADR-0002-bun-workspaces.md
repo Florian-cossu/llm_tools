@@ -40,6 +40,8 @@ A **Bun workspace monorepo** with **no build step**.
 ```
 
 - Servers depend on shared via `"@llm-tools/shared": "workspace:*"`.
+- Third-party dependencies are declared **at the root only** — see
+  [ADR-0005](ADR-0005-root-dependencies.md).
 - The root `tsconfig.json` maps the import straight to source:
   `"@llm-tools/shared": ["./tools/shared/src/index.ts"]`.
 - Servers launch as `bun run src/index.ts`. `tool.json` sets `"build": null`.
@@ -51,7 +53,9 @@ A **Bun workspace monorepo** with **no build step**.
 
 - Edit → restart → test. Nothing between the source and the running server, so
   no stale-build class of bug at all.
-- One `bun install` at the root wires every workspace.
+- One `bun install` at the root wires every workspace, and since
+  [ADR-0005](ADR-0005-root-dependencies.md) one `bun add` at the root is how a
+  dependency enters the repo at all.
 - Shared code is versionless and always in sync; a change to a helper is live
   for every server at once.
 - Types flow across packages without a build, because the path maps to source.

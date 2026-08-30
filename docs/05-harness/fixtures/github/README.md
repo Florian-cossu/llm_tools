@@ -22,9 +22,20 @@ Hand-written payloads in the **API shape** (`GithubApiIssue`,
 | --- | --- | --- |
 | [issue-list.json](issue-list.json) | Search response | `GET /search/issues` |
 | [issue-detail.json](issue-detail.json) | Single issue, with `body` | `GET /repos/{owner}/{repo}/issues/{n}` |
+| [milestone-list.json](milestone-list.json) | **Bare array**, no envelope | `GET /repos/{owner}/{repo}/milestones` |
+| [milestone-detail.json](milestone-detail.json) | Single milestone | `GET /repos/{owner}/{repo}/milestones/{n}` |
 
-The compacted result of `issue-list.json` is
-[expected-output.json](../../scenarios/github-list-issues/expected-output.json).
+The compacted results are
+[github-list-issues/expected-output.json](../../scenarios/github-list-issues/expected-output.json)
+and
+[github-milestone-progress/expected-output.json](../../scenarios/github-milestone-progress/expected-output.json).
+
+> [!note] Milestone numbers are not issue numbers
+> `milestone-list.json` deliberately reuses the numbers 1–4 while
+> `issue-list.json` uses 37–42. Milestone 3 and issue 3 would be unrelated
+> objects in the same repository, and conflating them is the mistake the
+> [milestone scenario](../../scenarios/github-milestone-progress/scenario.md)
+> exists to catch.
 
 ## Rules
 
@@ -49,5 +60,9 @@ The compacted result of `issue-list.json` is
 | A label with an empty name must be dropped | issue-37 |
 | `due_on` → `dueOn`, and `open_issues`/`closed_issues`/`html_url` dropped | every milestone |
 | `body` exists only on the detail shape | issue-detail |
+| The milestone list is a **bare array** — no envelope, no `total_count` | milestone-list |
+| A closed milestone may still have `open_issues > 0` | milestone-1 |
+| `description` and `due_on` both explicitly `null` | milestone-4 |
+| `open_issues`/`closed_issues` survive into the **detail** shape only | milestone-detail |
 
 Reference: [github API quirks](../../../04-contracts/github-api.md#quirks-that-have-bitten).

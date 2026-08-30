@@ -24,7 +24,7 @@ tags:
 git clone <repo> llm_tools
 cd llm_tools
 
-bun install                            # every workspace in one pass
+bun install                            # every workspace in one pass, from the ROOT
 node scripts/setup-tools.mjs --write   # registers servers in ~/.lmstudio/mcp.json
 
 cp tools/github/.env.example tools/github/.env
@@ -35,6 +35,38 @@ Then restart the servers from the client. Requires **Bun 1.3+** and, for LM
 Studio, **0.3.17+**.
 
 Details: [setup and registration](../02-architecture/components/setup-and-registration.md).
+
+## Adding a dependency
+
+```bash
+bun add <pkg>          # at the repository root, never inside tools/<name>/
+```
+
+Third-party packages are declared once in the root `package.json`
+([ADR-0005](../03-decisions/ADR-0005-root-dependencies.md)); a server's own
+manifest lists only `@llm-tools/shared`. `bun run test` reinstalls from clean
+and is the cheapest way to confirm nothing is missing.
+
+There are **no `overrides` and no `resolutions`** in this repository, on
+purpose: a pin hides a version disagreement rather than removing it. One install
+at the root is the whole mechanism. After any dependency change:
+
+```bash
+bun run check:deps
+```
+
+It fails on a pin, a third-party declaration in a workspace manifest, a nested
+`node_modules/` shadowing the root, a package installed twice, or a workspace
+version that has drifted from `bun.lock`. When it reports a duplicate or a stale
+tree:
+
+```bash
+bun run deps:reset      # rm node_modules + bun.lock, then reinstall
+```
+
+That re-resolves **every** transitive range, so it is a deliberate act rather
+than routine — which is exactly why `bun run test` does not do it. See
+[ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#no-overrides-no-resolutions-ever).
 
 ## The inner loop
 

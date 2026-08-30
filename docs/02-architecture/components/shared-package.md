@@ -91,6 +91,8 @@ This is the single most important convention in the repo — see the
 
 - **Nothing integration-specific.** No GitHub types, no Octokit. A helper that
   would need them belongs in the server.
-- **Pure and dependency-light** — only `zod`.
+- **Pure and dependency-light** — `zod` is the only library it touches, and it
+  is resolved from the root manifest rather than declared here
+  ([ADR-0005](../../03-decisions/ADR-0005-root-dependencies.md)).
 - **Additive changes only** in practice: every server imports it, and there is
   no test suite to catch a regression ([testing](../../06-workflows/testing.md)).

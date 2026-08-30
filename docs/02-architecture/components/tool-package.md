@@ -31,7 +31,7 @@ tools/<name>/
 ├── .env.example                # credentials template — copy to .env
 ├── .env                        # git-ignored, never committed
 ├── tool.json                   # install / launch manifest
-├── package.json                # name = @llm-tools/<name>, version = server version
+├── package.json                # identity + workspace deps only — ADR-0005
 ├── tsconfig.json               # extends ../../tsconfig.json
 ├── README.md                   # user-facing: tools, parameters, examples
 └── src/
@@ -80,7 +80,7 @@ runtime — a Python or Go MCP server drops in unchanged.
 | Field | Meaning |
 | --- | --- |
 | `mcpServerName` | Key written into `mcp.json`. Falls back to `package.json` `name`, then the folder name |
-| `setup` | Install command. `null` = no step |
+| `setup` | Install command. `null` = no step. `bun install` here installs the **whole workspace**, not just this folder |
 | `build` | Build command. `null` = no step — the norm here, Bun runs TS directly |
 | `command` | Executable the client launches. A bare name resolves on `PATH` |
 | `args` | Arguments. **Any value containing `/` is rewritten to an absolute path** |
@@ -130,3 +130,33 @@ and the API call plus its mapping. See [github server](github-server.md#adding-a
 "workspace:*"`, and the root `tsconfig.json` maps the import to source — no
 build, no publish. See [ADR-0002](../../03-decisions/ADR-0002-bun-workspaces.md)
 and [shared package](shared-package.md).
+
+### Where dependencies go
+
+**Third-party packages are declared once, in the root `package.json`**
+([ADR-0005](../../03-decisions/ADR-0005-root-dependencies.md)). A server's
+`package.json` carries its identity and its workspace siblings, nothing more:
+
+```json
+{
+  "name": "@llm-tools/github",
+  "version": "1.4.0",
+  "dependencies": { "@llm-tools/shared": "workspace:*" }
+}
+```
+
+Add one with `bun add <pkg>` **run at the repository root**, never inside
+`tools/<name>/`. The `version` field stays per server — it is the MCP server
+version reported in the handshake.
+
+The trade recorded in the ADR: a server no longer states what it needs, so
+lifting one out of this repo means reading its imports to find out.
+
+> [!warning] Emptying a manifest does not empty `node_modules`
+> A leftover `tools/<name>/node_modules/` **shadows the root** for everything
+> under that folder, so a server can keep running an old version of a package
+> the root no longer names. After moving dependencies out of a server manifest,
+> clear the nested trees and reinstall. A healthy `tools/<name>/node_modules/`
+> contains only the `@llm-tools` workspace symlink — anything else is a
+> duplicate to trace, and **never** something to pin around
+> ([ADR-0005](../../03-decisions/ADR-0005-root-dependencies.md#no-overrides-no-resolutions-ever)).

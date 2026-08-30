@@ -18,9 +18,7 @@ gateway, credentials stay in a local `.env`.
 
 | Tool                             | Version | Description                             | Tools exposed                                                                                       |
 | -------------------------------- | ------- | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [github](tools/github/README.md) | 1.3.0   | GitHub issues and milestones, read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones_by_repo`* |
-
-\* work in progress — see the [github README](tools/github/README.md).
+| [github](tools/github/README.md) | 1.4.0   | GitHub issues and milestones, read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones_by_repo` |
 
 ---
 
@@ -132,14 +130,16 @@ This scaffolds a working server under `tools/<tool-name>/`. See
 Before opening a change:
 
 ```bash
+bun run test                  # clean reinstall + docs validation. Runs no tests
 bun run start:github          # must start silently and wait on stdio
-node scripts/check-docs.mjs   # docs vault still consistent
 npx @modelcontextprotocol/inspector bun run tools/github/src/index.ts
 ```
 
-> **`bun test` currently matches zero files.** There is no test suite yet, so it
-> exits successfully having verified nothing. Use the manual checklist in
-> [testing](docs/06-workflows/testing.md) until one exists.
+> **`bun run test` is not `bun test`.** The script above reinstalls from clean
+> and validates the docs vault. The **`bun test` runner** matches zero files and
+> exits successfully having verified nothing — there is no test suite yet. Use
+> the manual checklist in [testing](docs/06-workflows/testing.md) until one
+> exists.
 
 For a new tool, verify:
 
