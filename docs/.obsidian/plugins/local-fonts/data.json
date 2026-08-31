@@ -1,0 +1,53 @@
+{
+  "folder": "fonts",
+  "roles": {
+    "text": "Google Sans Flex 9pt",
+    "interface": "Google Sans Flex 9pt",
+    "monospace": "Google Sans Flex 9pt",
+    "headings": "Google Sans Flex 9pt",
+    "emoji": null
+  },
+  "hardOverride": true,
+  "cache": {
+    "version": 2,
+    "folder": "fonts",
+    "faces": [
+      {
+        "path": "fonts/GoogleSansFlex_9pt-ExtraLight.ttf",
+        "format": "ttf",
+        "size": 132872,
+        "mtime": 1788150015627,
+        "family": "Google Sans Flex 9pt",
+        "weight": 200,
+        "italic": false,
+        "colorFormats": [],
+        "scripts": [
+          "latin",
+          "greek",
+          "vietnamese"
+        ],
+        "axes": [],
+        "license": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org",
+        "source": "name-table"
+      },
+      {
+        "path": "fonts/GoogleSansFlex_9pt-Light.ttf",
+        "format": "ttf",
+        "size": 132836,
+        "mtime": 1788149888552,
+        "family": "Google Sans Flex 9pt",
+        "weight": 300,
+        "italic": false,
+        "colorFormats": [],
+        "scripts": [
+          "latin",
+          "greek",
+          "vietnamese"
+        ],
+        "axes": [],
+        "license": "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org",
+        "source": "name-table"
+      }
+    ]
+  }
+}

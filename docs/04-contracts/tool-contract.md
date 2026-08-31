@@ -2,7 +2,7 @@
 type: contract
 status: active
 scope: mcp
-last_reviewed: 2026-08-30
+last_reviewed: 2026-08-31
 summary: What a single tool must implement - naming, schema, defaults, response shape, errors and description quality.
 read_when:
   - adding or changing any tool
@@ -102,14 +102,14 @@ at a different moment — see the
 
 ## Responses
 
-| # | Requirement |
-| --- | --- |
-| T16 | `{ content: [{ type: "text", text: JSON.stringify(payload) }] }` |
-| T17 | The payload is a **compact shape** from `mappers/`, never a raw API response |
-| T18 | Lists return an envelope: `{ totalCount, returned, …, items }` — see the exception below |
-| T19 | Truncation is signalled, not hidden — `totalCount ≠ returned`, or an explicit flag |
-| T20 | No pagination cursors. Raise `limit` instead |
-| T21 | `list_*` omits expensive fields (bodies); `get_*` includes them |
+| #   | Requirement                                                                                                                                         |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| T16 | `{ content: [{ type: "text", text: JSON.stringify(payload) }] }`                                                                                    |
+| T17 | The payload is a **compact shape** from `mappers/`, never a raw API response — see [ADR-0006](../03-decisions/ADR-0006-frugal-output-by-default.md) |
+| T18 | Lists return an envelope: `{ totalCount, returned, …, items }` — see the exception below                                                            |
+| T19 | Truncation is signalled, not hidden — `totalCount ≠ returned`, or an explicit flag                                                                  |
+| T20 | No pagination cursors. Raise `limit` instead                                                                                                        |
+| T21 | `list_*` omits expensive fields (bodies); `get_*` includes them                                                                                     |
 
 Shapes: [data schemas](data-schemas.md).
 
@@ -150,6 +150,8 @@ Catalogue: [failure modes](../05-harness/failure-modes.md).
 - Ship registered while still scaffold. `list_github_milestones_by_repo` did
   exactly this and stayed callable-but-wrong until it was finished — the
   cautionary case, not an open defect.
+- Return a field a model cannot act on. Every mapper field must be
+  justified — [ADR-0006](../03-decisions/ADR-0006-frugal-output-by-default.md).
 
 ## Review checklist
 

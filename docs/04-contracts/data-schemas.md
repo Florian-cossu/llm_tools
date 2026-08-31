@@ -2,7 +2,7 @@
 type: contract
 status: active
 scope: github
-last_reviewed: 2026-08-30
+last_reviewed: 2026-08-31
 summary: The API and compact shapes, the mappers between them, and the envelopes tools return.
 read_when:
   - changing what a tool returns
@@ -137,6 +137,8 @@ Both are `JSON.stringify`-ed into `content[0].text` — see
 Step 4 is the one that gets forgotten, and the model has no way to notice.
 
 ## Rules
+
+These rules implement [ADR-0006](../03-decisions/ADR-0006-frugal-output-by-default.md).
 
 - Compact shapes are **camelCase** (`dueOn`); API shapes keep the API's casing
   (`due_on`).

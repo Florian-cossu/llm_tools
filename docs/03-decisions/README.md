@@ -2,7 +2,7 @@
 type: index
 status: active
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-08-31
 summary: Index of architectural decision records, plus when and how to write a new one.
 read_when:
   - proposing a cross-cutting change
@@ -24,13 +24,14 @@ contradicts an accepted ADR is a bug in the note.
 
 ## Index
 
-| ADR | Decision | Status |
-| --- | --- | --- |
-| [0001](ADR-0001-local-stdio-transport.md) | Local, stdio-based transport — no hosting, no HTTP | Accepted |
-| [0002](ADR-0002-bun-workspaces.md) | Bun workspaces, TypeScript run directly, no build step | Accepted |
-| [0003](ADR-0003-read-only-by-default.md) | Tools are read-only unless explicitly reviewed | Accepted |
-| [0004](ADR-0004-server-per-integration.md) | One MCP server per integration, not one gateway | Accepted |
-| [0005](ADR-0005-root-dependencies.md) | Dependencies declared once in the root `package.json` | Accepted |
+| ADR                                          | Decision                                                                                  | Status   |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------- | -------- |
+| [0001](ADR-0001-local-stdio-transport.md)    | Local, stdio-based transport — no hosting, no HTTP                                        | Accepted |
+| [0002](ADR-0002-bun-workspaces.md)           | Bun workspaces, TypeScript run directly, no build step                                    | Accepted |
+| [0003](ADR-0003-read-only-by-default.md)     | Tools are read-only unless explicitly reviewed                                            | Accepted |
+| [0004](ADR-0004-server-per-integration.md)   | One MCP server per integration, not one gateway                                           | Accepted |
+| [0005](ADR-0005-root-dependencies.md)        | Dependencies declared once in the root `package.json`                                     | Accepted |
+| [0006](ADR-0006-frugal-output-by-default.md) | Tools and API responses need to be mapped to the strict minimum number of reusable values | Accepted |
 
 ## When to write one
 
