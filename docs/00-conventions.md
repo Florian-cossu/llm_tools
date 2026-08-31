@@ -2,7 +2,7 @@
 type: index
 status: active
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-08-31
 summary: The frontmatter schema, linking rules and folder semantics that make this vault machine-navigable.
 read_when:
   - creating a new note in this vault
@@ -74,13 +74,14 @@ tags:
 
 ### `status`
 
-| Value | Meaning | Trust it? |
-| --- | --- | --- |
-| `active` | Matches the code as of `last_reviewed` | Yes |
-| `draft` | Being written; partially true | Read, verify against code |
-| `planned` | **Describes intent, not reality.** Nothing implements this | **No** — do not describe as existing |
-| `superseded` | Replaced; the note names its replacement | No |
-| `deprecated` | Still true, but on the way out | Only for history |
+| Value        | Meaning                                                    | Trust it?                            |
+| ------------ | ---------------------------------------------------------- | ------------------------------------ |
+| `active`     | Matches the code as of `last_reviewed`                     | Yes                                  |
+| `draft`      | Being written; partially true                              | Read, verify against code            |
+| `planned`    | **Describes intent, not reality.** Nothing implements this | **No** — do not describe as existing |
+| `superseded` | Replaced; the note names its replacement                   | No                                   |
+| `deprecated` | Still true, but on the way out                             | Only for history                     |
+| `accepted`   |                                                            |                                      |
 
 > [!important]
 > `status: planned` is the load-bearing value. Several notes in

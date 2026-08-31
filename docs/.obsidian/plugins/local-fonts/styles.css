@@ -1,0 +1,139 @@
+/*
+Obsidian loads this file automatically alongside main.js — no <link> or import needed.
+Scope every rule under a plugin-specific class (never bare element/tag selectors) and
+prefer Obsidian's CSS custom properties over hardcoded colors, so the plugin follows
+the user's active theme. Reference: https://docs.obsidian.md/Plugins/User+interface/CSS
+*/
+
+/*
+ * Marker declaration only — never read as a real custom property. It is how src/main.ts
+ * finds the style element Obsidian loaded this file into, among every stylesheet in the
+ * document, so it can append the generated @font-face and role rules to this element's
+ * text. That element is the delivery vehicle because it is the only one
+ * Obsidian mirrors into pop-out windows; see findPluginStyleElement in src/main.ts for
+ * the full reasoning.
+ *
+ * Matching on this property is reliable regardless of what href or index Obsidian loads
+ * this file at; matching on href or index would not be. The VALUE has to match too, not
+ * just the property: `all: unset` resets custom properties as well, so in Chromium a
+ * rule using it answers getPropertyValue with something other than '' for any custom
+ * property. Keep this value and SHEET_MARKER_VALUE in src/main.ts in step.
+ */
+:root {
+  --local-fonts-sheet: 1;
+}
+
+/*
+ * Off-screen, fixed-metrics element for src/fonts/probe.ts's font-detection technique:
+ * it measures a span's rendered width in the requested family against a guaranteed-
+ * missing one, so this element's geometry must never move under it. Only the dynamic
+ * `font-family` is set from code (via setCssStyles) — everything that must stay fixed
+ * lives here, under a selector specific enough that no theme or this plugin's own
+ * generated font-role CSS can plausibly override it.
+ */
+.local-fonts-probe {
+  position: absolute;
+  left: -9999px;
+  top: -9999px;
+  white-space: pre;
+  font-size: 64px;
+}
+
+.local-fonts-family {
+  margin-block: 0.5em;
+}
+
+.local-fonts-family-name {
+  cursor: pointer;
+  font-weight: var(--font-semibold);
+}
+
+.local-fonts-faces {
+  margin: 0;
+  padding-inline-start: 1.5em;
+}
+
+.local-fonts-warning {
+  color: var(--text-error);
+}
+
+.local-fonts-licence,
+.local-fonts-empty,
+.local-fonts-face-colour,
+.local-fonts-face-axes,
+.local-fonts-face-verdict,
+.local-fonts-face-source {
+  color: var(--text-muted);
+}
+
+/* A value guessed from the filename must never look like one parsed from the font. */
+.local-fonts-face-source-guessed {
+  color: var(--text-error);
+  font-style: italic;
+}
+
+.local-fonts-os-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  margin-block: 0.4em;
+}
+
+.local-fonts-os-badge {
+  border-radius: var(--radius-s);
+  padding: 0.05em 0.5em;
+  font-size: var(--font-ui-smaller);
+  border: 1px solid transparent;
+}
+
+.local-fonts-os-supported {
+  color: var(--text-success);
+  background-color: rgb(var(--color-green-rgb), 0.12);
+}
+
+.local-fonts-os-unsupported {
+  color: var(--text-error);
+  background-color: rgb(var(--color-red-rgb), 0.12);
+}
+
+/* The current device's pill: a subtle, colour-independent marker (not a third colour),
+   so it stays legible alongside the supported/unsupported states above. */
+.local-fonts-os-current {
+  border-color: currentcolor;
+  font-weight: var(--font-semibold);
+}
+
+.local-fonts-sample {
+  font-size: 1.4em;
+  margin-block: 0.5em;
+  overflow-wrap: break-word;
+}
+
+.local-fonts-weight-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35em;
+  margin-block: 0.5em;
+}
+
+.local-fonts-weight-chip {
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-s);
+  padding: 0.05em 0.5em;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-normal);
+}
+
+/* A missing 400 (regular) weight is a gap worth noticing, not just a chip that's absent. */
+.local-fonts-weight-chip-missing {
+  border-style: dashed;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* Obsidian lays a setting row out as a flex line of info and control. The diagnostics
+   body is a third child of the heading row, so without this the heading text is squeezed
+   into a narrow column with the family cards alongside it. */
+.local-fonts-diagnostics-row {
+  display: block;
+}
