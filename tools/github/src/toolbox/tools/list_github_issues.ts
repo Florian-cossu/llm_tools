@@ -8,7 +8,7 @@ import { describeConfiguredRepository, describeDefault, isStringUsable, optional
 
 export const TOOL_NAME = "list_github_issues";
 
-export const listGithubIssuesByRepoTool: ToolInstance = (server, config) => {
+export const listGithubIssuesTool: ToolInstance = (server, config) => {
   server.registerTool(
     TOOL_NAME,
     {

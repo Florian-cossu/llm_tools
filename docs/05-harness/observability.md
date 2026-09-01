@@ -3,6 +3,7 @@ type: harness
 status: draft
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: What a stdio MCP server can and cannot observe about itself, and the stderr discipline that follows.
 read_when:
   - adding logging to a server

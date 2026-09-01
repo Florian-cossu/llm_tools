@@ -3,6 +3,7 @@ type: harness
 status: planned
 scope: repo
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: PLANNED - the intended testing and evaluation harness. No runner exists today.
 read_when:
   - building the test or eval harness
@@ -80,7 +81,7 @@ defaults configured must produce an answer with **no clarifying question**.
 
 1. Add deterministic tests for the pure functions — no new dependency, `bun
    test` picks up `*.test.ts`. This alone would have caught the
-   `list_github_milestones_by_repo` scaffold.
+   `list_github_milestones` scaffold.
 2. Add handler tests with a stubbed `config.octokit`, fed by
    [fixtures](fixtures/github/README.md).
 3. Only then automate the evals; they are the expensive, least reliable part.

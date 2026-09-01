@@ -3,6 +3,7 @@ type: decision
 status: accepted
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: No registered tool calls a mutating endpoint; adding a write capability requires an ADR superseding this one.
 read_when:
   - proposing any tool that creates, edits, closes or deletes

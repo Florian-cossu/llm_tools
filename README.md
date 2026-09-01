@@ -18,7 +18,7 @@ gateway, credentials stay in a local `.env`.
 
 | Tool                             | Version | Description                             | Tools exposed                                                                                       |
 | -------------------------------- | ------- | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [github](tools/github/README.md) | 1.5.0   | GitHub issues, milestones and labels, read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones_by_repo`, `list_github_labels` |
+| [github](tools/github/README.md) | 2.0.0   | GitHub issues, milestones and labels, read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels` |
 
 ---
 

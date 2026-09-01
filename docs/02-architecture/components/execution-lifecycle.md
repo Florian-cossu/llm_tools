@@ -3,6 +3,7 @@ type: component
 status: active
 scope: mcp
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: The lifecycle of a server process - spawn, initialise, serve calls, die with the client - and what is fixed at each stage.
 read_when:
   - a config change does not seem to take effect

@@ -2,13 +2,14 @@
 type: harness
 status: planned
 scope: github
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: PLANNED - the reference evaluation scenario, checking a model lists open issues without asking which repository.
 read_when:
   - running an evaluation by hand
   - after changing list_github_issues descriptions or server instructions
 code_refs:
-  - tools/github/src/toolbox/tools/list_github_issues_by_repo.ts
+  - tools/github/src/toolbox/tools/list_github_issues.ts
   - tools/github/src/server_instructions.ts
 tags:
   - harness

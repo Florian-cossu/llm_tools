@@ -2,7 +2,8 @@
 type: index
 status: active
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: Entry point for the llm_tools documentation vault - routes a task to the notes that answer it.
 read_when:
   - starting any task in this repository
@@ -80,7 +81,7 @@ authoritative about its source, but is never edited by hand.
 
 ## Current state, briefly
 
-- One server ships: [github](02-architecture/components/github-server.md), read-only, version 1.5.0.
+- One server ships: [github](02-architecture/components/github-server.md), read-only, version 2.0.0.
 - All five of its tools are complete — `list_github_labels` is the most recent
   addition. See [current plan](07-plans/current.md).
 - There is **no test suite yet** — `bun test` matches zero files. See

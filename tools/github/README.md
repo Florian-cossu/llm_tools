@@ -21,7 +21,7 @@ See the [root README](../../README.md) for requirements and setup, and
 | [`list_github_issues`](#list_github_issues)                         | Search issues, compact list, no bodies         |
 | [`get_github_issue`](#get_github_issue)                             | Read one issue, body included                  |
 | [`get_github_milestone`](#get_github_milestone)                     | Read one milestone, issue counts included      |
-| [`list_github_milestones_by_repo`](#list_github_milestones_by_repo) | List milestones, compact, no counts            |
+| [`list_github_milestones`](#list_github_milestones) | List milestones, compact, no counts            |
 | [`list_github_labels`](#list_github_labels)                         | List the repository's labels, compact          |
 
 Every tool takes `owner` and `repository`, both optional once the matching `.env` default
@@ -125,14 +125,14 @@ Use `list_github_issues` first when the number isn't known. Comments are not ret
 ### `get_github_milestone`
 
 Reads a single milestone by its number, including the issue counts that
-`list_github_milestones_by_repo` leaves out. Use it when you want a milestone's progress.
+`list_github_milestones` leaves out. Use it when you want a milestone's progress.
 
 | Parameter | Type    | Description                                        |
 | --------- | ------- | -------------------------------------------------- |
 | `number`  | integer | Milestone number, as shown in the milestone's URL. |
 
 > **Milestone numbers are not issue numbers.** Milestone 3 has nothing to do with issue 3
-> — they are separate sequences. Get the number from `list_github_milestones_by_repo`.
+> — they are separate sequences. Get the number from `list_github_milestones`.
 
 **Example prompts**
 
@@ -160,7 +160,7 @@ Reads a single milestone by its number, including the issue counts that
 
 ---
 
-### `list_github_milestones_by_repo`
+### `list_github_milestones`
 
 Lists a repository's milestones in compact form. Unlike `list_github_issues` this is a
 plain listing, not a search: GitHub's milestone endpoint takes no query, so there is no
@@ -215,7 +215,7 @@ milestones were left out — raise `limit`.
 
 ### `list_github_labels`
 
-Lists a repository's labels in compact form. Like `list_github_milestones_by_repo` this is a
+Lists a repository's labels in compact form. Like `list_github_milestones` this is a
 plain listing, not a search: GitHub's label endpoint takes no query, so there is no
 `search` parameter. Use it to discover the label names a `list_github_issues` search can
 filter on with `label:"<name>"`.
@@ -321,10 +321,10 @@ tools/github/
     └── toolbox/
         ├── index.ts                # TOOL_INSTANCES
         └── tools/
-            ├── list_github_issues_by_repo.ts
+            ├── list_github_issues.ts
             ├── get_github_issue.ts
             ├── get_github_milestone.ts
-            ├── list_github_milestones_by_repo.ts
+            ├── list_github_milestones.ts
             └── list_github_labels.ts
 ```
 

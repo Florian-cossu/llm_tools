@@ -3,6 +3,7 @@ type: workflow
 status: active
 scope: repo
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: Ordered diagnosis - is the server running, is the transport intact, is the model calling, is the call correct.
 read_when:
   - a server does not appear in the client
@@ -136,7 +137,7 @@ Call it directly in the Inspector with the exact arguments the model used.
 | Pull requests present | `is:issue` missing from the query |
 | Closed issues absent with `state: "all"` | `state:all` emitted as a qualifier — it is not valid GitHub syntax |
 | Milestone or label list has no `totalCount` | Expected — those endpoints report no total; check `truncated` instead ([github api](../04-contracts/github-api.md#listing-milestones)) |
-| `get_github_milestone` says "not found" for a number you can see | Milestone numbers are **not** issue numbers; get the number from `list_github_milestones_by_repo` |
+| `get_github_milestone` says "not found" for a number you can see | Milestone numbers are **not** issue numbers; get the number from `list_github_milestones` |
 
 ---
 

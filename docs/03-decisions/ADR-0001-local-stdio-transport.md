@@ -3,6 +3,7 @@ type: decision
 status: accepted
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: MCP servers run as local child processes over stdio - no hosting, no HTTP transport, no auth layer.
 read_when:
   - proposing a network transport, a hosted deployment or multi-user access

@@ -2,13 +2,14 @@
 type: harness
 status: planned
 scope: github
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: PLANNED - the milestone evaluation scenario, checking a model chains list to get instead of guessing a milestone number.
 read_when:
   - running an evaluation by hand
   - after changing either milestone tool's description
 code_refs:
-  - tools/github/src/toolbox/tools/list_github_milestones_by_repo.ts
+  - tools/github/src/toolbox/tools/list_github_milestones.ts
   - tools/github/src/toolbox/tools/get_github_milestone.ts
 tags:
   - harness
@@ -28,7 +29,7 @@ tags:
 The milestone counterpart to
 [github-list-issues](../github-list-issues/scenario.md). Where that one measures
 **autonomy**, this one measures **chaining**: the user names a milestone by
-title, and only `list_github_milestones_by_repo` can turn a title into the
+title, and only `list_github_milestones` can turn a title into the
 number `get_github_milestone` needs.
 
 It exists because milestones carry a trap issues do not — **milestone numbers
@@ -51,7 +52,7 @@ Verbatim. A title, never a number.
 
 ## Expected behaviour
 
-1. **`list_github_milestones_by_repo` first** — the title must be resolved to a
+1. **`list_github_milestones` first** — the title must be resolved to a
    number before anything else.
 2. Arguments omit `owner` and `repository`; `state` omitted or `"all"`, since a
    milestone asked about by name may already be closed.

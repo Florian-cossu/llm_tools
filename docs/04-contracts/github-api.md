@@ -3,6 +3,7 @@ type: contract
 status: active
 scope: github
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: The GitHub REST endpoints this server calls, their quirks, and the rate limits that shape tool design.
 read_when:
   - adding a tool that calls the GitHub API
@@ -31,7 +32,7 @@ unauthenticated when it is absent.
 | `search.issuesAndPullRequests` | `GET /search/issues` | `list_github_issues` | ✅ |
 | `issues.get` | `GET /repos/{owner}/{repo}/issues/{n}` | `get_github_issue` | ✅ |
 | `issues.getMilestone` | `GET /repos/{owner}/{repo}/milestones/{n}` | `get_github_milestone` | ✅ |
-| `issues.listMilestones` | `GET /repos/{owner}/{repo}/milestones` | `list_github_milestones_by_repo` | ✅ |
+| `issues.listMilestones` | `GET /repos/{owner}/{repo}/milestones` | `list_github_milestones` | ✅ |
 | `issues.listLabelsForRepo` | `GET /repos/{owner}/{repo}/labels` | `list_github_labels` | ✅ |
 
 Every endpoint above is a read. Adding a mutating one requires an ADR
@@ -83,7 +84,7 @@ when true — it means the *search timed out*, not that the page was truncated);
 
 ## Listing milestones
 
-`list_github_milestones_by_repo` uses the **per-repo** endpoint, not search —
+`list_github_milestones` uses the **per-repo** endpoint, not search —
 milestones are not searchable and the endpoint takes no query, which is why the
 tool exposes no `search` parameter.
 

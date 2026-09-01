@@ -3,6 +3,7 @@ type: contract
 status: active
 scope: mcp
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: What the server promises the model, what the model is expected to do, and the prompt-surface rules that make it work.
 read_when:
   - writing or reviewing any text a model will read

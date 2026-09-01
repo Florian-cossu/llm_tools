@@ -3,6 +3,7 @@ type: harness
 status: active
 scope: repo
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: Catalogue of how these servers fail - startup, protocol, model-behaviour and API errors - with symptom, cause and fix.
 read_when:
   - something is broken and you need to identify which layer

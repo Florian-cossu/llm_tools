@@ -3,6 +3,7 @@ type: archive
 status: active
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: Superseded documentation, kept for history. Empty.
 read_when:
   - tracing why something used to be documented differently

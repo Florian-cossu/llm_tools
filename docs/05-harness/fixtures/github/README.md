@@ -3,6 +3,7 @@ type: harness
 status: draft
 scope: github
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: Synthetic GitHub API fixtures, written to exercise the mapper quirks rather than the happy path.
 read_when:
   - writing a test that needs an API payload

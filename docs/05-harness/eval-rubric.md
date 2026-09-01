@@ -3,6 +3,7 @@ type: harness
 status: planned
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: PLANNED - how to score whether a model uses these tools correctly, run manually today.
 read_when:
   - judging a change to a tool description or server instructions

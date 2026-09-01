@@ -3,6 +3,7 @@ type: component
 status: active
 scope: scripts
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: How setup-tools.mjs discovers, installs and registers servers into the client's mcp.json, and how to do it by hand.
 read_when:
   - registering a server with LM Studio or another client

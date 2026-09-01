@@ -1,6 +1,6 @@
 {
   "_comment": "Expected tool results for the scenario, derived from ../../fixtures/github/milestone-list.json and milestone-detail.json by mapGithubMilestone. Synthetic data only. Nothing consumes this today - see ../../overview.md (status: planned).",
-  "step_1_list_github_milestones_by_repo": {
+  "step_1_list_github_milestones": {
     "_arguments": { "state": "all" },
     "returned": 4,
     "truncated": false,

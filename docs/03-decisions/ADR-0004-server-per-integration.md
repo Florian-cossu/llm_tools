@@ -3,6 +3,7 @@ type: decision
 status: accepted
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: Each integration gets its own MCP server process, credentials and tool namespace, rather than one gateway server.
 read_when:
   - adding a second integration

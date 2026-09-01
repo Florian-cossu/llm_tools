@@ -3,6 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: The fixed limits every design here must respect - transport, context window, rate limits, tooling.
 read_when:
   - designing a new tool or server

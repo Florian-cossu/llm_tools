@@ -3,6 +3,7 @@ type: plan
 status: draft
 scope: repo
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: NOT AUTHORITATIVE - what is half-finished right now and what is worth doing next.
 read_when:
   - picking up work
@@ -77,7 +78,7 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
   would violate T21. Its description referenced `list_github_issues_by_repo`
   (the *filename*, not a tool the model can call) and omitted `default` from
   the shape it promises — both corrected before it was documented.
-- **`list_github_milestones_by_repo` finished.** Was registered scaffold calling
+- **`list_github_milestones` finished.** Was registered scaffold calling
   `issues.get`; now calls `issues.listMilestones`, maps through
   `mapGithubMilestone`, and returns `{ returned, truncated, milestones }`. Two
   defects were found in the half-written version while finishing it: `limit` was

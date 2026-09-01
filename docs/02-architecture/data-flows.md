@@ -2,13 +2,14 @@
 type: architecture
 status: active
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: The path a request takes from user prompt to compact JSON, and where each transformation happens.
 read_when:
   - tracing why a tool returned what it did
   - adding a step that transforms a request or response
 code_refs:
-  - tools/github/src/toolbox/tools/list_github_issues_by_repo.ts
+  - tools/github/src/toolbox/tools/list_github_issues.ts
   - tools/github/src/mappers/github_compact_mappers.ts
   - tools/github/src/utils/github_search_query.ts
 tags:
@@ -95,7 +96,7 @@ The milestone tools follow the same split, with progress counts in the place of
 the body:
 
 ```
-list_github_milestones_by_repo ──► [{ number, title, state, description, dueOn }]
+list_github_milestones ──► [{ number, title, state, description, dueOn }]
                                               │  no counts
                                               ▼  model picks a number
 get_github_milestone           ──► { …, openIssues, closedIssues }

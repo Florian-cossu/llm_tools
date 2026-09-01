@@ -3,6 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: What llm_tools is trying to be, and the things it deliberately refuses to become.
 read_when:
   - proposing a feature, dependency or architectural change

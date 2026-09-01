@@ -2,13 +2,14 @@
 type: contract
 status: active
 scope: mcp
-last_reviewed: 2026-08-31
+last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: What a single tool must implement - naming, schema, defaults, response shape, errors and description quality.
 read_when:
   - adding or changing any tool
   - reviewing a tool before it is registered
 code_refs:
-  - tools/github/src/toolbox/tools/list_github_issues_by_repo.ts
+  - tools/github/src/toolbox/tools/list_github_issues.ts
   - tools/github/src/toolbox/index.ts
 tags:
   - contract
@@ -46,8 +47,9 @@ export const getGithubIssue: ToolInstance = (server, config) => {
   lives in the github server
   ([ADR-0004](../03-decisions/ADR-0004-server-per-integration.md)).
 - `list_*` returns many, without expensive fields. `get_*` returns one, in full.
-- The public name is `TOOL_NAME`, not the filename — they may differ, as with
-  `list_github_issues` in `list_github_issues_by_repo.ts`.
+- The public name is `TOOL_NAME`, not the filename. Nothing enforces the match,
+  so a tool is identified by its `TOOL_NAME` and never by the file it lives in —
+  but name the file after the tool, as every one of them does today.
 
 ## Input schema
 
@@ -114,7 +116,7 @@ at a different moment — see the
 Shapes: [data schemas](data-schemas.md).
 
 > [!note] When the endpoint has no total
-> T18 assumes the upstream API reports one. `list_github_milestones_by_repo` and
+> T18 assumes the upstream API reports one. `list_github_milestones` and
 > `list_github_labels` call plain REST list endpoints that do not, so they emit
 > `{ returned, truncated, milestones }` and `{ returned, truncated, labels }`.
 > T19 is what actually matters — a `totalCount` copied from `returned` would
@@ -147,7 +149,7 @@ Catalogue: [failure modes](../05-harness/failure-modes.md).
 - Reshape a payload inline — that is a mapper's job.
 - Read `process.env` directly. Use `config`.
 - Hold state between calls.
-- Ship registered while still scaffold. `list_github_milestones_by_repo` did
+- Ship registered while still scaffold. `list_github_milestones` did
   exactly this and stayed callable-but-wrong until it was finished — the
   cautionary case, not an open defect.
 - Return a field a model cannot act on. Every mapper field must be

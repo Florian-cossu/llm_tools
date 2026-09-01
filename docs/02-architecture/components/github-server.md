@@ -3,6 +3,7 @@ type: component
 status: active
 scope: github
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: The github MCP server - its five tools, their response shapes, and its configuration.
 read_when:
   - working on any github tool
@@ -19,7 +20,7 @@ tags:
 
 # github server
 
-`@llm-tools/github` v1.5.0 — read-only access to GitHub issues, milestones and
+`@llm-tools/github` v2.0.0 — read-only access to GitHub issues, milestones and
 labels.
 
 User-facing reference (parameters, example prompts, response samples):
@@ -33,16 +34,16 @@ Registration order is `TOOL_INSTANCES` in
 
 | Tool | Export | Endpoint | State |
 | --- | --- | --- | --- |
-| `list_github_issues` | `listGithubIssuesByRepoTool` | `search.issuesAndPullRequests` | Complete |
+| `list_github_issues` | `listGithubIssuesTool` | `search.issuesAndPullRequests` | Complete |
 | `get_github_issue` | `getGithubIssue` | `issues.get` | Complete |
 | `get_github_milestone` | `getGithubMilestone` | `issues.getMilestone` | Complete |
-| `list_github_milestones_by_repo` | `listGithubMilestonesByRepo` | `issues.listMilestones` | Complete |
+| `list_github_milestones` | `listGithubMilestones` | `issues.listMilestones` | Complete |
 | `list_github_labels` | `listGithubLabels` | `issues.listLabelsForRepo` | Complete |
 
 > [!note]
-> The public tool name and the file name do not always match:
-> `list_github_issues` lives in `list_github_issues_by_repo.ts`. The name the
-> model sees is the `TOOL_NAME` constant, not the filename.
+> The name the model sees is the `TOOL_NAME` constant, not the filename. Every
+> file matches its tool name today, but nothing enforces that — read `TOOL_NAME`
+> rather than the directory listing.
 
 Every tool takes `owner` and `repository`, optional once the matching `.env`
 default is set, resolved as `param?.trim() || config.default…` and throwing when
@@ -79,7 +80,7 @@ because the detail shape adds `body`. It still uses `mapGithubMilestone` and
 Single milestone by number. Like `get_github_issue`, it spreads the shared
 mapper and **adds detail the list tool omits** — here `openIssues` and
 `closedIssues`, taken from `open_issues` / `closed_issues`. Without them the
-tool would return exactly what `list_github_milestones_by_repo` already
+tool would return exactly what `list_github_milestones` already
 returns, which is why the counts live in the detail shape rather than the
 compact one ([data schemas](../../04-contracts/data-schemas.md#milestone)).
 
@@ -88,7 +89,7 @@ independent of issue numbers**, so milestone 1 is unrelated to issue 1. The
 issues *in* a milestone are not returned — that is
 `list_github_issues` with `milestone:"<title>"`.
 
-## `list_github_milestones_by_repo`
+## `list_github_milestones`
 
 One page of milestones through `issues.listMilestones`, mapped with
 `mapGithubMilestone`.
@@ -127,7 +128,7 @@ One page of labels through `issues.listLabelsForRepo`, mapped with
 ### No `totalCount` on the plain listings
 
 [T18](../../04-contracts/tool-contract.md#responses) asks lists for
-`{ totalCount, returned, …, items }`. Neither `list_github_milestones_by_repo`
+`{ totalCount, returned, …, items }`. Neither `list_github_milestones`
 nor `list_github_labels` can honour it: `totalCount` in `list_github_issues`
 comes from the **search** endpoint's `total_count`, and the plain REST list
 endpoints — `GET /repos/{owner}/{repo}/milestones` and
@@ -163,7 +164,7 @@ node tools/github/scripts/add-new-implementation.mjs <tool_name> \
 
 Run from the repo root. Writes the file from the server's own template and
 registers the export. Then replace the two `TODO`s — schema, and API call +
-mapping — and document it in the server README. `list_github_milestones_by_repo`
+mapping — and document it in the server README. `list_github_milestones`
 shipped registered with that second step skipped, and stayed a callable, wrong
 tool until it was finished; that is the failure this step exists to prevent.
 

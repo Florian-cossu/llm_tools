@@ -8,6 +8,7 @@ orchestrator itself never needs installing or building.
 | [setup-tools.mjs](setup-tools.mjs)         | Installs, builds and registers every server in LM Studio |
 | [create-tool.mjs](create-tool.mjs)         | Scaffolds a new MCP server under `tools/`           |
 | [check-docs.mjs](check-docs.mjs)           | Validates the `docs/` vault: frontmatter, links, code refs |
+| [timestamp-docs.mjs](timestamp-docs.mjs)   | Stamps `last_updated` on the docs notes it is given |
 
 ---
 
@@ -150,10 +151,56 @@ It checks three things:
 
 | Check | Catches |
 | ----- | ------- |
-| **Frontmatter** | Missing required fields; a `type`, `status` or `scope` outside the controlled vocabulary; a malformed `last_reviewed` date |
+| **Frontmatter** | Missing required fields; a `type`, `status` or `scope` outside the controlled vocabulary; a malformed `last_reviewed` or `last_updated` date |
 | **Links** | Broken relative links, links to a directory instead of its index note, anchors that match no heading, and wikilinks (`[[…]]`), which break outside Obsidian |
 | **`code_refs`** | Frontmatter pointing at a file or directory that no longer exists — the doc↔code bridge going stale |
 
 Links inside fenced blocks and code spans are ignored, since those are
 illustrative rather than navigation. Anchors are resolved with GitHub's heading
 slug rule.
+
+It also *warns* — without failing — when a note's `last_updated` runs more than
+14 days ahead of its `last_reviewed`. That is a note whose text moved while
+nobody re-checked it against the code, which is the next one to go stale.
+
+---
+
+## `timestamp-docs.mjs`
+
+Rewrites `last_updated` to today on every `docs/**/*.md` path it is handed.
+Paths come in as arguments — the caller decides which files matter — so the
+script stays free of any git knowledge and can be run by hand on one note.
+
+```bash
+node scripts/timestamp-docs.mjs docs/04-contracts/tool-contract.md
+node scripts/timestamp-docs.mjs docs/a.md,docs/b.md    # comma-joined also works
+```
+
+Paths outside `docs/`, non-Markdown files and `.obsidian/` are skipped, so a
+hook can pass it everything staged. It is idempotent: a note already reading
+today is left untouched, mtime included.
+
+Output is split by channel — **stdout carries only the paths it rewrote**, one
+per line, so a caller can pipe them into `git add`; the human-readable summary
+goes to stderr.
+
+**It never writes `last_reviewed`.** That field means a human checked the note
+against the code, and `status: active` depends on it — see
+[the two dates](../docs/00-conventions.md#the-two-dates).
+
+Its caller is [`.githooks/pre-commit`](../.githooks/pre-commit), enabled per
+clone with:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+The hook re-stages **only** the notes the script reports as rewritten, and it
+skips any note that is staged while still dirty in the working tree — the
+`git add -p` case, where re-adding would sweep in the hunks you deliberately
+left out. Those are named on stderr and simply keep their old `last_updated`:
+
+```
+pre-commit — partially staged, last_updated left as-is:
+  docs/06-workflows/debugging.md
+```

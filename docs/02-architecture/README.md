@@ -3,6 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: Index of the architecture notes - the descriptive map of how the system fits together.
 tags:
   - index
