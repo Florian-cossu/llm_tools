@@ -6,8 +6,13 @@
     "tools/*",
     "tools/shared/*"
   ],
+  "keywords": [
+    "harness",
+    "lm-studio"
+  ],
   "scripts": {
-    "test": "rm -rf node_modules && node scripts/check-docs.mjs && bun install --frozen-lockfile && node scripts/check-deps.mjs",
+    "test": "rm -rf node_modules && node scripts/check-docs.mjs && bun install && bun run typecheck && node scripts/check-deps.mjs",
+    "typecheck": "tsc --noEmit",
     "check:docs": "node scripts/check-docs.mjs",
     "check:deps": "node scripts/check-deps.mjs",
     "deps:reset": "rm -rf node_modules tools/*/node_modules bun.lock && bun install",

@@ -114,13 +114,13 @@ at a different moment — see the
 Shapes: [data schemas](data-schemas.md).
 
 > [!note] When the endpoint has no total
-> T18 assumes the upstream API reports one. `list_github_milestones_by_repo`
-> calls a REST list endpoint that does not, so it emits
-> `{ returned, truncated, milestones }`. T19 is what actually matters — a
-> `totalCount` copied from `returned` would satisfy T18 while hiding truncation
-> entirely. **A list with no honest total carries a boolean `truncated`
+> T18 assumes the upstream API reports one. `list_github_milestones_by_repo` and
+> `list_github_labels` call plain REST list endpoints that do not, so they emit
+> `{ returned, truncated, milestones }` and `{ returned, truncated, labels }`.
+> T19 is what actually matters — a `totalCount` copied from `returned` would
+> satisfy T18 while hiding truncation entirely. **A list with no honest total carries a boolean `truncated`
 > instead.** Rationale:
-> [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-milestone-list).
+> [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-plain-listings).
 
 ## Errors
 

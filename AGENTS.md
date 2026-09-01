@@ -49,7 +49,8 @@ decide whether to trust it. Schema: `docs/00-conventions.md`.
 bun install                        # run at the ROOT — deps live there (ADR-0005)
 bun add <pkg>                      # also at the root, never in tools/<name>/
 bun run start:github               # server waits on stdio
-bun run test                       # docs + frozen install + dependency layout
+bun run test                       # docs + clean install + typecheck + dependency layout
+bun run typecheck                  # tsc --noEmit over every workspace
 bun run check:docs                 # validate the docs vault
 bun run check:deps                 # one declaration site, one copy of each
 bun run deps:reset                 # nuke node_modules AND bun.lock, reinstall
@@ -62,11 +63,16 @@ npx @modelcontextprotocol/inspector bun run tools/github/src/index.ts
 > reports a duplicate, then confirm the server still starts.
 
 > **`bun run test` and `bun test` are different commands.** `bun run test` runs
-> the root `test` script — a clean reinstall plus `check-docs.mjs` — and does
-> real work. **`bun test`, the test runner, still matches zero files** and exits
-> successfully having verified nothing. There is no unit-test suite and no
-> type-check script yet — see `docs/06-workflows/testing.md`. Validation is the
-> manual checklist there.
+> the root `test` script — a clean reinstall, `check-docs.mjs`, `bun run
+> typecheck` and `check-deps.mjs` — and does real work. **`bun test`, the test
+> runner, still matches zero files** and exits successfully having verified
+> nothing. There is no unit-test suite yet — see `docs/06-workflows/testing.md`.
+> Validation is the manual checklist there. Run `bun run setup` before
+> `bun run test`.
+
+> **The typecheck must be the real `tsc`.** The deprecated `tsc` npm package
+> prints a notice and **exits 0**. `bun run typecheck` resolves `tsc` from the
+> `typescript` devDependency; never call `npx tsc` in a script.
 
 ## Documentation map
 
@@ -88,6 +94,6 @@ workflows.
 
 ## Known broken
 
-- Nothing registered is known broken. `list_github_milestones_by_repo` was
-  scaffold calling the *issue* endpoint; it now calls `issues.listMilestones`
-  and maps through `mapGithubMilestone`. See `docs/07-plans/current.md`.
+- Nothing registered is known broken. The github server exposes five tools at
+  v1.5.0; `list_github_labels` is the most recent addition. See
+  `docs/07-plans/current.md`.

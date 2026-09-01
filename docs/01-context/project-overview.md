@@ -48,7 +48,7 @@ the anatomy of a single server.
 
 | Server | Version | Access | Tools |
 | --- | --- | --- | --- |
-| [github](../02-architecture/components/github-server.md) | 1.4.0 | Read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones_by_repo` |
+| [github](../02-architecture/components/github-server.md) | 1.5.0 | Read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones_by_repo`, `list_github_labels` |
 
 ## The problem it actually solves
 

@@ -4,6 +4,7 @@ import { listGithubIssuesByRepoTool } from "./tools/list_github_issues_by_repo.j
 import { getGithubIssue } from "./tools/get_github_issue.js";
 import { getGithubMilestone } from "./tools/get_github_milestone.js";
 import { listGithubMilestonesByRepo } from "./tools/list_github_milestones_by_repo.js";
+import { listGithubLabels } from "./tools/list_github_labels.js";
 
 /**
  * Registers one tool on the server.
@@ -27,4 +28,5 @@ export const TOOL_INSTANCES: ToolInstance[] = [
   getGithubMilestone,
   listGithubIssuesByRepoTool,
   listGithubMilestonesByRepo,
+  listGithubLabels,
 ];

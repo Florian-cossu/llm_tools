@@ -2,7 +2,7 @@
 type: contract
 status: active
 scope: github
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: The GitHub REST endpoints this server calls, their quirks, and the rate limits that shape tool design.
 read_when:
   - adding a tool that calls the GitHub API
@@ -32,6 +32,7 @@ unauthenticated when it is absent.
 | `issues.get` | `GET /repos/{owner}/{repo}/issues/{n}` | `get_github_issue` | ✅ |
 | `issues.getMilestone` | `GET /repos/{owner}/{repo}/milestones/{n}` | `get_github_milestone` | ✅ |
 | `issues.listMilestones` | `GET /repos/{owner}/{repo}/milestones` | `list_github_milestones_by_repo` | ✅ |
+| `issues.listLabelsForRepo` | `GET /repos/{owner}/{repo}/labels` | `list_github_labels` | ✅ |
 
 Every endpoint above is a read. Adding a mutating one requires an ADR
 superseding [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md).
@@ -101,10 +102,35 @@ the `state:all` prohibition applies only to the search query string.
 > endpoint returns only the page. The tool therefore emits
 > `{ returned, truncated, milestones }` rather than the usual `totalCount`
 > envelope — rationale in
-> [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-milestone-list).
+> [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-plain-listings).
 
 Milestone numbers are their own sequence, unrelated to issue numbers: milestone
 `1` and issue `1` are different objects in the same repository.
+
+## Listing labels
+
+`list_github_labels` uses `issues.listLabelsForRepo`. Like the milestone list it
+is a plain REST listing, not a search, so the tool exposes no `search`
+parameter — and unlike every other list tool it exposes **no `state`** either:
+labels have none.
+
+| Octokit | Source | Range |
+| --- | --- | --- |
+| `per_page` | `limit` | 1–100, default 100 |
+
+The default is the endpoint maximum, on the assumption that a repository's whole
+label set fits in one page — which is what makes the tool cheap enough to call
+before a `list_github_issues` search that filters on `label:"<name>"`.
+
+> [!important]
+> This endpoint reports **no total count** either, so the tool emits
+> `{ returned, truncated, labels }` — same envelope, same rationale as the
+> milestone list:
+> [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-plain-listings).
+
+Labels are keyed by **name**, not by number: there is no label id in the compact
+shape and nothing to look one up by, which is why there is no `get_github_label`
+([data schemas](data-schemas.md#label)).
 
 ## Rate limits
 
@@ -145,6 +171,8 @@ req/h. Scope needed: classic `repo`, or fine-grained **Issues: read**. See
 | `incomplete_results` ≠ truncation | Surfaced as a distinct field |
 | Closed-as-completed vs closed-as-not-planned | Not distinguished; the description says so |
 | `listMilestones` reports no total | Envelope uses `truncated` instead of `totalCount` |
+| `listLabelsForRepo` reports no total either | Same `truncated` envelope |
+| A label `color` has **no leading `#`** | Passed through as GitHub sends it; the description says so |
 | Milestone numbers ≠ issue numbers | Stated in both milestone tool descriptions |
 
 ## Error handling

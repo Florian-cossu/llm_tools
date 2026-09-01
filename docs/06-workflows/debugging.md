@@ -2,7 +2,7 @@
 type: workflow
 status: active
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: Ordered diagnosis - is the server running, is the transport intact, is the model calling, is the call correct.
 read_when:
   - a server does not appear in the client
@@ -50,8 +50,10 @@ It should print **nothing** and hang, waiting on stdio. That is success.
 | Prints anything to stdout | **Transport bug** — see step 3 |
 | Exits complaining about credentials | Contract violation: a missing credential must not crash startup (S9) |
 
-Nothing type-checks before running ([ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md#consequences)),
-so a type error surfaces here or at call time.
+Bun strips types rather than checking them
+([ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md#consequences)), so a type
+error surfaces here or at call time unless `bun run typecheck` was run first.
+Run it now — it is a couple of seconds and rules the whole class out.
 
 ---
 
@@ -133,7 +135,7 @@ Call it directly in the Inspector with the exact arguments the model used.
 | A valid schema rejected, or `instanceof` failing on a zod type | Two copies of `zod`. Run `bun run check:deps`, then `bun run deps:reset` — [ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#no-overrides-no-resolutions-ever) |
 | Pull requests present | `is:issue` missing from the query |
 | Closed issues absent with `state: "all"` | `state:all` emitted as a qualifier — it is not valid GitHub syntax |
-| Milestone list has no `totalCount` | Expected — the endpoint reports no total; check `truncated` instead ([github api](../04-contracts/github-api.md#listing-milestones)) |
+| Milestone or label list has no `totalCount` | Expected — those endpoints report no total; check `truncated` instead ([github api](../04-contracts/github-api.md#listing-milestones)) |
 | `get_github_milestone` says "not found" for a number you can see | Milestone numbers are **not** issue numbers; get the number from `list_github_milestones_by_repo` |
 
 ---

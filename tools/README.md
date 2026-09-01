@@ -4,7 +4,7 @@ One folder per MCP server, plus `shared/` — the utilities they all import.
 
 | Folder                        | Package               | Description                             |
 | ----------------------------- | --------------------- | --------------------------------------- |
-| [github](github/README.md)    | `@llm-tools/github`   | GitHub issues and milestones, read-only |
+| [github](github/README.md)    | `@llm-tools/github`   | GitHub issues, milestones and labels, read-only |
 | [shared](shared/)             | `@llm-tools/shared`   | Helpers shared by every server          |
 
 Scaffold a new one with

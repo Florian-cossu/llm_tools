@@ -2,7 +2,7 @@
 type: contract
 status: active
 scope: github
-last_reviewed: 2026-08-31
+last_reviewed: 2026-09-01
 summary: The API and compact shapes, the mappers between them, and the envelopes tools return.
 read_when:
   - changing what a tool returns
@@ -11,6 +11,7 @@ read_when:
 code_refs:
   - tools/github/src/models/github_issues.ts
   - tools/github/src/models/github_milestones.ts
+  - tools/github/src/models/github_labels.ts
   - tools/github/src/mappers/github_compact_mappers.ts
 tags:
   - contract
@@ -75,6 +76,26 @@ the `get_*` tool worth calling at all — without them it would return exactly t
 compact shape that `list_github_milestones_by_repo` already emits for every
 milestone ([T21](tool-contract.md#responses): `list_*` omits, `get_*` includes).
 
+### Label
+
+| API `GithubApiLabel` | Compact `GithubCompactLabel` | Note |
+| --- | --- | --- |
+| `name` | `name` | The only identifier a model can use — labels are keyed by name |
+| `description` | `description` | `string \| null` |
+| `color` | `color` | Six hex digits, **no leading `#`** — GitHub's own form, passed through |
+| `default` | `default` | `true` for the labels GitHub creates with every repository |
+| `id`, `node_id`, `url` | — | Dropped |
+
+There is **no label detail shape and no `get_github_label`**: the compact shape
+is already the whole useful object, so a `get_*` tool would return nothing the
+list does not ([T21](tool-contract.md#responses)).
+
+> [!note]
+> `GithubCompactLabel` is unrelated to the `labels: string[]` on a compact
+> issue. That one is a flattened list of *names* produced by
+> `mapGithubLabelNames`; this one is the label itself, produced by
+> `mapGithubLabel`. Two different mappers, two different shapes, same word.
+
 ### Issue detail
 
 `get_github_issue` returns the compact issue **plus `body`** (`string | null`,
@@ -91,6 +112,7 @@ Pure: no network, no `config`, no throwing.
 | --- | --- |
 | `mapGithubIssue` | `GithubApiIssue → GithubCompactIssue` |
 | `mapGithubMilestone` | `GithubApiMilestone → GithubCompactMilestone` |
+| `mapGithubLabel` | `GithubApiLabel → GithubCompactLabel` |
 | `mapGithubLabelNames` | `Array<string \| {name?}> → string[]`, dropping unusable |
 
 `mapGithubLabelNames` accepts both forms because GitHub's label field is
@@ -117,11 +139,29 @@ label vanishes rather than becoming `undefined` in the array.
 | `incompleteResults` | Present **only when true**: GitHub reported the search timed out. Distinct from truncation |
 | `issues` | The rows |
 
+### List with no total
+
+`list_github_milestones_by_repo` and `list_github_labels` call plain REST list
+endpoints, which report no total. They swap `totalCount` for a boolean:
+
+```json
+{
+  "returned": 2,
+  "truncated": false,
+  "labels": [ /* GithubCompactLabel[] */ ]
+}
+```
+
+`truncated` is `true` when the page came back full, i.e. `returned === limit`.
+It over-reports by one case and that is deliberate — signalling truncation is
+the requirement, `totalCount` is only the usual way of doing it
+([T19](tool-contract.md#responses)).
+
 ### Detail
 
 The compact object itself, unwrapped.
 
-Both are `JSON.stringify`-ed into `content[0].text` — see
+All three are `JSON.stringify`-ed into `content[0].text` — see
 [tool contract](tool-contract.md#responses).
 
 ## Changing a shape

@@ -2,7 +2,7 @@
 type: harness
 status: draft
 scope: github
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: Synthetic GitHub API fixtures, written to exercise the mapper quirks rather than the happy path.
 read_when:
   - writing a test that needs an API payload
@@ -16,7 +16,7 @@ tags:
 # GitHub fixtures
 
 Hand-written payloads in the **API shape** (`GithubApiIssue`,
-`GithubApiMilestone`), as the mappers receive them.
+`GithubApiMilestone`, `GithubApiLabel`), as the mappers receive them.
 
 | File | Shape | Endpoint it imitates |
 | --- | --- | --- |
@@ -24,6 +24,13 @@ Hand-written payloads in the **API shape** (`GithubApiIssue`,
 | [issue-detail.json](issue-detail.json) | Single issue, with `body` | `GET /repos/{owner}/{repo}/issues/{n}` |
 | [milestone-list.json](milestone-list.json) | **Bare array**, no envelope | `GET /repos/{owner}/{repo}/milestones` |
 | [milestone-detail.json](milestone-detail.json) | Single milestone | `GET /repos/{owner}/{repo}/milestones/{n}` |
+
+> [!note] Missing: a label list
+> `list_github_labels` and `mapGithubLabel` shipped without a fixture, so
+> nothing exercises them. A `label-list.json` should be a **bare array** like
+> `milestone-list.json`, and should encode the quirks worth catching: a `null`
+> `description`, a `color` with **no leading `#`**, and both `default: true`
+> and `default: false`. Tracked in [current plan](../../../07-plans/current.md).
 
 The compacted results are
 [github-list-issues/expected-output.json](../../scenarios/github-list-issues/expected-output.json)

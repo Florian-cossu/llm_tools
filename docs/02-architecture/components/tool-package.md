@@ -140,7 +140,7 @@ and [shared package](shared-package.md).
 ```json
 {
   "name": "@llm-tools/github",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "dependencies": { "@llm-tools/shared": "workspace:*" }
 }
 ```

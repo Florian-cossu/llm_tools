@@ -47,7 +47,7 @@ A server's own `package.json` keeps only its identity (`name`, `version`,
 ```json
 {
   "name": "@llm-tools/github",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "dependencies": { "@llm-tools/shared": "workspace:*" }
 }
 ```
@@ -148,8 +148,11 @@ bun run check:deps      # also runs inside bun run test
 [`check-deps.mjs`](../../scripts/check-deps.mjs) refuses a pin in any manifest,
 a third-party declaration in a workspace manifest, a nested `node_modules/` that
 shadows the root, a root-declared package installed twice, and a workspace
-version that has drifted from `bun.lock`. That last one exists because
-`bun install --frozen-lockfile` does **not** catch it — verified, not assumed.
+version that has drifted from `bun.lock`. That last one exists because no form
+of `bun install` catches it — neither `--frozen-lockfile`, which `bun run test`
+no longer uses, nor the plain install it now runs. A workspace `version` bump
+leaves the lockfile behind silently; `bun run deps:reset` is the fix. Verified,
+not assumed.
 
 The check that matters most is the duplicate: more than one `zod` means a schema
 built in `@llm-tools/shared` and a schema built in a tool are different

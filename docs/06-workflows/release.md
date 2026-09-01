@@ -2,7 +2,7 @@
 type: workflow
 status: planned
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: PLANNED - there is no release process; servers are cloned and run in place. What versioning does mean here.
 read_when:
   - bumping a server version
@@ -65,9 +65,9 @@ The things missing, in the order they would matter:
 
 1. A per-server `CHANGELOG.md` — the model-facing surface changes silently
    today.
-2. Git tags (`github-v1.4.0`), since versions are per server, not per repo.
-3. CI running typecheck and tests — neither exists
-   ([testing](testing.md)).
+2. Git tags (`github-v1.5.0`), since versions are per server, not per repo.
+3. CI running `bun run test` — the typecheck now exists and passes; the tests
+   and the CI to run them on do not ([testing](testing.md)).
 4. Only then, any form of distribution.
 
 Steps 1–3 are worth doing regardless of whether 4 ever happens.

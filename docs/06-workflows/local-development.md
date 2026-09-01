@@ -2,7 +2,7 @@
 type: workflow
 status: active
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: Clone, install, configure, register and iterate - the day-to-day loop for working on a server.
 read_when:
   - setting the repository up for the first time
@@ -117,9 +117,13 @@ Useful only to check it starts without crashing.
 git status --porcelain | grep -i '\.env$'   # must be empty
 ```
 
-Then the checklist in [testing](testing.md). There is **no automated gate** — no
-test suite, no type-check script
-([harness overview](../05-harness/overview.md)), so the checklist is the gate.
+Then the checklist in [testing](testing.md). `bun run test` gates the docs, a
+clean install, the types (`bun run typecheck`) and the dependency layout — but
+there is still **no test suite** ([harness overview](../05-harness/overview.md)),
+so nothing checks behaviour. The checklist remains the gate.
+
+`bun run typecheck` on its own is the fast inner-loop check: seconds, no
+reinstall, and it covers every workspace at once.
 
 ## Conventions worth internalising
 

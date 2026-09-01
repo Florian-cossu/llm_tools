@@ -2,7 +2,7 @@
 type: decision
 status: accepted
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: Bun workspaces with TypeScript executed directly - no build step, no bundling, no publishing of the shared package.
 read_when:
   - adding a dependency, a build step or a new workspace
@@ -64,9 +64,13 @@ A **Bun workspace monorepo** with **no build step**.
 
 - **Bun is required**, and 1.3+. This is not portable to a plain Node runtime
   without adding the build step the decision exists to avoid.
-- **No compile-time gate.** Nothing type-checks on the way to running. With no
-  test suite either ([testing](../06-workflows/testing.md)), a type error
-  surfaces at call time — the strongest current argument for building one.
+- **No compile-time gate *on the way to running*.** Bun strips types and
+  executes; nothing checks them at start-up. This is now covered out-of-band by
+  `bun run typecheck` (`tsc --noEmit` over the whole workspace, wired into
+  `bun run test`) rather than by a build — the recovery this ADR predicted
+  [below](#alternatives). It is a gate you have to *run*: skip it, and with no
+  test suite either ([testing](../06-workflows/testing.md)) a type error still
+  surfaces at call time.
 - A breaking change in shared breaks every server silently.
 - `setup-tools.mjs` still carries build-step machinery for servers that might
   need it — dead weight today, and the price of staying runtime-agnostic.
@@ -90,4 +94,6 @@ is subtle enough that it must have one implementation.
 **`tsc` build then run JavaScript.** Rejected: adds a step to every iteration
 and a stale-`dist` failure mode. The type-checking it would provide is real, and
 is better recovered by adding `tsc --noEmit` to a validation script than by
-compiling to run.
+compiling to run. **Done** — that is the `typecheck` script; the root
+`tsconfig.json` sets `noEmit` and `allowImportingTsExtensions`, so it checks the
+same source Bun runs, extensions and all.
