@@ -80,8 +80,8 @@ authoritative about its source, but is never edited by hand.
 
 ## Current state, briefly
 
-- One server ships: [github](02-architecture/components/github-server.md), read-only, version 1.4.0.
-- All four of its tools are complete. `list_github_milestones_by_repo` was the
-  last scaffold and is now implemented. See [current plan](07-plans/current.md).
+- One server ships: [github](02-architecture/components/github-server.md), read-only, version 1.5.0.
+- All five of its tools are complete — `list_github_labels` is the most recent
+  addition. See [current plan](07-plans/current.md).
 - There is **no test suite yet** — `bun test` matches zero files. See
   [testing](06-workflows/testing.md).

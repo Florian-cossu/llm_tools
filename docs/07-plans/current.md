@@ -2,7 +2,7 @@
 type: plan
 status: draft
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: NOT AUTHORITATIVE - what is half-finished right now and what is worth doing next.
 read_when:
   - picking up work
@@ -23,9 +23,9 @@ tags:
 ### `bun test` is a false green
 
 No test files exist; the runner exits successfully having run nothing. Note this
-is **`bun test`**, not `bun run test` — the latter now runs a clean reinstall
-plus `check-docs.mjs`, which is real work but still runs no tests.
-See [testing](../06-workflows/testing.md).
+is **`bun test`**, not `bun run test` — the latter now runs a clean reinstall,
+`check-docs.mjs`, `bun run typecheck` and `check-deps.mjs`, which is real work
+but still runs no tests. See [testing](../06-workflows/testing.md).
 
 ## Smaller defects
 
@@ -34,24 +34,19 @@ See [testing](../06-workflows/testing.md).
 | Read-only paragraph commented out, so the model may ask permission for every read | `server_instructions.ts` |
 | No CI, so `bun run test` only runs when someone remembers to | — |
 | No eval scenario for either milestone tool, and the one that exists is `status: planned` | `docs/05-harness/scenarios/` |
-| No milestone fixtures, so the mappers have nothing to be tested against | `docs/05-harness/fixtures/github/` |
+| No milestone or label fixtures, so `mapGithubMilestone` and `mapGithubLabel` have nothing to be tested against | `docs/05-harness/fixtures/github/` |
 
 ## Next, in value order
 
-1. **Add `tsc --noEmit` as a `typecheck` script.** Cheapest possible win: with
-   no build step there is currently no compile-time gate at all
-   ([ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md#consequences)). It has
-   already earned its keep — run by hand, it is what confirmed the milestone
-   handler fixes compiled.
-2. **Test the pure functions** — mappers, `buildIssueSearchQuery`, the string
+1. **Test the pure functions** — mappers, `buildIssueSearchQuery`, the string
    guards — against the [fixtures](../05-harness/fixtures/github/README.md), which already
    encode the awkward cases. Milestone fixtures still need writing.
-3. **Add the registration sanity test** (every `TOOL_INSTANCES` entry has a real
+2. **Add the registration sanity test** (every `TOOL_INSTANCES` entry has a real
    description and no `TODO`). This is what would have caught the milestone
    scaffold before it shipped registered.
-4. **Re-enable the read-only instruction paragraph** and re-run the
+3. **Re-enable the read-only instruction paragraph** and re-run the
    [scenario](../05-harness/scenarios/github-list-issues/scenario.md).
-5. **Description/schema tests** for the
+4. **Description/schema tests** for the
    [three-places rule](../02-architecture/components/shared-package.md#the-three-places-rule)
    — the repo's most important convention, currently unverified.
 
@@ -72,6 +67,16 @@ See [testing](../06-workflows/testing.md).
 
 ## Done
 
+- **`list_github_labels` added** (server 1.4.0 → 1.5.0). Calls
+  `issues.listLabelsForRepo`, maps through the new `mapGithubLabel` into
+  `{ name, description, color, default }`, and returns
+  `{ returned, truncated, labels }` — the same no-total envelope as the
+  milestone list. `limit` defaults to 100, the endpoint maximum, so one call
+  normally returns a repository's whole label set. There is deliberately **no**
+  `get_github_label`: the compact shape is the whole object, so a detail tool
+  would violate T21. Its description referenced `list_github_issues_by_repo`
+  (the *filename*, not a tool the model can call) and omitted `default` from
+  the shape it promises — both corrected before it was documented.
 - **`list_github_milestones_by_repo` finished.** Was registered scaffold calling
   `issues.get`; now calls `issues.listMilestones`, maps through
   `mapGithubMilestone`, and returns `{ returned, truncated, milestones }`. Two
@@ -83,8 +88,15 @@ See [testing](../06-workflows/testing.md).
   brought up to T11, and `openIssues` / `closedIssues` added — until then it
   returned exactly what the list tool returns for every milestone, so it had no
   reason to exist.
+- **`tsc --noEmit` as a `typecheck` script.** `bun run typecheck`, wired into
+  the root `test` script. The root `tsconfig.json` gained `noEmit` and
+  `allowImportingTsExtensions` so it can check the same `.ts`-suffixed source
+  Bun runs. First attempt installed the deprecated **`tsc` npm package**, whose
+  binary prints a notice and exits 0 — a silent false green of exactly the kind
+  this repo already had with `bun test`; the script now resolves `tsc` from the
+  `typescript` devDependency.
 - **`check-deps.mjs` added**, wired into `bun run test` alongside
-  `bun install --frozen-lockfile`. Enforces
+  `bun install`. Enforces
   [ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#no-overrides-no-resolutions-ever) on every run: no pins, no
   third-party declarations in workspace manifests, no shadowing nested trees, no
   duplicate installs, no lockfile drift. `bun run deps:reset` is the deliberate

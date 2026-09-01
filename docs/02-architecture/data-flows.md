@@ -102,7 +102,10 @@ get_github_milestone           ──► { …, openIssues, closedIssues }
 ```
 
 `get_*` must return something the `list_*` does not, or it is dead weight —
-[T21](../04-contracts/tool-contract.md#responses).
+[T21](../04-contracts/tool-contract.md#responses). That is why `list_github_labels`
+has no `get_github_label` counterpart: a label's compact shape is already the
+whole object, so the second step would have nothing to add
+([data schemas](../04-contracts/data-schemas.md#label)).
 
 ## Truncation, not pagination
 
@@ -113,11 +116,11 @@ no cursor. `incompleteResults: true` is added only when GitHub reports the
 search itself timed out, which is a different thing from truncation.
 
 **When the endpoint reports no total**, as
-`GET /repos/{owner}/{repo}/milestones` does, the comparison is unavailable and
-the envelope carries a boolean `truncated` instead — true when the page came
-back full. Signalling truncation is the requirement; `totalCount` is only the
+`GET /repos/{owner}/{repo}/milestones` and `GET /repos/{owner}/{repo}/labels`
+both do, the comparison is unavailable and the envelope carries a boolean
+`truncated` instead — true when the page came back full. Signalling truncation is the requirement; `totalCount` is only the
 usual way of doing it
-([github server](components/github-server.md#no-totalcount-on-the-milestone-list)).
+([github server](components/github-server.md#no-totalcount-on-the-plain-listings)).
 
 ## Error flow
 

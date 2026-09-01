@@ -1,6 +1,6 @@
 # github
 
-> Local MCP server for reading GitHub issues and milestones — part of the
+> Local MCP server for reading GitHub issues, milestones and labels — part of the
 > [llm_tools](../../README.md) collection.
 
 Read-only. Talks to the GitHub REST API and hands the model a **compact** payload instead
@@ -22,6 +22,7 @@ See the [root README](../../README.md) for requirements and setup, and
 | [`get_github_issue`](#get_github_issue)                             | Read one issue, body included                  |
 | [`get_github_milestone`](#get_github_milestone)                     | Read one milestone, issue counts included      |
 | [`list_github_milestones_by_repo`](#list_github_milestones_by_repo) | List milestones, compact, no counts            |
+| [`list_github_labels`](#list_github_labels)                         | List the repository's labels, compact          |
 
 Every tool takes `owner` and `repository`, both optional once the matching `.env` default
 is set, and both omitted from the tables below for brevity.
@@ -212,6 +213,56 @@ milestones were left out — raise `limit`.
 
 ---
 
+### `list_github_labels`
+
+Lists a repository's labels in compact form. Like `list_github_milestones_by_repo` this is a
+plain listing, not a search: GitHub's label endpoint takes no query, so there is no
+`search` parameter. Use it to discover the label names a `list_github_issues` search can
+filter on with `label:"<name>"`.
+
+| Parameter | Type           | Default | Description                                                                    |
+| --------- | -------------- | ------- | ------------------------------------------------------------------------------ |
+| `limit`   | integer, 1–100 | `100`   | Maximum number of labels. Single page, no pagination — raise this instead.     |
+
+**Example prompts**
+
+> _What labels does this repository use?_
+>
+> _List the labels, then show me the open issues labelled "bug"._
+
+**Response**
+
+```json
+{
+  "returned": 2,
+  "truncated": false,
+  "labels": [
+    {
+      "name": "bug",
+      "description": "Something isn't working",
+      "color": "d73a4a",
+      "default": true
+    },
+    {
+      "name": "import-pipeline",
+      "description": null,
+      "color": "0e8a16",
+      "default": false
+    }
+  ]
+}
+```
+
+`color` is a six-digit hex code without the leading `#`. `description` is `null` when the
+label has none. `default` is `true` for the labels GitHub creates with every repository.
+
+There is **no `totalCount`** here, for the same reason as the milestone list: the endpoint
+doesn't report one. `truncated` is `true` when the page came back full, meaning labels
+were left out — raise `limit`. Most repositories have fewer than 100 labels, so the
+default usually returns all of them.
+
+---
+
 ## Configuration
 
 ```bash
@@ -261,6 +312,7 @@ tools/github/
     ├── server_instructions.ts      # system prompt injected into the MCP session
     ├── models/                     # GitHub API shapes + the compact shapes sent to the LLM
     │   ├── github_issues.ts
+    │   ├── github_labels.ts
     │   └── github_milestones.ts
     ├── mappers/
     │   └── github_compact_mappers.ts
@@ -272,7 +324,8 @@ tools/github/
             ├── list_github_issues_by_repo.ts
             ├── get_github_issue.ts
             ├── get_github_milestone.ts
-            └── list_github_milestones_by_repo.ts
+            ├── list_github_milestones_by_repo.ts
+            └── list_github_labels.ts
 ```
 
 ---

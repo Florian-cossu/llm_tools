@@ -12,3 +12,5 @@ export const DEFAULT_ISSUE_LIMIT = 30;
 
 export const DEFAULT_MILESTONE_STATE = "open" as const;
 export const DEFAULT_MILESTONE_LIMIT = 60;
+
+export const DEFAULT_LABEL_LIMIT = 100;

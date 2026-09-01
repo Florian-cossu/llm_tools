@@ -1,7 +1,7 @@
 {
   "name": "@llm-tools/github",
-  "version": "1.4.0",
-  "description": "Local MCP server for managing GitHub work flows (issues, milestones)",
+  "version": "1.5.0",
+  "description": "Local MCP server for managing GitHub work flows (issues, milestones, labels)",
   "type": "module",
   "scripts": {
     "start": "bun run src/index.ts",

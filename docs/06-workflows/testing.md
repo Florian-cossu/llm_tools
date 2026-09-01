@@ -2,7 +2,7 @@
 type: workflow
 status: draft
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: The manual validation checklist that is the only real gate today, plus what an automated suite would need.
 read_when:
   - validating a change before committing
@@ -27,17 +27,27 @@ tags:
 > entirely:
 >
 > ```bash
-> rm -rf node_modules && node scripts/check-docs.mjs && bun install
+> rm -rf node_modules && node scripts/check-docs.mjs && bun install \
+>   && bun run typecheck && node scripts/check-deps.mjs
 > ```
 >
-> That validates the docs vault and proves the workspace installs from clean —
-> worth running, and the check that catches a dependency missing from the root
-> `package.json` since [ADR-0005](../03-decisions/ADR-0005-root-dependencies.md).
-> It runs **no tests**. Do not read a green `bun run test` as "the code works".
+> That validates the docs vault, proves the workspace installs from clean, and
+> type-checks the whole workspace — worth running, and the check that catches a
+> dependency missing from the root `package.json` since
+> [ADR-0005](../03-decisions/ADR-0005-root-dependencies.md). It still runs **no
+> tests**: it proves the code *compiles*, not that it is correct. Do not read a
+> green `bun run test` as "the code works".
 >
-> There is also **no type-check step**: with no build
-> ([ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md)), nothing checks types
-> before runtime. `npx tsc --noEmit -p tools/<name>/tsconfig.json` works by hand.
+> Run `bun run setup` first, so the client registration matches the tree you are
+> about to validate.
+
+> [!warning] `tsc` must be the real compiler
+> `npx tsc` will happily run the **deprecated `tsc` npm package** if it is
+> installed — it prints *"This is not the tsc command you are looking for"* and
+> **exits 0**, so the step passes having checked nothing. The script therefore
+> calls `bun run typecheck`, which resolves `tsc` from the `typescript`
+> devDependency. If the typecheck ever runs instantly and silently, check what
+> `node_modules/.bin/tsc` points at.
 
 The checklist below is the actual gate.
 
@@ -48,7 +58,9 @@ The checklist below is the actual gate.
 ### 0. Workspace
 
 ```bash
-bun run test        # docs + frozen install + dependency layout. Runs no tests
+bun run setup       # register every server against the current tree
+bun run test        # docs + clean install + typecheck + dependency layout. Runs no tests
+bun run typecheck   # just the types, when that is all you changed
 ```
 
 Four steps, each failing loudly:
@@ -56,9 +68,8 @@ Four steps, each failing loudly:
 - [ ] `check-docs.mjs` passes
 - [ ] The install completes from clean — a dependency used but missing from the
       root `package.json` shows up here
-- [ ] `--frozen-lockfile` holds: a manifest that declares something `bun.lock`
-      does not have fails with *"lockfile had changes, but lockfile is frozen"*.
-      Commit the lockfile rather than working around it
+- [ ] `bun run typecheck` passes — the workspace compiles, source Bun runs
+      included
 - [ ] `check-deps.mjs` passes — one declaration site, one copy of each
       ([ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#no-overrides-no-resolutions-ever))
 
@@ -146,15 +157,16 @@ Full list: [security and secrets](../04-contracts/security-and-secrets.md#review
 In value order — details in [harness overview](../05-harness/overview.md) and
 [principles](../05-harness/principles.md):
 
-1. **`tsc --noEmit`** as a `typecheck` script. Cheapest, and there is currently
-   no compile-time gate whatsoever.
-2. **Mapper and query-builder tests** against
+1. **Mapper and query-builder tests** against
    [fixtures](../05-harness/fixtures/github/README.md) — pure functions, no MCP, no network.
-3. **Description/schema tests**: a configured server makes `owner` optional and
+2. **Description/schema tests**: a configured server makes `owner` optional and
    interpolates the value; an unconfigured one does neither.
-4. **A registration sanity test**: every entry in `TOOL_INSTANCES` has a
+3. **A registration sanity test**: every entry in `TOOL_INSTANCES` has a
    substantial description and no `TODO` in its source. This alone would have
    caught `list_github_milestones_by_repo` shipping as scaffold.
-5. Handler tests with a stubbed `config.octokit`.
+4. Handler tests with a stubbed `config.octokit`.
+
+`tsc --noEmit`, which used to head this list, is done — it is `bun run
+typecheck`, inside `bun run test`.
 
 Evals stay manual and advisory — they must never gate a commit.

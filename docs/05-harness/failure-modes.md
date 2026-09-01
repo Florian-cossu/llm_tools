@@ -2,7 +2,7 @@
 type: harness
 status: active
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: Catalogue of how these servers fail - startup, protocol, model-behaviour and API errors - with symptom, cause and fix.
 read_when:
   - something is broken and you need to identify which layer
@@ -32,7 +32,7 @@ connected. Visible only in the client's MCP logs.
 | Server absent from the client | Relative path in `mcp.json` | Absolute paths — `setup-tools.mjs --write` does this |
 | Server absent | `bun` not on the client's `PATH` | Absolute path to the `bun` binary in `command` |
 | Immediate exit | Throw at module top level | Never throw for a missing credential — S9, [server contract](../04-contracts/mcp-server-contract.md) |
-| Immediate exit | Syntax/type error — nothing type-checks pre-run | [ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md#consequences) |
+| Immediate exit | Syntax/type error — Bun strips types, it does not check them | `bun run typecheck` before starting; [ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md#consequences) |
 | Starts, every call fails | `.env` missing or empty | Copy `.env.example`, fill, **restart** |
 
 ## 2. Protocol — the transport breaks

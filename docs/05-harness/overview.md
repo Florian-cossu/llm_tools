@@ -2,7 +2,7 @@
 type: harness
 status: planned
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
 summary: PLANNED - the intended testing and evaluation harness. No runner exists today.
 read_when:
   - building the test or eval harness
@@ -61,9 +61,10 @@ So the intended harness has two halves:
 
 **Deterministic** — pure functions first, they are the cheapest wins:
 
-- `mapGithubIssue`, `mapGithubMilestone`, `mapGithubLabelNames`, including the
-  API quirks in [data schemas](../04-contracts/data-schemas.md): absent
-  `assignees`, polymorphic `labels`, nameless labels.
+- `mapGithubIssue`, `mapGithubMilestone`, `mapGithubLabel`,
+  `mapGithubLabelNames`, including the API quirks in
+  [data schemas](../04-contracts/data-schemas.md): absent `assignees`,
+  polymorphic `labels`, nameless labels.
 - `buildIssueSearchQuery`, especially that `state:all` emits **no** qualifier.
 - `stringOrNull` / `isStringUsable` on unset vs empty vs whitespace.
 - `describeDefault` / `optionalWhenConfigured` / `describeConfiguredRepository`
@@ -82,10 +83,11 @@ defaults configured must produce an answer with **no clarifying question**.
    `list_github_milestones_by_repo` scaffold.
 2. Add handler tests with a stubbed `config.octokit`, fed by
    [fixtures](fixtures/github/README.md).
-3. Add a `typecheck` script (`tsc --noEmit`) — with no build step there is
-   currently **no compile-time gate at all**
-   ([ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md#consequences)).
-4. Only then automate the evals; they are the expensive, least reliable part.
+3. Only then automate the evals; they are the expensive, least reliable part.
+
+`tsc --noEmit` — once the cheapest missing gate — now runs as `bun run
+typecheck` inside `bun run test`, so a type error is caught before the server
+starts rather than at call time.
 
 Tracked in [current plan](../07-plans/current.md).
 

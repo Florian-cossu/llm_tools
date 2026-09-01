@@ -63,7 +63,7 @@ non-zero listing what it found.
 | `DECLARED` | A workspace manifest declares a non-`workspace:` dependency — it belongs in the root |
 | `SHADOWED` | `tools/<name>/node_modules/` holds anything but the `@llm-tools` symlink; a nested tree shadows the root beneath it |
 | `DUPLICATE` | A root-declared package has two versions in `node_modules/.bun` — two copies of `zod` means `instanceof` fails across the shared/tool boundary |
-| `LOCK-STALE` | A workspace `version` has moved on from `bun.lock`. **`bun install --frozen-lockfile` does not catch this**, which is why the check exists |
+| `LOCK-STALE` | A workspace `version` has moved on from `bun.lock`. **No form of `bun install` catches this** — neither frozen nor plain — which is why the check exists. Bump a server version and this is what reminds you to `bun run deps:reset` |
 
 `DUPLICATE`, `SHADOWED` and `LOCK-STALE` are all cleared by `bun run deps:reset`.
 `PIN` and `DECLARED` are edits.

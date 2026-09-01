@@ -2,8 +2,8 @@
 type: component
 status: active
 scope: github
-last_reviewed: 2026-08-30
-summary: The github MCP server - its four tools, their response shapes, and its configuration.
+last_reviewed: 2026-09-01
+summary: The github MCP server - its five tools, their response shapes, and its configuration.
 read_when:
   - working on any github tool
   - checking which github capabilities exist
@@ -19,7 +19,8 @@ tags:
 
 # github server
 
-`@llm-tools/github` v1.4.0 — read-only access to GitHub issues and milestones.
+`@llm-tools/github` v1.5.0 — read-only access to GitHub issues, milestones and
+labels.
 
 User-facing reference (parameters, example prompts, response samples):
 [`tools/github/README.md`](../../../tools/github/README.md). This note covers
@@ -36,6 +37,7 @@ Registration order is `TOOL_INSTANCES` in
 | `get_github_issue` | `getGithubIssue` | `issues.get` | Complete |
 | `get_github_milestone` | `getGithubMilestone` | `issues.getMilestone` | Complete |
 | `list_github_milestones_by_repo` | `listGithubMilestonesByRepo` | `issues.listMilestones` | Complete |
+| `list_github_labels` | `listGithubLabels` | `issues.listLabelsForRepo` | Complete |
 
 > [!note]
 > The public tool name and the file name do not always match:
@@ -95,26 +97,49 @@ One page of milestones through `issues.listMilestones`, mapped with
   `search` parameter, because the endpoint takes no query. The model narrows
   with `state` and reads titles.
 - Envelope: `{ returned, truncated, milestones }`. **No `totalCount`** — see
-  [below](#no-totalcount-on-the-milestone-list).
+  [below](#no-totalcount-on-the-plain-listings).
 - `sortBy` is `due_on` | `completeness`, and is **optional**: omitting it lets
   GitHub apply its own `due_on` default.
 - Defaults: `state=open`, `limit=60`, `sortOrder=desc`, the first two from
   [`metadata.ts`](../../../tools/github/src/metadata.ts).
 
-### No `totalCount` on the milestone list
+## `list_github_labels`
+
+One page of labels through `issues.listLabelsForRepo`, mapped with
+`mapGithubLabel`.
+
+- A **plain listing, not a search**, for the same reason as the milestone list:
+  the endpoint takes no query. It is also the only list tool with **no `state`**
+  — labels have no state.
+- Envelope: `{ returned, truncated, labels }` — the same no-total envelope as the
+  milestone list, and for the same reason
+  ([below](#no-totalcount-on-the-plain-listings)).
+- Compact shape is `{ name, description, color, default }`. There is no
+  `get_github_label`: the compact shape is already the whole object, so a detail
+  tool would return nothing extra and would fail
+  [T21](../../04-contracts/tool-contract.md#responses).
+- Default `limit` is **100**, the endpoint maximum, from
+  [`metadata.ts`](../../../tools/github/src/metadata.ts) — unlike the other
+  lists, the default is expected to return everything.
+- Its description points the model at the payoff: label names are what a
+  `list_github_issues` search filters on with `label:"<name>"`.
+
+### No `totalCount` on the plain listings
 
 [T18](../../04-contracts/tool-contract.md#responses) asks lists for
-`{ totalCount, returned, …, items }`. This tool cannot honour it: `totalCount`
-in `list_github_issues` comes from the **search** endpoint's `total_count`, and
-`GET /repos/{owner}/{repo}/milestones` returns no equivalent. Emitting
+`{ totalCount, returned, …, items }`. Neither `list_github_milestones_by_repo`
+nor `list_github_labels` can honour it: `totalCount` in `list_github_issues`
+comes from the **search** endpoint's `total_count`, and the plain REST list
+endpoints — `GET /repos/{owner}/{repo}/milestones` and
+`GET /repos/{owner}/{repo}/labels` — return no equivalent. Emitting
 `totalCount === returned` would satisfy the letter of T18 while making
 truncation invisible, which is exactly what
 [T19](../../04-contracts/tool-contract.md#responses) forbids.
 
-So the envelope carries a boolean `truncated` instead, true when the page came
+So both envelopes carry a boolean `truncated` instead, true when the page came
 back full. It over-reports by one case — a repository with exactly `limit`
-milestones — and that is the safe direction to be wrong in: the model raises
-`limit` and sees the same list again.
+milestones or labels — and that is the safe direction to be wrong in: the model
+raises `limit` and sees the same list again.
 
 ## Configuration
 
