@@ -3,6 +3,7 @@ type: contract
 status: active
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: Operational rules for credentials - where they live, what must never be committed, and how to scope a token.
 read_when:
   - adding a credential or an environment variable

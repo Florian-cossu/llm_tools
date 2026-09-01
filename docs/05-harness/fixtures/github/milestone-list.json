@@ -1,5 +1,5 @@
 {
-  "_comment": "SYNTHETIC fixture - a GET /repos/{owner}/{repo}/milestones response as GithubApiMilestone[]. Never captured from a real repository. Note the response is a BARE ARRAY: unlike /search/issues there is no envelope and no total_count, which is why list_github_milestones_by_repo emits `truncated` instead of `totalCount`. Deliberately awkward: see _quirks. Consumed by nothing today; see ../../overview.md.",
+  "_comment": "SYNTHETIC fixture - a GET /repos/{owner}/{repo}/milestones response as GithubApiMilestone[]. Never captured from a real repository. Note the response is a BARE ARRAY: unlike /search/issues there is no envelope and no total_count, which is why list_github_milestones emits `truncated` instead of `totalCount`. Deliberately awkward: see _quirks. Consumed by nothing today; see ../../overview.md.",
   "_quirks": {
     "no-envelope": "The real payload is the array below, not this object. The wrapper exists only to carry _comment and _quirks; a consumer must read `milestones`.",
     "no-total": "GitHub sends no total_count and no incomplete_results here. There is nothing to map to totalCount - see ../../../04-contracts/github-api.md#listing-milestones.",

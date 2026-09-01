@@ -3,6 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: Vocabulary used across this vault - MCP terms, repo-specific types, and GitHub concepts.
 read_when:
   - a term in another note is unfamiliar

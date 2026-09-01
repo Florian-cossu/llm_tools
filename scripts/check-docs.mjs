@@ -25,7 +25,11 @@ const TYPES = new Set(["index", "context", "architecture", "component", "decisio
 const STATUS = new Set(["active", "draft", "planned", "superseded", "deprecated",
   "accepted", "proposed"]); // the last two are the ADR vocabulary
 const SCOPES = new Set(["repo", "github", "shared", "scripts", "mcp"]);
-const REQUIRED = ["type", "status", "scope", "last_reviewed", "summary", "tags"];
+const REQUIRED = ["type", "status", "scope", "last_reviewed", "last_updated", "summary", "tags"];
+
+// A note whose body moved this long ago without anyone re-reading it against
+// the code is the next thing to go stale. Reported, not fatal.
+const DRIFT_DAYS = 14;
 
 const files = execSync(`find ${DOCS} -name "*.md" -not -path "*/.obsidian/*"`)
   .toString().trim().split("\n").filter(Boolean).sort();
@@ -49,6 +53,7 @@ const anchors = new Map(
 );
 
 let links = 0;
+const drifted = [];
 const stats = { type: {}, status: {} };
 
 for (const file of files) {
@@ -69,8 +74,21 @@ for (const file of files) {
     if (status && !STATUS.has(status)) fail("BAD-STATUS", file, status);
     if (scope && !SCOPES.has(scope)) fail("BAD-SCOPE", file, scope);
 
+    const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
     const reviewed = field("last_reviewed");
-    if (reviewed && !/^\d{4}-\d{2}-\d{2}$/.test(reviewed)) fail("BAD-DATE", file, reviewed);
+    const updated = field("last_updated");
+    if (reviewed && !ISO_DATE.test(reviewed)) fail("BAD-DATE", file, reviewed);
+    if (updated && !ISO_DATE.test(updated)) fail("BAD-DATE", file, updated);
+
+    // last_updated is stamped by the pre-commit hook; last_reviewed is a human
+    // saying the note still matches the code. When the first runs ahead of the
+    // second, the note changed without anyone re-checking it.
+    if (ISO_DATE.test(reviewed ?? "") && ISO_DATE.test(updated ?? "")) {
+      const days = (Date.parse(updated) - Date.parse(reviewed)) / 86400000;
+      if (days > DRIFT_DAYS) {
+        drifted.push(`${relative(ROOT, file)} — reviewed ${reviewed}, updated ${updated} (${Math.round(days)}d)`);
+      }
+    }
 
     stats.type[type] = (stats.type[type] ?? 0) + 1;
     stats.status[status] = (stats.status[status] ?? 0) + 1;
@@ -113,6 +131,11 @@ if (!quiet) {
   console.log(`docs/  ${files.length} notes, ${links} internal links`);
   console.log(`type    ${summarise(stats.type)}`);
   console.log(`status  ${summarise(stats.status)}`);
+}
+
+if (drifted.length && !quiet) {
+  console.warn(`\n${drifted.length} note${drifted.length === 1 ? "" : "s"} changed >${DRIFT_DAYS}d ago without re-review:`);
+  for (const d of drifted) console.warn(`  ${d}`);
 }
 
 if (problems.length) {

@@ -3,6 +3,7 @@ type: contract
 status: active
 scope: github
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: The API and compact shapes, the mappers between them, and the envelopes tools return.
 read_when:
   - changing what a tool returns
@@ -73,7 +74,7 @@ adds `body`.
 
 The counts answer "how much is left in this milestone?", and they are what makes
 the `get_*` tool worth calling at all — without them it would return exactly the
-compact shape that `list_github_milestones_by_repo` already emits for every
+compact shape that `list_github_milestones` already emits for every
 milestone ([T21](tool-contract.md#responses): `list_*` omits, `get_*` includes).
 
 ### Label
@@ -141,7 +142,7 @@ label vanishes rather than becoming `undefined` in the array.
 
 ### List with no total
 
-`list_github_milestones_by_repo` and `list_github_labels` call plain REST list
+`list_github_milestones` and `list_github_labels` call plain REST list
 endpoints, which report no total. They swap `totalCount` for a boolean:
 
 ```json

@@ -3,6 +3,7 @@ type: index
 status: planned
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: Index of the harness - mostly planned; only failure modes reflects reality today.
 tags:
   - index

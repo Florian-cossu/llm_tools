@@ -3,6 +3,7 @@ type: architecture
 status: active
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: How client, server, toolbox, mappers and the external API fit together, and where each concern lives.
 read_when:
   - you need the whole picture before changing anything

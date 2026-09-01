@@ -3,6 +3,7 @@ type: decision
 status: accepted
 scope: repo
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: Bun workspaces with TypeScript executed directly - no build step, no bundling, no publishing of the shared package.
 read_when:
   - adding a dependency, a build step or a new workspace

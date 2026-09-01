@@ -2,7 +2,8 @@
 type: decision
 status: accepted
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: Third-party dependencies are declared once in the root package.json; a server's own package.json declares only its workspace siblings.
 read_when:
   - adding a dependency to a server
@@ -47,7 +48,7 @@ A server's own `package.json` keeps only its identity (`name`, `version`,
 ```json
 {
   "name": "@llm-tools/github",
-  "version": "1.5.0",
+  "version": "2.0.0",
   "dependencies": { "@llm-tools/shared": "workspace:*" }
 }
 ```

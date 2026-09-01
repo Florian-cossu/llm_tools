@@ -13,9 +13,9 @@ import {
   DEFAULT_MILESTONE_STATE,
 } from "../../metadata.js";
 
-export const TOOL_NAME = "list_github_milestones_by_repo";
+export const TOOL_NAME = "list_github_milestones";
 
-export const listGithubMilestonesByRepo: ToolInstance = (server, config) => {
+export const listGithubMilestones: ToolInstance = (server, config) => {
   server.registerTool(
     TOOL_NAME,
     {

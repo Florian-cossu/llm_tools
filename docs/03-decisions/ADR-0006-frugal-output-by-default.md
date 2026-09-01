@@ -3,6 +3,7 @@ type: decision
 status: accepted
 scope: repo
 last_reviewed: 2026-08-31
+last_updated: 2026-09-01
 summary: "summary: Tool outputs are filtered through mappers that keep only fields reusable in a subsequent tool call, to fit small local models."
 read_when:
   - adding a field to a mapper

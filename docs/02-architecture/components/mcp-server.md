@@ -3,6 +3,7 @@ type: component
 status: active
 scope: mcp
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: The bootstrap pattern every server follows - env to ServerConfig to instructions to tool registration to stdio.
 read_when:
   - writing or changing a server's index.ts

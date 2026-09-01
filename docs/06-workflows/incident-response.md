@@ -3,6 +3,7 @@ type: workflow
 status: planned
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: PLANNED - no on-call or production exists; what remains is credential compromise, which is real and urgent.
 read_when:
   - a token may have been exposed

@@ -3,6 +3,7 @@ type: architecture
 status: active
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: The trust boundaries of a local stdio MCP server, what protects credentials, and the residual risks.
 read_when:
   - handling tokens, credentials or scopes

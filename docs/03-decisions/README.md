@@ -3,6 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-08-31
+last_updated: 2026-09-01
 summary: Index of architectural decision records, plus when and how to write a new one.
 read_when:
   - proposing a cross-cutting change

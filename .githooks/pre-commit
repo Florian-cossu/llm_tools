@@ -1,0 +1,44 @@
+#!/bin/sh
+#
+# Stamps `last_updated` on the staged docs notes, then re-stages exactly the
+# ones that changed.
+#
+# Installed with: git config core.hooksPath .githooks
+# `last_reviewed` is never touched here — see docs/00-conventions.md.
+
+set -eu
+
+# An `if` rather than `[ ... ] && exit 0`: under `set -e` a failing test as the
+# last command of an AND-OR list aborts the hook, and so the commit, in some
+# shells.
+staged=$(git diff --cached --name-only --diff-filter=ACM -- 'docs/*.md' | sort)
+if [ -z "$staged" ]; then
+  exit 0
+fi
+
+# A note that is staged AND still dirty in the working tree was partially
+# staged. Rewriting it means `git add` would sweep the hunks you deliberately
+# left out into the commit, so leave those alone and say so.
+dirty=$(mktemp)
+trap 'rm -f "$dirty"' EXIT
+git diff --name-only -- 'docs/*.md' | sort > "$dirty"
+
+safe=$(printf '%s\n' "$staged" | comm -23 - "$dirty")
+risky=$(printf '%s\n' "$staged" | comm -12 - "$dirty")
+
+if [ -n "$risky" ]; then
+  echo "pre-commit — partially staged, last_updated left as-is:" >&2
+  printf '  %s\n' $risky >&2
+fi
+
+if [ -n "$safe" ]; then
+  # Captured rather than piped: a pipeline reports only its last command, which
+  # would hide the script exiting non-zero on malformed frontmatter.
+  # shellcheck disable=SC2086  # deliberate word-splitting: one path per line
+  changed=$(node scripts/timestamp-docs.mjs $safe)
+
+  # Only the notes it actually rewrote — never a file it left alone.
+  if [ -n "$changed" ]; then
+    printf '%s\n' "$changed" | xargs git add
+  fi
+fi

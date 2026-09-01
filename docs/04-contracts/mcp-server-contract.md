@@ -3,6 +3,7 @@ type: contract
 status: active
 scope: mcp
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: What every MCP server in this repository must provide, guarantee and never do.
 read_when:
   - creating a new MCP server

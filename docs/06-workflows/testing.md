@@ -3,6 +3,7 @@ type: workflow
 status: draft
 scope: repo
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: The manual validation checklist that is the only real gate today, plus what an automated suite would need.
 read_when:
   - validating a change before committing
@@ -163,7 +164,7 @@ In value order — details in [harness overview](../05-harness/overview.md) and
    interpolates the value; an unconfigured one does neither.
 3. **A registration sanity test**: every entry in `TOOL_INSTANCES` has a
    substantial description and no `TODO` in its source. This alone would have
-   caught `list_github_milestones_by_repo` shipping as scaffold.
+   caught `list_github_milestones` shipping as scaffold.
 4. Handler tests with a stubbed `config.octokit`.
 
 `tsc --noEmit`, which used to head this list, is done — it is `bun run

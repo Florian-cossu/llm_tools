@@ -3,6 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-08-31
+last_updated: 2026-09-01
 summary: The frontmatter schema, linking rules and folder semantics that make this vault machine-navigable.
 read_when:
   - creating a new note in this vault
@@ -31,7 +32,8 @@ Every `.md` note carries frontmatter. Fields, in canonical order:
 | `type` | yes | What kind of note this is. Controls how much authority it has. |
 | `status` | yes | Whether the content can be trusted right now. |
 | `scope` | yes | Which part of the repository it governs. |
-| `last_reviewed` | yes | ISO date the content was last checked against the code. |
+| `last_reviewed` | yes | ISO date a **human** last checked the content against the code. Never written by tooling. |
+| `last_updated` | yes | ISO date the note last changed. Stamped by the pre-commit hook — do not edit by hand. |
 | `summary` | yes | One sentence. The retrieval hook — read this before opening the note. |
 | `read_when` | recommended | Task triggers. If none match, skip the note. |
 | `code_refs` | when applicable | Repo-relative paths the note describes. The doc↔code bridge. |
@@ -45,6 +47,7 @@ type: contract
 status: active
 scope: github
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: The GitHub REST endpoints this server calls, and their limits.
 read_when:
   - adding a tool that calls the GitHub API
@@ -76,12 +79,32 @@ tags:
 
 | Value        | Meaning                                                    | Trust it?                            |
 | ------------ | ---------------------------------------------------------- | ------------------------------------ |
-| `active`     | Matches the code as of `last_reviewed`                     | Yes                                  |
+| `active`     | Matches the code as of `last_reviewed`                     | Yes — but see the two dates below    |
 | `draft`      | Being written; partially true                              | Read, verify against code            |
 | `planned`    | **Describes intent, not reality.** Nothing implements this | **No** — do not describe as existing |
 | `superseded` | Replaced; the note names its replacement                   | No                                   |
 | `deprecated` | Still true, but on the way out                             | Only for history                     |
 | `accepted`   |                                                            |                                      |
+
+### The two dates
+
+They answer different questions and only one of them is yours to write.
+
+| | Written by | Means |
+| --- | --- | --- |
+| `last_reviewed` | you, by hand | someone read this note against the code and it held |
+| `last_updated` | [`.githooks/pre-commit`](../.githooks/pre-commit) | the note's text changed on this date |
+
+Stamping `last_reviewed` automatically would make it a save-timestamp that
+always reads green, and `status: active` hangs off it — so
+[`timestamp-docs.mjs`](../scripts/timestamp-docs.mjs) touches `last_updated`
+only.
+
+The gap between them is the useful part. `last_updated` well ahead of
+`last_reviewed` means the note moved and nobody re-checked it: that is the next
+note to go stale, and [`check-docs.mjs`](../scripts/check-docs.mjs) reports it
+once the gap passes 14 days. It is a warning, not a failure — an old
+`last_reviewed` on a note nothing has touched is perfectly honest.
 
 > [!important]
 > `status: planned` is the load-bearing value. Several notes in

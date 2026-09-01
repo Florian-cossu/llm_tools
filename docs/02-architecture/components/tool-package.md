@@ -2,7 +2,8 @@
 type: component
 status: active
 scope: repo
-last_reviewed: 2026-08-30
+last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: Anatomy of a tools/<name>/ server folder - the files, the tool.json manifest, and what each directory owns.
 read_when:
   - creating a new MCP server
@@ -140,7 +141,7 @@ and [shared package](shared-package.md).
 ```json
 {
   "name": "@llm-tools/github",
-  "version": "1.5.0",
+  "version": "2.0.0",
   "dependencies": { "@llm-tools/shared": "workspace:*" }
 }
 ```

@@ -3,6 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: What 08-notes holds and why nothing in it may be trusted as fact.
 tags:
   - index

@@ -20,10 +20,10 @@ export const getGithubMilestone: ToolInstance = (server, config) => {
           config.defaultRepository,
         ) +
         `Read a single milestone of a GitHub repository by its number, ` +
-        `including the issue counts that list_github_milestones_by_repo ` +
+        `including the issue counts that list_github_milestones ` +
         `leaves out. Milestones are numbered independently of issues, so ` +
         `milestone 1 has nothing to do with issue 1; call ` +
-        `list_github_milestones_by_repo first when the number is not ` +
+        `list_github_milestones first when the number is not ` +
         `already known. The issues belonging to the milestone are not ` +
         `returned - list them with list_github_issues and a "search" of ` +
         `milestone:"<title>". Returns {"number", "title", "state", ` +
@@ -59,7 +59,7 @@ export const getGithubMilestone: ToolInstance = (server, config) => {
           .describe(
             `The number identifying the milestone within its repository, ` +
               `as shown in the GitHub interface and returned in the ` +
-              `"number" field of list_github_milestones_by_repo results. ` +
+              `"number" field of list_github_milestones results. ` +
               `This is the milestone's own number, not the number of an ` +
               `issue it contains.`,
           ),
@@ -93,7 +93,7 @@ export const getGithubMilestone: ToolInstance = (server, config) => {
 
       const githubMilestone = response.data;
 
-      // The compact shape shared with list_github_milestones_by_repo, plus
+      // The compact shape shared with list_github_milestones, plus
       // the issue counts that justify reading a milestone one at a time.
       const detailedMilestone = {
         ...mapGithubMilestone(githubMilestone),

@@ -3,6 +3,7 @@ type: component
 status: active
 scope: shared
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: "@llm-tools/shared: string guards plus the helpers that keep a parameter's prose and its schema in agreement."
 read_when:
   - writing tool or parameter descriptions

@@ -3,6 +3,7 @@ type: index
 status: planned
 scope: repo
 last_reviewed: 2026-08-30
+last_updated: 2026-09-01
 summary: Reserved for machine-written documentation. Empty - nothing generates docs today.
 read_when:
   - adding documentation generation

@@ -3,6 +3,7 @@ type: workflow
 status: active
 scope: repo
 last_reviewed: 2026-09-01
+last_updated: 2026-09-01
 summary: Clone, install, configure, register and iterate - the day-to-day loop for working on a server.
 read_when:
   - setting the repository up for the first time
