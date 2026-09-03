@@ -4,7 +4,7 @@ status: active
 scope: github
 last_reviewed: 2026-09-02
 last_updated: 2026-09-03
-summary: The github MCP server - its six tools, their response shapes, and its configuration.
+summary: The github MCP server - its eight tools (six reads and two gated writes), their response shapes, and its configuration.
 read_when:
   - working on any github tool
   - checking which github capabilities exist
@@ -15,13 +15,15 @@ code_refs:
 tags:
   - component
   - github
-  - read-only
+  - writes
 ---
 
 # github server
 
-`@llm-tools/github` v2.2.0 — read-only access to GitHub issues, milestones and
-labels.
+`@llm-tools/github` v2.4.0 — read access to GitHub issues, milestones and
+labels, plus two **writes** on labels: `create_github_label` and
+`update_github_label`, registered only when `GITHUB_ALLOW_WRITES` is set
+([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
 
 User-facing reference (parameters, example prompts, response samples):
 [`tools/github/README.md`](../../../tools/github/README.md). This note covers
@@ -29,17 +31,22 @@ structure and status.
 
 ## Registered tools
 
-Registration order is `TOOL_INSTANCES` in
-[`toolbox/index.ts`](../../../tools/github/src/toolbox/index.ts).
+Registration order is `TOOL_REGISTRATIONS` in
+[`toolbox/index.ts`](../../../tools/github/src/toolbox/index.ts). **Listed is
+not the same as registered** — the gate in
+[`index.ts`](../../../tools/github/src/index.ts) drops anything whose effect the
+configuration disallows, and logs the reason to stderr.
 
-| Tool | Export | Endpoint | State |
-| --- | --- | --- | --- |
-| `list_github_issues` | `listGithubIssuesTool` | `search.issuesAndPullRequests` | Complete |
-| `get_github_issue` | `getGithubIssue` | `issues.get` | Complete |
-| `get_github_milestone` | `getGithubMilestone` | `issues.getMilestone` | Complete |
-| `list_github_milestones` | `listGithubMilestones` | `issues.listMilestones` | Complete |
-| `list_github_labels` | `listGithubLabels` | `issues.listLabelsForRepo` | Complete |
-| `get_github_label` | `getGithubLabel` | `issues.getLabel` | Complete |
+| Tool | Export | Endpoint | Effect | State |
+| --- | --- | --- | --- | --- |
+| `list_github_issues` | `listGithubIssuesTool` | `search.issuesAndPullRequests` | `read` | Complete |
+| `get_github_issue` | `getGithubIssue` | `issues.get` | `read` | Complete |
+| `get_github_milestone` | `getGithubMilestone` | `issues.getMilestone` | `read` | Complete |
+| `list_github_milestones` | `listGithubMilestones` | `issues.listMilestones` | `read` | Complete |
+| `list_github_labels` | `listGithubLabels` | `issues.listLabelsForRepo` | `read` | Complete |
+| `get_github_label` | `getGithubLabel` | `issues.getLabel` | `read` | Complete |
+| `create_github_label` | `createGithubLabel` | `issues.createLabel` | **`write`** | Complete, gated |
+| `update_github_label` | `updateGithubLabel` | `issues.updateLabel` | **`write`** | Complete, gated |
 
 > [!note]
 > The name the model sees is the `TOOL_NAME` constant, not the filename. Every
@@ -217,6 +224,44 @@ back full. It over-reports by one case — a repository with exactly `limit`
 milestones or labels — and that is the safe direction to be wrong in: the model
 raises `limit` and sees the same list again.
 
+## The label writes
+
+`create_github_label` and `update_github_label` are the only tools here that
+change anything. Neither is registered unless `GITHUB_ALLOW_WRITES` is set, so
+on a default server the model never sees them
+([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
+Both open their description with `describeMutation(TOOL_EFFECT)` rather than
+improvising a warning, and both return the label **read back from GitHub**
+through `mapGithubLabel` — the same compact shape the two label reads return,
+wrapped in a one-word envelope that says what happened:
+
+| | `create_github_label` | `update_github_label` |
+| --- | --- | --- |
+| Endpoint | `issues.createLabel` | `issues.updateLabel` |
+| Keyed by | the new name | `name`, the label's current name |
+| Envelope | `{ created: true, label }` | `{ updated: true, label }` |
+| Second identical call | fails — `422`, the name exists | succeeds, changing nothing further |
+| Expected failure | name already taken | no such label (`404`), or `newName` taken (`422`) |
+
+Two things the shapes do not show:
+
+- **Partial update.** `issues.updateLabel` leaves out what the body leaves out,
+  so `update_github_label` forwards only the parameters it was given. That makes
+  a call carrying none of `newName`, `color` and `description` a no-op GitHub
+  answers `200` to. The handler rejects that case before the request rather than
+  returning `{ updated: true }` for a change that never happened — the one place
+  either write tool checks anything at call time, and it is about honesty of the
+  response, not about permission.
+- **Neither touches an issue.** Creating a label labels nothing, and renaming
+  one keeps it on exactly the issues that already carried it. No tool on this
+  server can apply a label to an issue, and both descriptions say so, because
+  the plausible-but-wrong reading is that the issues were edited.
+
+`update_github_label` declares `write` rather than `destructive` because the
+compensating action exists: a rename is undone by another rename, a colour by
+another colour (D3). Nothing here removes a label — that endpoint stays
+unimplemented until the permission layer lands.
+
 ## Configuration
 
 | Variable | Effect when set |
@@ -225,6 +270,7 @@ raises `limit` and sees the same list again.
 | `GITHUB_DEFAULT_OWNER` | Owner fallback; enables the repository paragraph in the system prompt |
 | `GITHUB_DEFAULT_REPOSITORY` | Repository fallback; must belong to the owner |
 | `GITHUB_DEFAULT_USERNAME` | Resolves `@me`; enables the identity paragraph |
+| `GITHUB_ALLOW_WRITES` | Registers the `write` tools. Read through `booleanFromEnv`, so only `1`/`true`/`yes`/`on` count — a typo leaves writes off |
 
 All optional — but setting the two repository defaults is what lets a user say
 "list the open issues" without naming a repo, because the value is then stated

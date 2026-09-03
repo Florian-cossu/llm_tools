@@ -3,7 +3,7 @@ type: component
 status: active
 scope: mcp
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: The bootstrap pattern every server follows - env to ServerConfig to instructions to tool registration to stdio.
 read_when:
   - writing or changing a server's index.ts
@@ -45,16 +45,23 @@ const config: ServerConfig = {
   defaultRepository: stringOrNull(process.env.GITHUB_DEFAULT_REPOSITORY),
 };
 
-// 3. Construct the server, with instructions derived from config
-const server = new McpServer(
-  { name: APP_NAME, version: APP_VERSION },
-  { instructions: buildServerInstructions(config) },
+// 3. Decide what may be registered at all — a tool whose effect the
+//    config does not allow is skipped here and never seen (ADR-0007)
+const allowed = TOOL_REGISTRATIONS.filter(
+  (r) => registrationRefusal(r.effect, config.allowWrites) === null,
 );
 
-// 4. Register every tool, handing each the same config
-for (const registerTool of TOOL_INSTANCES) registerTool(server, config);
+// 4. Construct the server. Instructions are built from what the gate
+//    allowed, so a read-only promise is only made when it is true
+const server = new McpServer(
+  { name: APP_NAME, version: APP_VERSION },
+  { instructions: buildServerInstructions(config, allowed) },
+);
 
-// 5. Connect stdio and hand control to the transport
+// 5. Register what survived, handing each the same config
+for (const registration of allowed) registration.register(server, config);
+
+// 6. Connect stdio and hand control to the transport
 await server.connect(new StdioServerTransport());
 ```
 

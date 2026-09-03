@@ -1,6 +1,6 @@
 import z from "zod";
 import { DEFAULT_ISSUE_LIMIT, DEFAULT_ISSUE_STATE } from "../../metadata.js";
-import { ToolInstance } from "../index.js";
+import { ToolInstance, ToolRegistration } from "../index.js";
 import { buildIssueSearchQuery } from "../../utils/github_search_query.js";
 import { mapGithubIssue } from "../../mappers/github_compact_mappers.js";
 import {
@@ -12,11 +12,14 @@ import {
   describeDefault,
   isStringUsable,
   optionalWhenConfigured,
+  ToolEffect,
 } from "@llm-tools/shared";
 
 export const TOOL_NAME = "list_github_issues";
 
-export const listGithubIssuesTool: ToolInstance = (server, config) => {
+export const TOOL_EFFECT: ToolEffect = "read";
+
+const register: ToolInstance = (server, config) => {
   server.registerTool(
     TOOL_NAME,
     {
@@ -218,4 +221,10 @@ export const listGithubIssuesTool: ToolInstance = (server, config) => {
       };
     },
   );
+};
+
+export const listGithubIssuesTool: ToolRegistration = {
+  name: TOOL_NAME,
+  effect: TOOL_EFFECT,
+  register: register,
 };

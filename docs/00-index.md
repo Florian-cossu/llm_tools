@@ -39,7 +39,8 @@ New to the vault itself? Read [vault conventions](00-conventions.md) first.
 | Add a **new server** | [MCP server contract](04-contracts/mcp-server-contract.md) → [Tool package](02-architecture/components/tool-package.md) → [Setup and registration](02-architecture/components/setup-and-registration.md) |
 | Make a tool the model actually calls correctly | [Agent contract](04-contracts/agent-contract.md) → [Shared package](02-architecture/components/shared-package.md) |
 | Change a response shape | [Data schemas](04-contracts/data-schemas.md) → [Data flows](02-architecture/data-flows.md) |
-| Touch credentials or tokens | [Security and secrets](04-contracts/security-and-secrets.md) → [Security model](02-architecture/security-model.md) → [ADR-0003](03-decisions/ADR-0003-read-only-by-default.md) |
+| Touch credentials or tokens | [Security and secrets](04-contracts/security-and-secrets.md) → [Security model](02-architecture/security-model.md) |
+| Add a tool that **writes**, or reason about what a model can change | [ADR-0007](03-decisions/ADR-0007-writes-behind-declared-capability.md) → [Tool contract](04-contracts/tool-contract.md#effect-class-and-writes) → [Security model](02-architecture/security-model.md) |
 | Work against the GitHub API | [GitHub API contract](04-contracts/github-api.md) → [github server](02-architecture/components/github-server.md) |
 | The server won't start or the model ignores it | [Debugging](06-workflows/debugging.md) → [Failure modes](05-harness/failure-modes.md) |
 | Run things locally | [Local development](06-workflows/local-development.md) |
@@ -81,9 +82,12 @@ authoritative about its source, but is never edited by hand.
 
 ## Current state, briefly
 
-- One server ships: [github](02-architecture/components/github-server.md), read-only, version 2.2.0.
-- All six of its tools are complete — `get_github_label`, and label filtering on
-  `list_github_issues`, are the most recent additions. See
-  [current plan](07-plans/current.md).
+- One server ships: [github](02-architecture/components/github-server.md),
+  version 2.4.0 — six read tools plus two gated writes.
+- All eight tools are complete. `update_github_label` is the newest, and the
+  second **write** in the repo after `create_github_label`: both are registered
+  only when `GITHUB_ALLOW_WRITES` is set
+  ([ADR-0007](03-decisions/ADR-0007-writes-behind-declared-capability.md)).
+  See [current plan](07-plans/current.md).
 - There is **no test suite yet** — `bun test` matches zero files. See
   [testing](06-workflows/testing.md).

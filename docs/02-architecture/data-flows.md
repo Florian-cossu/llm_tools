@@ -28,7 +28,7 @@ Once per process, before any tool call. See
 .env ──dotenv(quiet)──► process.env
    └──► stringOrNull() ──► ServerConfig { token, octokit, defaultOwner, … }
              ├──► buildServerInstructions(config) ──► client system prompt
-             └──► TOOL_INSTANCES.forEach(register(server, config))
+             └──► TOOL_REGISTRATIONS, gated, .register(server, config)
                         └──► each tool bakes config into its
                              description and its schema
 ```

@@ -3,7 +3,7 @@ type: architecture
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: The trust boundaries of a local stdio MCP server, what protects credentials, and the residual risks.
 read_when:
   - handling tokens, credentials or scopes
@@ -60,7 +60,7 @@ Two things follow from this picture:
 
 | Risk | Control | Where |
 | --- | --- | --- |
-| Model triggers a destructive action | **Tools are read-only.** The capability does not exist to be misused | [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md) |
+| Model triggers a destructive action | **No `destructive` tool is registrable**, and a `write` tool is registered only when the user enabled writes | [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md) |
 | Token committed to git | `.env` git-ignored; only `.env.example` tracked | [`.gitignore`](../../.gitignore) |
 | Token leaked to the transport | Nothing writes secrets to `stdout`; `dotenv` runs `quiet` | [`index.ts`](../../tools/github/src/index.ts) |
 | Token leaked into docs/fixtures | Fixtures are synthetic; no captured production responses | [conventions](../00-conventions.md#writing-rules) |
@@ -68,21 +68,31 @@ Two things follow from this picture:
 | Blast radius across integrations | One server, one integration, one credential set | [ADR-0004](../03-decisions/ADR-0004-server-per-integration.md) |
 | Unreviewed server in the client | Registration is explicit, per server, via `--write` or by hand | [setup and registration](components/setup-and-registration.md) |
 
-## The read-only guarantee, precisely
+## The capability guarantee, precisely
 
-It is a guarantee about **registered capability**, not about the token. The
-token in `.env` may well carry write scope — GitHub's classic `repo` scope does.
-What holds is that no registered tool calls a mutating endpoint. Every current
-tool calls `octokit.rest.issues.get`, `getMilestone`, or
-`search.issuesAndPullRequests`.
+**This is no longer a read-only server.** `create_github_label` calls
+`issues.createLabel` and `update_github_label` calls `issues.updateLabel`, and [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)
+replaced the blanket ban with a narrower guarantee — still about **registered
+capability**, not about the token:
+
+- Every tool declares an effect class, and a `read` declaration is binding: it
+  may not call a mutating endpoint.
+- A `write` tool is registered **only when `GITHUB_ALLOW_WRITES` is set**. When
+  it is not, the tool is skipped at startup and never appears in the model's
+  tool list — the flag fails closed, so a typo leaves writes off.
+- **No `destructive` tool is registrable at all** yet. Irreversible removal
+  waits for the permission layer.
+- The server instructions name every registered mutating tool, so the model is
+  never told a server is harmless when it is not.
 
 Two consequences:
 
-- Adding a tool that writes **breaks a documented guarantee** and requires an
-  ADR superseding [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md),
-  not just a code review.
+- Adding a mutating tool is now a code review against the
+  [tool contract](../04-contracts/tool-contract.md#effect-class-and-writes),
+  not an ADR — **unless it is `destructive`**, which still needs one.
 - A reader minimising risk should reduce the **token scope**, since that is the
-  only control the repo cannot enforce for them.
+  only control the repo cannot enforce for them. It is also the only control
+  that binds clients other than this one.
 
 ## Residual risks
 
@@ -96,7 +106,16 @@ Accepted, and worth naming:
   [ADR-0001](../03-decisions/ADR-0001-local-stdio-transport.md) does not extend
   to shared hosts.
 - **Prompt injection via issue content.** Issue bodies are attacker-controllable
-  text that reaches the model. Read-only tooling bounds the damage: there is no
-  registered action for an injected instruction to trigger.
+  text that reaches the model, and with writes enabled there is now a registered
+  action for an injected instruction to reach. What bounds the damage is
+  narrower than it was: the action must be non-destructive, the user must have
+  turned writes on, and the server instructions tell the model that issue and
+  comment text is not the user speaking. **That last part is a mitigation, not a
+  control** — it is prose, and a small model may not honour it. Leave
+  `GITHUB_ALLOW_WRITES` unset on any server pointed at a repository whose issues
+  you do not trust.
+- **Nothing records what was written.** There is no audit trail; a label created
+  by mistake is found by noticing it. Worth fixing when the permission layer
+  gets a database.
 - **Dependency supply chain.** `octokit`, `zod`, `dotenv` and the MCP SDK run
   with the token in-process. Pinned via [`bun.lock`](../../bun.lock).

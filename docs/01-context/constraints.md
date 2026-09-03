@@ -3,7 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: The fixed limits every design here must respect - transport, context window, rate limits, tooling.
 read_when:
   - designing a new tool or server
@@ -70,6 +70,8 @@ Non-negotiable limits. Each one has bitten, or would.
 ## Security
 
 - **`.env` is never committed.** Only `.env.example` is tracked.
-- **Read-only unless explicitly reviewed.**
-  See [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md) and
-  [security and secrets](../04-contracts/security-and-secrets.md).
+- **Read-only unless the tool declares otherwise and the user enabled it.**
+  Writes are opt-in per server via `GITHUB_ALLOW_WRITES`, and `destructive`
+  tools cannot be registered at all.
+  See [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)
+  and [security and secrets](../04-contracts/security-and-secrets.md).

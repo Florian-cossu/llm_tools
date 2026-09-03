@@ -32,7 +32,8 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 
 | Item | Where |
 | --- | --- |
-| Read-only paragraph commented out, so the model may ask permission for every read | `server_instructions.ts` |
+| The permission layer ADR-0007 points at does not exist. `GITHUB_ALLOW_WRITES` is the whole gate, and it is per server, not per tool | `index.ts` |
+| No audit trail. Nothing records that a write happened | — |
 | No CI, so `bun run test` only runs when someone remembers to | — |
 | No eval scenario for either milestone tool, and the one that exists is `status: planned` | `docs/05-harness/scenarios/` |
 | No milestone or label fixtures, so `mapGithubMilestone` and `mapGithubLabel` have nothing to be tested against | `docs/05-harness/fixtures/github/` |
@@ -44,12 +45,20 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 1. **Test the pure functions** — mappers, `buildIssueSearchQuery`, the string
    guards — against the [fixtures](../05-harness/fixtures/github/README.md), which already
    encode the awkward cases. Milestone fixtures still need writing.
-2. **Add the registration sanity test** (every `TOOL_INSTANCES` entry has a real
+2. **Add the registration sanity test** (every `TOOL_REGISTRATIONS` entry has a real
    description and no `TODO`). This is what would have caught the milestone
    scaffold before it shipped registered.
-3. **Re-enable the read-only instruction paragraph** and re-run the
-   [scenario](../05-harness/scenarios/github-list-issues/scenario.md).
-4. **Description/schema tests** for the
+3. **The permission layer** — the point of ADR-0007's D1. SQLite, one row per
+   tool with its effect class and an allow/deny/ask decision, user-editable,
+   consulted *before execution* so a change needs no restart, and deny by
+   default for anything unlisted. It replaces `GITHUB_ALLOW_WRITES`, which is
+   deliberately the crudest version of the same idea, and unblocks
+   `destructive` tools (ADR-0007 D3). Gets its own ADR.
+4. **A scenario for the write path**: the model asked to create a label calls
+   `list_github_labels` first, confirms, calls once, and does not retry the
+   422. And the injection case — an issue body telling it to create a label
+   must not work.
+5. **Description/schema tests** for the
    [three-places rule](../02-architecture/components/shared-package.md#the-three-places-rule)
    — the repo's most important convention, currently unverified.
 
@@ -60,9 +69,14 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
   and picking a syntax for the other meaning — the current string format has no
   room for both
   ([github API](../04-contracts/github-api.md#label-qualifiers)).
-- Do write tools ever get added, and behind what gate? An `.env` opt-in composes
-  well with startup-time registration — see
-  [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md#alternatives).
+- ~~Do write tools ever get added, and behind what gate?~~ **Answered** by
+  [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md): yes,
+  behind a declared effect class and a startup gate, with the `.env` opt-in
+  standing in until the permission layer lands.
+- Should the effect gate live in `@llm-tools/shared` (where
+  `registrationRefusal` is) or become part of the MCP server construction
+  itself? Today every server has to remember to call it — the second server
+  will show whether that is a problem.
 - Is a second integration close enough to matter? It would test whether
   `@llm-tools/shared` generalises beyond GitHub.
 - Should milestone progress counts be in the compact shape by default? They now
@@ -74,6 +88,63 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
   ([T18 exception](../04-contracts/tool-contract.md#responses))
 
 ## Done
+
+- **`update_github_label` added** (server 2.3.0 → 2.4.0). The second write, and
+  the first tool written against ADR-0007 rather than alongside it. It calls
+  `issues.updateLabel`, is keyed by the label's **current** `name` with
+  `newName` carrying the rename, and forwards only the parameters it was given
+  because the endpoint is a partial update.
+  - **It was reviewed as a read and was not one.** The tool shipped its first
+    draft declaring `TOOL_EFFECT = "read"` while calling a mutating endpoint —
+    a T4c defect that also opened the gate, since `registrationRefusal` sees
+    only the declaration: it registered whatever `GITHUB_ALLOW_WRITES` said, and
+    `buildServerInstructions` would have told the model every tool on the server
+    was read-only. The declaration is the control, so a wrong one is not a
+    documentation slip. This is why the [testing checklist](../06-workflows/testing.md)
+    greps the Octokit calls against the declared effect rather than trusting it.
+  - A call carrying none of `newName`, `color` and `description` is **refused in
+    the handler**. GitHub answers `200` with the label untouched, and reporting
+    that as `{ updated: true }` would tell the model a change landed. This is
+    not a permission check — the gate stays at registration (D4) — it is about
+    not lying in the response.
+  - Scaffold defects fixed before it shipped, all of them from copying
+    `create_github_label` without re-reading it: the description was still the
+    one-line stub; the response was raw `response.data` instead of
+    `mapGithubLabel`, against T18; `color` was passed through without
+    `.replace("#", "")`, so a `#`-prefixed code the regex accepts would have
+    reached the API; `newName` was missing `.min(1)`; and `name` carried
+    create's case-collision warning, which belongs to `newName` — `name` must
+    match a label that exists.
+  - `write`, not `destructive`: a rename is undone by another rename (D3).
+
+- **`create_github_label` added, and writes unblocked** (server 2.2.0 → 2.3.0).
+  The repo's first mutating tool, and the reason
+  [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)
+  supersedes ADR-0003. What landed with it:
+  - **Effect classes.** Every tool exports `TOOL_EFFECT` (`read` | `write` |
+    `destructive`) and the toolbox exports `TOOL_REGISTRATIONS` of
+    `{ name, effect, register }` instead of bare functions — the name and the
+    effect have to be readable *before* the tool is registered, which a bare
+    registrar cannot offer.
+  - **The gate**, in `index.ts`: `registrationRefusal` decides per tool, the
+    refusal goes to **stderr**, and a refused tool is never registered, so the
+    model does not see it. `destructive` is refused whatever the flag says.
+  - **`GITHUB_ALLOW_WRITES`**, read once through `booleanFromEnv`, which
+    accepts only `1`/`true`/`yes`/`on` — a typo leaves writes off rather than on.
+  - **The read-only instruction paragraph is finally uncommented**, which was
+    item 3 on this list, but *conditional*: it promises read-only only when
+    nothing mutating was registered, and otherwise names the write tools and
+    tells the model that issue and comment text is not the user speaking.
+    `buildServerInstructions` now takes the allowed registrations, so it cannot
+    promise something the gate contradicts.
+  - Scaffold defects fixed before it shipped: `labelName` had
+    `.default("new label")`, so a confused model would have created a label by
+    that name; `z.hex()` accepted `fff` and *rejected* `#ff0000`, making the
+    handler's `.replace("#", "")` unreachable; and the response wrapped JSON in
+    prose against T16. Parameters were renamed `name`/`color`/`description` to
+    match `get_github_label` and the mapper's own field names.
+  - The standard write preamble lives in `describeMutation(effect)` in the
+    shared package, so the next write tool does not improvise its own warning.
 
 - **Label filtering on `list_github_issues`** (server 2.0.0 → 2.2.0). A new
   `labels` parameter takes a comma-separated list of names, `NOT:` marking one

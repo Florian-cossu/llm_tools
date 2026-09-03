@@ -35,9 +35,29 @@ unauthenticated when it is absent.
 | `issues.listMilestones` | `GET /repos/{owner}/{repo}/milestones` | `list_github_milestones` | ✅ |
 | `issues.listLabelsForRepo` | `GET /repos/{owner}/{repo}/labels` | `list_github_labels` | ✅ |
 | `issues.getLabel` | `GET /repos/{owner}/{repo}/labels/{name}` | `get_github_label` | ✅ |
+| `issues.createLabel` | `POST /repos/{owner}/{repo}/labels` | `create_github_label` | ❌ **write** |
+| `issues.updateLabel` | `PATCH /repos/{owner}/{repo}/labels/{name}` | `update_github_label` | ❌ **write** |
 
-Every endpoint above is a read. Adding a mutating one requires an ADR
-superseding [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md).
+Those two are the only mutating endpoints called here, and both tools declare
+`effect: "write"` and are registered only when `GITHUB_ALLOW_WRITES` is set
+([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
+
+`issues.createLabel` returns `201` with the created label, and **`422` when the
+name already exists** — which is the expected failure, not a transport problem,
+and must not be retried.
+
+`issues.updateLabel` returns `200` with the label as it now stands. It is a
+**partial** update: a field omitted from the body is left alone, which is why
+`update_github_label` passes only the parameters it was given rather than
+filling the gaps from a prior read. It answers **`404` when no label carries the
+`name` being edited** and **`422` when `new_name` collides with an existing
+label** — both expected failures, neither retryable. The endpoint also accepts a
+body carrying no new value at all and answers `200` with the label unchanged;
+the tool refuses that case itself rather than reporting a write that did not
+happen.
+
+Adding another mutating endpoint means declaring its effect, not writing an
+ADR.
 
 ## Search, and why it is used for listing
 

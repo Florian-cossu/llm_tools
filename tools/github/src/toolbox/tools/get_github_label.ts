@@ -1,16 +1,19 @@
 import z from "zod";
-import { ToolInstance } from "../index.js";
+import { ToolInstance, ToolRegistration } from "../index.js";
 import {
   describeConfiguredRepository,
   describeDefault,
   isStringUsable,
   optionalWhenConfigured,
+  ToolEffect,
 } from "@llm-tools/shared";
 import { mapGithubLabel } from "../../mappers/github_compact_mappers.js";
 
 export const TOOL_NAME = "get_github_label";
 
-export const getGithubLabel: ToolInstance = (server, config) => {
+export const TOOL_EFFECT: ToolEffect = "read";
+
+const register: ToolInstance = (server, config) => {
   server.registerTool(
     TOOL_NAME,
     {
@@ -102,4 +105,10 @@ export const getGithubLabel: ToolInstance = (server, config) => {
       };
     },
   );
+};
+
+export const getGithubLabel: ToolRegistration = {
+  name: TOOL_NAME,
+  effect: TOOL_EFFECT,
+  register: register,
 };

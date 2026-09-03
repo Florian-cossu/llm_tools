@@ -1,11 +1,19 @@
 import z from "zod";
-import { ToolInstance } from "../index.js";
+import { ToolInstance, ToolRegistration } from "../index.js";
 import { mapGithubLabelNames, mapGithubMilestone } from "../../mappers/github_compact_mappers.js";
-import { describeConfiguredRepository, describeDefault, isStringUsable, optionalWhenConfigured } from "@llm-tools/shared";
+import {
+  describeConfiguredRepository,
+  describeDefault,
+  isStringUsable,
+  optionalWhenConfigured,
+  ToolEffect,
+} from "@llm-tools/shared";
 
 export const TOOL_NAME = "get_github_issue";
 
-export const getGithubIssue: ToolInstance = (server, config) => {
+export const TOOL_EFFECT: ToolEffect = "read";
+
+const register: ToolInstance = (server, config) => {
   server.registerTool(
     TOOL_NAME,
     {
@@ -105,4 +113,10 @@ export const getGithubIssue: ToolInstance = (server, config) => {
       };
     },
   );
+};
+
+export const getGithubIssue: ToolRegistration = {
+  name: TOOL_NAME,
+  effect: TOOL_EFFECT,
+  register: register,
 };

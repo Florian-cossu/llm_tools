@@ -49,7 +49,7 @@ the anatomy of a single server.
 
 | Server | Version | Access | Tools |
 | --- | --- | --- | --- |
-| [github](../02-architecture/components/github-server.md) | 2.2.0 | Read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels`, `get_github_label` |
+| [github](../02-architecture/components/github-server.md) | 2.4.0 | Read + two gated writes | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels`, `get_github_label`, `create_github_label` **(write)**, `update_github_label` **(write)** |
 
 ## The problem it actually solves
 

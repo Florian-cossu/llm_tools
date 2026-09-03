@@ -18,7 +18,7 @@ gateway, credentials stay in a local `.env`.
 
 | Tool                             | Version | Description                             | Tools exposed                                                                                       |
 | -------------------------------- | ------- | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [github](tools/github/README.md) | 2.2.0   | GitHub issues, milestones and labels, read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels`, `get_github_label` |
+| [github](tools/github/README.md) | 2.4.0   | GitHub issues, milestones and labels; reads, plus two gated writes | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels`, `get_github_label`, `create_github_label`, `update_github_label` **(both writes, off unless `GITHUB_ALLOW_WRITES` is set)** |
 
 ---
 
@@ -109,7 +109,9 @@ node scripts/check-docs.mjs
 - Never commit `.env` files.
 - Never put credentials in documentation, fixtures, logs, or test snapshots.
 - Use synthetic or anonymized data in fixtures.
-- Keep tools read-only unless write access is explicitly reviewed.
+- Keep tools read-only unless the tool declares `TOOL_EFFECT = "write"` and
+  the user has enabled writes. `destructive` tools are not registrable
+  ([ADR-0007](docs/03-decisions/ADR-0007-writes-behind-declared-capability.md)).
 - Review tool permissions before registering a server in an MCP client.
 
 ---
