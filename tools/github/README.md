@@ -23,6 +23,7 @@ See the [root README](../../README.md) for requirements and setup, and
 | [`get_github_milestone`](#get_github_milestone)                     | Read one milestone, issue counts included      |
 | [`list_github_milestones`](#list_github_milestones) | List milestones, compact, no counts            |
 | [`list_github_labels`](#list_github_labels)                         | List the repository's labels, compact          |
+| [`get_github_label`](#get_github_label)                             | Read one label by name, or check it exists     |
 
 Every tool takes `owner` and `repository`, both optional once the matching `.env` default
 is set, and both omitted from the tables below for brevity.
@@ -37,14 +38,36 @@ requests are never included. Bodies and comments are not returned — use
 
 | Parameter   | Type                                 | Default   | Description                                                                                                                                                       |
 | ----------- | ------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `search`    | string, optional                     | —         | GitHub issue search syntax. Bare words match title/body/comments; qualifiers narrow further (`label:bug`, `assignee:@me`, `milestone:v2`, `created:>2026-01-01`). |
+| `search`    | string, optional                     | —         | GitHub issue search syntax. Bare words match title/body/comments; qualifiers narrow further (`author:octocat`, `assignee:@me`, `milestone:v2`, `created:>2026-01-01`). |
+| `labels`    | string, optional                     | —         | Comma-separated label names to require, `NOT:`-prefixed to exclude — e.g. `draft,NOT:documentation`. See [below](#filtering-by-label).                          |
 | `state`     | `open` \| `closed` \| `all`          | `open`    | Which issues to include.                                                                                                                                          |
 | `limit`     | integer, 1–100                       | `30`      | Maximum number of issues. Single page, no pagination — raise this instead.                                                                                        |
 | `sortBy`    | `created` \| `updated` \| `comments` | `updated` | What to sort on.                                                                                                                                                  |
 | `sortOrder` | `asc` \| `desc`                      | `desc`    | Sort direction.                                                                                                                                                   |
 
-The repository, the state and the exclusion of pull requests are applied for you — don't
-repeat them in `search`.
+The repository, the state, the labels and the exclusion of pull requests are applied for
+you — don't repeat them in `search`.
+
+#### Filtering by label
+
+`labels` takes label names separated by commas. A bare name keeps issues carrying that
+label; `NOT:` in front of a name drops them. Spaces inside a name are fine and quoting is
+handled for you.
+
+| `labels` | Query built |
+| --- | --- |
+| `bug` | `label:bug` |
+| `NOT:wontfix` | `-label:wontfix` |
+| `draft,NOT:documentation` | `label:draft -label:documentation` |
+| `draft, NOT: needs review` | `label:draft -label:"needs review"` |
+
+> **Several names to keep means _any_ of them, not all.** `a,b` builds `label:a,b`, which
+> is GitHub's "either label" form — to require both, filter on one and read the `labels`
+> field of the results. Exclusion works the same way: `NOT:c,NOT:d` drops an issue
+> carrying either.
+
+An unknown name matches no issue rather than failing, so get the spelling from
+[`list_github_labels`](#list_github_labels).
 
 **Example prompts**
 
@@ -53,6 +76,8 @@ repeat them in `search`.
 > _Show me the 5 most recently updated closed issues._
 >
 > _Find issues labelled "bug" assigned to me._
+>
+> _List the open issues labelled "draft" that aren't documentation._
 >
 > _List all issues on DiabdataApp/diab-data-android._
 
@@ -263,6 +288,42 @@ default usually returns all of them.
 
 ---
 
+### `get_github_label`
+
+Reads a single label by name. Unlike the other `get_*` tools it returns **no extra
+fields** — a label has no detail behind it, so this is the same object
+`list_github_labels` already emits for each label. What it adds is a *targeted* lookup:
+checking one name without pulling the whole label set, and failing when the name doesn't
+exist.
+
+| Parameter | Type   | Description                                                                     |
+| --------- | ------ | ------------------------------------------------------------------------------- |
+| `name`    | string | Label name, exactly as GitHub shows it. Spaces allowed, no quotes.              |
+
+**Example prompts**
+
+> _Does this repository have a "needs review" label?_
+>
+> _What does the "wontfix" label mean here?_
+
+**Response**
+
+```json
+{
+  "name": "bug",
+  "description": "Something isn't working",
+  "color": "d73a4a",
+  "default": true
+}
+```
+
+The call **fails** when the repository has no label with that name — which is the answer
+to "does this label exist?". Use `list_github_labels` when the exact spelling isn't known,
+since a near-miss is an error rather than an empty result. The issues carrying the label
+are not returned; ask `list_github_issues` with `labels: "<name>"`.
+
+---
+
 ## Configuration
 
 ```bash
@@ -325,7 +386,8 @@ tools/github/
             ├── get_github_issue.ts
             ├── get_github_milestone.ts
             ├── list_github_milestones.ts
-            └── list_github_labels.ts
+            ├── list_github_labels.ts
+            └── get_github_label.ts
 ```
 
 ---

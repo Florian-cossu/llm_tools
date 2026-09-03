@@ -2,8 +2,8 @@
 type: context
 status: active
 scope: repo
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-02
+last_updated: 2026-09-03
 summary: llm_tools is a personal collection of local, stdio-based MCP servers that give a local LLM custom tools.
 read_when:
   - you are new to this repository
@@ -49,7 +49,7 @@ the anatomy of a single server.
 
 | Server | Version | Access | Tools |
 | --- | --- | --- | --- |
-| [github](../02-architecture/components/github-server.md) | 2.0.0 | Read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels` |
+| [github](../02-architecture/components/github-server.md) | 2.2.0 | Read-only | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels`, `get_github_label` |
 
 ## The problem it actually solves
 

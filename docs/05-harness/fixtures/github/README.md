@@ -2,8 +2,8 @@
 type: harness
 status: draft
 scope: github
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-02
+last_updated: 2026-09-03
 summary: Synthetic GitHub API fixtures, written to exercise the mapper quirks rather than the happy path.
 read_when:
   - writing a test that needs an API payload
@@ -27,11 +27,16 @@ Hand-written payloads in the **API shape** (`GithubApiIssue`,
 | [milestone-detail.json](milestone-detail.json) | Single milestone | `GET /repos/{owner}/{repo}/milestones/{n}` |
 
 > [!note] Missing: a label list
-> `list_github_labels` and `mapGithubLabel` shipped without a fixture, so
-> nothing exercises them. A `label-list.json` should be a **bare array** like
-> `milestone-list.json`, and should encode the quirks worth catching: a `null`
-> `description`, a `color` with **no leading `#`**, and both `default: true`
-> and `default: false`. Tracked in [current plan](../../../07-plans/current.md).
+> `list_github_labels`, `get_github_label` and the `mapGithubLabel` they share
+> all shipped without a fixture, so nothing exercises them. A `label-list.json`
+> should be a **bare array** like `milestone-list.json`, and should encode the
+> quirks worth catching: a `null` `description`, a `color` with **no leading
+> `#`**, both `default: true` and `default: false`, and a name **containing a
+> space** — that last one is what `buildIssueSearchQuery` has to quote when the
+> `labels` parameter of `list_github_issues` mentions it. No separate
+> label-detail fixture is needed: `get_github_label` returns one row of this
+> same shape ([data schemas](../../../04-contracts/data-schemas.md#label)).
+> Tracked in [current plan](../../../07-plans/current.md).
 
 The compacted results are
 [github-list-issues/expected-output.json](../../scenarios/github-list-issues/expected-output.json)

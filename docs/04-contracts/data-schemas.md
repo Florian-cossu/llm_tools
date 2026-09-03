@@ -2,8 +2,8 @@
 type: contract
 status: active
 scope: github
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-02
+last_updated: 2026-09-03
 summary: The API and compact shapes, the mappers between them, and the envelopes tools return.
 read_when:
   - changing what a tool returns
@@ -87,9 +87,16 @@ milestone ([T21](tool-contract.md#responses): `list_*` omits, `get_*` includes).
 | `default` | `default` | `true` for the labels GitHub creates with every repository |
 | `id`, `node_id`, `url` | — | Dropped |
 
-There is **no label detail shape and no `get_github_label`**: the compact shape
-is already the whole useful object, so a `get_*` tool would return nothing the
-list does not ([T21](tool-contract.md#responses)).
+There is **no label detail shape**: `list_github_labels` and `get_github_label`
+both return this shape, through the same `mapGithubLabel`, because
+`GET …/labels/{name}` returns nothing `GET …/labels` does not. The pair is the
+documented exception to [T21](tool-contract.md#responses) — the `get_*` buys a
+targeted lookup rather than extra fields
+([github server](../02-architecture/components/github-server.md#get_github_label-returns-no-more-than-the-list)).
+
+`name` is also the **only** way to address a label: no id survives into the
+compact shape, so `get_github_label` takes a name where every other `get_*`
+here takes a number.
 
 > [!note]
 > `GithubCompactLabel` is unrelated to the `labels: string[]` on a compact
@@ -160,7 +167,10 @@ the requirement, `totalCount` is only the usual way of doing it
 
 ### Detail
 
-The compact object itself, unwrapped.
+The compact object itself, unwrapped. `get_github_issue` and
+`get_github_milestone` return the compact shape plus their extra fields;
+`get_github_label` returns the compact label unchanged, since there are no
+extra fields to add.
 
 All three are `JSON.stringify`-ed into `content[0].text` — see
 [tool contract](tool-contract.md#responses).

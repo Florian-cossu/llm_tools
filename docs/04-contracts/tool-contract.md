@@ -2,8 +2,8 @@
 type: contract
 status: active
 scope: mcp
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-02
+last_updated: 2026-09-03
 summary: What a single tool must implement - naming, schema, defaults, response shape, errors and description quality.
 read_when:
   - adding or changing any tool
@@ -123,6 +123,20 @@ Shapes: [data schemas](data-schemas.md).
 > satisfy T18 while hiding truncation entirely. **A list with no honest total carries a boolean `truncated`
 > instead.** Rationale:
 > [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-plain-listings).
+
+> [!note] When the detail *is* the list row
+> T21 assumes the upstream detail endpoint returns more than the list does.
+> `GET /repos/{owner}/{repo}/labels/{name}` does not — it returns exactly one
+> row of `GET /repos/{owner}/{repo}/labels`, and the compact shape already keeps
+> all of it. `get_github_label` therefore returns the same shape as
+> `list_github_labels` and earns its registration on **cost and certainty**
+> instead: one label rather than a hundred, and a 404 that answers "does this
+> label exist?". The rule T21 protects is *a `get_*` must not be dead weight*;
+> that is the test to apply. **Reach for this exception only when the endpoint
+> genuinely has nothing more to give** — `get_github_milestone` looked like this
+> case and was not, and shipped returning the list row until `openIssues` and
+> `closedIssues` were added. Rationale:
+> [github server](../02-architecture/components/github-server.md#get_github_label-returns-no-more-than-the-list).
 
 ## Errors
 

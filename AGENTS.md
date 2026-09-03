@@ -94,6 +94,6 @@ workflows.
 
 ## Known broken
 
-- Nothing registered is known broken. The github server exposes five tools at
-  v2.0.0; `list_github_labels` is the most recent addition. See
-  `docs/07-plans/current.md`.
+- Nothing registered is known broken. The github server exposes six tools at
+  v2.2.0; `get_github_label` and the `labels` filter on `list_github_issues`
+  are the most recent additions. See `docs/07-plans/current.md`.

@@ -2,8 +2,8 @@
 type: architecture
 status: active
 scope: repo
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-02
+last_updated: 2026-09-03
 summary: The path a request takes from user prompt to compact JSON, and where each transformation happens.
 read_when:
   - tracing why a tool returned what it did
@@ -103,10 +103,24 @@ get_github_milestone           ──► { …, openIssues, closedIssues }
 ```
 
 `get_*` must return something the `list_*` does not, or it is dead weight —
-[T21](../04-contracts/tool-contract.md#responses). That is why `list_github_labels`
-has no `get_github_label` counterpart: a label's compact shape is already the
-whole object, so the second step would have nothing to add
-([data schemas](../04-contracts/data-schemas.md#label)).
+[T21](../04-contracts/tool-contract.md#responses).
+
+The label pair is the exception, and it splits on a different axis. A label's
+compact shape is already the whole object, so `get_github_label` returns exactly
+what the list returns per row:
+
+```
+list_github_labels ──► [{ name, description, color, default }]   up to 100 rows
+                                    │  nothing more to fetch
+                                    ▼  model has a name it wants to confirm
+get_github_label   ──► { name, description, color, default }     one row, or a 404
+```
+
+The second step buys **precision, not detail**: one label instead of the whole
+set, and a failure when the name is wrong where a search would have quietly
+returned nothing. That still satisfies what T21 protects — see the
+[exception](../04-contracts/tool-contract.md#responses) and its
+[rationale](components/github-server.md#get_github_label-returns-no-more-than-the-list).
 
 ## Truncation, not pagination
 

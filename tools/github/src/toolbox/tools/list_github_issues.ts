@@ -3,8 +3,16 @@ import { DEFAULT_ISSUE_LIMIT, DEFAULT_ISSUE_STATE } from "../../metadata.js";
 import { ToolInstance } from "../index.js";
 import { buildIssueSearchQuery } from "../../utils/github_search_query.js";
 import { mapGithubIssue } from "../../mappers/github_compact_mappers.js";
-import { GithubApiIssue, GithubCompactIssue } from "../../models/github_issues.js";
-import { describeConfiguredRepository, describeDefault, isStringUsable, optionalWhenConfigured } from "@llm-tools/shared";
+import {
+  GithubApiIssue,
+  GithubCompactIssue,
+} from "../../models/github_issues.js";
+import {
+  describeConfiguredRepository,
+  describeDefault,
+  isStringUsable,
+  optionalWhenConfigured,
+} from "@llm-tools/shared";
 
 export const TOOL_NAME = "list_github_issues";
 
@@ -22,10 +30,11 @@ export const listGithubIssuesTool: ToolInstance = (server, config) => {
         `assignee logins and milestone. Pull requests are never ` +
         `included. Issue bodies and comments are not returned, so this ` +
         `tool shows which issues exist, not what they say; read one with ` +
-        `get_github_issue, passing the "number" it returned here. Use the ` +
-        `"search" parameter to narrow the results by keyword, label, ` +
-        `author, assignee or date rather than listing everything and ` +
-        `filtering afterwards. Returns {"totalCount": number, ` +
+        `get_github_issue, passing the "number" it returned here. Narrow ` +
+        `the results before asking for them rather than listing ` +
+        `everything and filtering afterwards: use the "labels" parameter ` +
+        `to require or exclude labels, and the "search" parameter for ` +
+        `keywords, author, assignee or date. Returns {"totalCount": number, ` +
         `"returned": number, "issues": [{"number", "title", "state", ` +
         `"labels", "assignees", "milestone"}]}, where "totalCount" is ` +
         `how many issues match in the repository and "returned" is how ` +
@@ -43,9 +52,7 @@ export const listGithubIssuesTool: ToolInstance = (server, config) => {
             ),
         ),
 
-        repository: optionalWhenConfigured(
-          config.defaultRepository,
-        ).describe(
+        repository: optionalWhenConfigured(config.defaultRepository).describe(
           "GitHub repository name without its owner. " +
             describeDefault(
               config.defaultRepository,
@@ -60,7 +67,7 @@ export const listGithubIssuesTool: ToolInstance = (server, config) => {
           .describe(
             `What to look for, as GitHub issue search syntax. Bare ` +
               `words match the title, body and comments; GitHub ` +
-              `qualifiers narrow further, for example "label:bug", ` +
+              `qualifiers narrow further, for example ` +
               `"author:octocat", "assignee:@me", "no:assignee", ` +
               `"milestone:v2" or "created:>2026-01-01". Combine them ` +
               `with spaces to require all of them, and quote phrases ` +
@@ -68,9 +75,33 @@ export const listGithubIssuesTool: ToolInstance = (server, config) => {
               `server is configured with, so "my issues" means ` +
               `"assignee:@me" and needs no question to the user. Omit ` +
               `this parameter to match every ` +
-              `issue in the repository. The repository, the state and ` +
-              `the exclusion of pull requests are applied for you, so ` +
-              `do not repeat them here.`,
+              `issue in the repository. Filter by label with the ` +
+              `"labels" parameter instead of a "label:" qualifier ` +
+              `here. The repository, the state, the labels and the ` +
+              `exclusion of pull requests are applied for you, so do ` +
+              `not repeat them here.`,
+          ),
+
+        labels: z
+          .string()
+          .optional()
+          .describe(
+            `Which labels an issue must or must not carry, as a ` +
+              `comma-separated list of label names. A name on its own ` +
+              `keeps issues carrying that label; a name prefixed with ` +
+              `"NOT:" drops issues carrying it. For example ` +
+              `"draft,NOT:documentation" returns issues labelled ` +
+              `"draft" except those also labelled "documentation". ` +
+              `Listing several names to keep matches issues carrying ` +
+              `ANY of them, not all of them; to require two labels at ` +
+              `once, filter on one here and read the "labels" field of ` +
+              `the results. Use the exact names GitHub shows, spaces ` +
+              `and capitalisation included - call list_github_labels ` +
+              `first when they are not already known, as an unknown ` +
+              `name matches no issue rather than failing. Do not add ` +
+              `quotes and do not write the "label:" qualifier: both are ` +
+              `applied for you. Omit this parameter to match issues ` +
+              `whatever their labels.`,
           ),
 
         state: z
@@ -116,7 +147,16 @@ export const listGithubIssuesTool: ToolInstance = (server, config) => {
           ),
       }),
     },
-    async ({ owner, repository, search, state, limit, sortBy, sortOrder }) => {
+    async ({
+      owner,
+      repository,
+      search,
+      state,
+      labels,
+      limit,
+      sortBy,
+      sortOrder,
+    }) => {
       const effectiveOwner = owner?.trim() || config.defaultOwner;
       const effectiveRepository =
         repository?.trim() || config.defaultRepository;
@@ -130,11 +170,15 @@ export const listGithubIssuesTool: ToolInstance = (server, config) => {
         );
       }
 
+      const cleanLabelRegEx = /\s*,\s*/g;
+      const cleanedLabels = labels?.trim()?.replace(cleanLabelRegEx, ",");
+
       const query = buildIssueSearchQuery({
         owner: effectiveOwner,
         repository: effectiveRepository,
         state,
         search,
+        labels: cleanedLabels,
       });
 
       const response = await config.octokit.rest.search
@@ -146,11 +190,8 @@ export const listGithubIssuesTool: ToolInstance = (server, config) => {
           per_page: limit,
         })
         .catch((error: unknown) => {
-          const reason =
-            error instanceof Error ? error.message : String(error);
-          throw new Error(
-            `GitHub rejected the search "${query}": ${reason}`,
-          );
+          const reason = error instanceof Error ? error.message : String(error);
+          throw new Error(`GitHub rejected the search "${query}": ${reason}`);
         });
 
       const githubIssues = response.data.items as GithubApiIssue[];

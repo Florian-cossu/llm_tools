@@ -2,8 +2,8 @@
 type: plan
 status: draft
 scope: repo
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-02
+last_updated: 2026-09-03
 summary: NOT AUTHORITATIVE - what is half-finished right now and what is worth doing next.
 read_when:
   - picking up work
@@ -36,6 +36,8 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 | No CI, so `bun run test` only runs when someone remembers to | — |
 | No eval scenario for either milestone tool, and the one that exists is `status: planned` | `docs/05-harness/scenarios/` |
 | No milestone or label fixtures, so `mapGithubMilestone` and `mapGithubLabel` have nothing to be tested against | `docs/05-harness/fixtures/github/` |
+| `labels` builds `label:a,b`, which GitHub reads as *any of*, so listing two names widens the result. Documented, not fixed — an *all of* filter needs repeated qualifiers | `utils/github_search_query.ts` |
+| A trailing or doubled comma in `labels` reaches the query as an empty name — `"draft,"` builds `label:draft,`. Empty segments are not dropped | `utils/github_search_query.ts` |
 
 ## Next, in value order
 
@@ -53,6 +55,11 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 
 ## Open questions
 
+- Should `labels` require *all* the names it lists rather than *any*? That means
+  emitting one `label:` qualifier per name instead of joining them with commas,
+  and picking a syntax for the other meaning — the current string format has no
+  room for both
+  ([github API](../04-contracts/github-api.md#label-qualifiers)).
 - Do write tools ever get added, and behind what gate? An `.env` opt-in composes
   well with startup-time registration — see
   [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md#alternatives).
@@ -68,6 +75,33 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 
 ## Done
 
+- **Label filtering on `list_github_issues`** (server 2.0.0 → 2.2.0). A new
+  `labels` parameter takes a comma-separated list of names, `NOT:` marking one
+  to exclude, and `buildIssueSearchQuery` turns it into at most two qualifiers
+  (`label:` / `-label:`), quoting any name containing a space. It was named
+  `label` while accepting a list, which invited the model to pass exactly one;
+  renamed to `labels`, matching the argument the query builder already took.
+  `search` used to advertise `label:bug` as an example, so there were two routes
+  to the same filter — the example is gone and `search` now disclaims labels the
+  way it already disclaims the repo, the state and the PR exclusion. A
+  `console.error` left over from debugging was removed. **The comma is GitHub's
+  *any of*, not *all of*** — stated in the description, the README and the
+  [API contract](../04-contracts/github-api.md#label-qualifiers), because the
+  intuitive reading is the wrong one.
+- **`get_github_label` added** (server 2.0.0 → 2.2.0). Calls `issues.getLabel`
+  and returns one label through the existing `mapGithubLabel`. It is keyed by
+  **name**, unlike every other `get_*` here, because no id survives into the
+  compact shape. It returns **exactly what the list returns per row** — the
+  endpoint has nothing more to give — so it is a documented exception to
+  [T21](../04-contracts/tool-contract.md#responses), earning its place on cost
+  and certainty: one label instead of a hundred, and a 404 that answers "does
+  this label exist?". Three notes asserted in so many words that there was no
+  `get_github_label` and had to be corrected:
+  [data schemas](../04-contracts/data-schemas.md#label),
+  [github API](../04-contracts/github-api.md#listing-labels) and
+  [data flows](../02-architecture/data-flows.md#two-step-read-pattern). Its
+  description was missing the returned shape (T11) entirely; added, along with
+  the error wording the other `get_*` tools use.
 - **`list_github_labels` added** (server 1.4.0 → 1.5.0). Calls
   `issues.listLabelsForRepo`, maps through the new `mapGithubLabel` into
   `{ name, description, color, default }`, and returns
@@ -75,7 +109,9 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
   milestone list. `limit` defaults to 100, the endpoint maximum, so one call
   normally returns a repository's whole label set. There is deliberately **no**
   `get_github_label`: the compact shape is the whole object, so a detail tool
-  would violate T21. Its description referenced `list_github_issues_by_repo`
+  would violate T21. **That reasoning was later revisited** — see the
+  `get_github_label` entry above, which keeps the premise and rejects the
+  conclusion. Its description referenced `list_github_issues_by_repo`
   (the *filename*, not a tool the model can call) and omitted `default` from
   the shape it promises — both corrected before it was documented.
 - **`list_github_milestones` finished.** Was registered scaffold calling
