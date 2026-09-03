@@ -1,9 +1,10 @@
-import { ToolInstance } from "../index.js";
+import { ToolInstance, ToolRegistration } from "../index.js";
 import {
   describeConfiguredRepository,
   describeDefault,
   isStringUsable,
   optionalWhenConfigured,
+  ToolEffect,
 } from "@llm-tools/shared";
 import { mapGithubMilestone } from "../../mappers/github_compact_mappers.js";
 import { GithubCompactMilestone } from "../../models/github_milestones.js";
@@ -15,7 +16,9 @@ import {
 
 export const TOOL_NAME = "list_github_milestones";
 
-export const listGithubMilestones: ToolInstance = (server, config) => {
+export const TOOL_EFFECT: ToolEffect = "read";
+
+const register: ToolInstance = (server, config) => {
   server.registerTool(
     TOOL_NAME,
     {
@@ -152,4 +155,10 @@ export const listGithubMilestones: ToolInstance = (server, config) => {
       };
     },
   );
+};
+
+export const listGithubMilestones: ToolRegistration = {
+  name: TOOL_NAME,
+  effect: TOOL_EFFECT,
+  register: register,
 };

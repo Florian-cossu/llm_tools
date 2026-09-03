@@ -2,8 +2,8 @@
 type: contract
 status: active
 scope: github
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-02
+last_updated: 2026-09-03
 summary: The GitHub REST endpoints this server calls, their quirks, and the rate limits that shape tool design.
 read_when:
   - adding a tool that calls the GitHub API
@@ -34,9 +34,30 @@ unauthenticated when it is absent.
 | `issues.getMilestone` | `GET /repos/{owner}/{repo}/milestones/{n}` | `get_github_milestone` | ✅ |
 | `issues.listMilestones` | `GET /repos/{owner}/{repo}/milestones` | `list_github_milestones` | ✅ |
 | `issues.listLabelsForRepo` | `GET /repos/{owner}/{repo}/labels` | `list_github_labels` | ✅ |
+| `issues.getLabel` | `GET /repos/{owner}/{repo}/labels/{name}` | `get_github_label` | ✅ |
+| `issues.createLabel` | `POST /repos/{owner}/{repo}/labels` | `create_github_label` | ❌ **write** |
+| `issues.updateLabel` | `PATCH /repos/{owner}/{repo}/labels/{name}` | `update_github_label` | ❌ **write** |
 
-Every endpoint above is a read. Adding a mutating one requires an ADR
-superseding [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md).
+Those two are the only mutating endpoints called here, and both tools declare
+`effect: "write"` and are registered only when `GITHUB_ALLOW_WRITES` is set
+([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
+
+`issues.createLabel` returns `201` with the created label, and **`422` when the
+name already exists** — which is the expected failure, not a transport problem,
+and must not be retried.
+
+`issues.updateLabel` returns `200` with the label as it now stands. It is a
+**partial** update: a field omitted from the body is left alone, which is why
+`update_github_label` passes only the parameters it was given rather than
+filling the gaps from a prior read. It answers **`404` when no label carries the
+`name` being edited** and **`422` when `new_name` collides with an existing
+label** — both expected failures, neither retryable. The endpoint also accepts a
+body carrying no new value at all and answers `200` with the label unchanged;
+the tool refuses that case itself rather than reporting a write that did not
+happen.
+
+Adding another mutating endpoint means declaring its effect, not writing an
+ADR.
 
 ## Search, and why it is used for listing
 
@@ -52,15 +73,42 @@ corrupts the count, since the total reflects pre-filter results. Search takes
 Built by [`buildIssueSearchQuery`](../../tools/github/src/utils/github_search_query.ts):
 
 ```
-repo:{owner}/{repository} is:issue [state:{state}] [user search terms]
+repo:{owner}/{repository} is:issue [state:{state}] [label:…] [-label:…] [user search terms]
 ```
 
 | Rule | Why |
 | --- | --- |
 | `is:issue` always present | Excludes pull requests before counting |
 | `state:all` is **never emitted** | **Not a valid GitHub qualifier.** Both states = omit it entirely |
+| Label names split into `label:` and `-label:` | One `labels` parameter, two qualifiers at most |
+| A name containing a space is quoted | `label:"needs review"` — the model must not quote it itself |
 | User terms appended verbatim | Full GitHub search syntax stays available |
-| Repo/state/PR-exclusion applied automatically | The description tells the model not to repeat them |
+| Repo/state/labels/PR-exclusion applied automatically | The descriptions tell the model not to repeat them |
+
+#### Label qualifiers
+
+The `labels` parameter is one comma-separated string; the tool normalises the
+spaces around the separators and `buildIssueSearchQuery` does the rest. `NOT:`
+in front of a name routes it to the exclusion group.
+
+| `labels` | `q` fragment |
+| --- | --- |
+| `bug` | `label:bug` |
+| `NOT:wontfix` | `-label:wontfix` |
+| `draft,NOT:documentation` | `label:draft -label:documentation` |
+| `draft, NOT: needs review` | `label:draft -label:"needs review"` |
+| `a,b,NOT:c,NOT:d` | `label:a,b -label:c,d` |
+
+> [!important] A comma in a GitHub qualifier means **any of**, not **all of**
+> `label:a,b` matches an issue carrying *either* label, and `-label:c,d` drops
+> an issue carrying *either*. Requiring several labels at once needs repeated
+> qualifiers — `label:a label:b` — which this parameter does not build. The
+> `list_github_issues` description says so in as many words, since the natural
+> reading of "filter on these labels" is the opposite one.
+
+An unknown label name is **not an error**: GitHub matches nothing and the tool
+returns an empty page. Discovery therefore goes through `list_github_labels` or
+`get_github_label`, and only the latter turns a wrong name into a failure.
 
 `advanced_search: "true"` is passed on the call.
 
@@ -121,7 +169,8 @@ labels have none.
 
 The default is the endpoint maximum, on the assumption that a repository's whole
 label set fits in one page — which is what makes the tool cheap enough to call
-before a `list_github_issues` search that filters on `label:"<name>"`.
+before a `list_github_issues` call that filters on those names through its
+`labels` parameter.
 
 > [!important]
 > This endpoint reports **no total count** either, so the tool emits
@@ -130,8 +179,27 @@ before a `list_github_issues` search that filters on `label:"<name>"`.
 > [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-plain-listings).
 
 Labels are keyed by **name**, not by number: there is no label id in the compact
-shape and nothing to look one up by, which is why there is no `get_github_label`
+shape, so the name is what every other call has to use
 ([data schemas](data-schemas.md#label)).
+
+## Reading one label
+
+`get_github_label` uses `issues.getLabel`.
+
+| Octokit | Source | Note |
+| --- | --- | --- |
+| `name` | `name` | Sent raw — Octokit URL-encodes it, so spaces need no quoting here |
+
+The endpoint returns **the same fields as the list**, one row's worth: there is
+no expanded label shape to fetch. The tool exists for the *lookup*, not for
+extra fields — rationale and the T21 exception it makes:
+[github server](../02-architecture/components/github-server.md#get_github_label-returns-no-more-than-the-list).
+
+> [!important] A missing label is a 404, not an empty result
+> Unlike a search on an unknown label name, which returns zero issues, asking
+> for a label that does not exist **rejects**. The tool lets it throw and its
+> description makes that the point: the failure answers "does this label
+> exist?".
 
 ## Rate limits
 
@@ -174,6 +242,10 @@ req/h. Scope needed: classic `repo`, or fine-grained **Issues: read**. See
 | `listMilestones` reports no total | Envelope uses `truncated` instead of `totalCount` |
 | `listLabelsForRepo` reports no total either | Same `truncated` envelope |
 | A label `color` has **no leading `#`** | Passed through as GitHub sends it; the description says so |
+| `label:a,b` means *either*, not *both* | Stated in the `list_github_issues` description; repeated qualifiers would be needed for *both* |
+| An unknown label name matches nothing rather than failing | The description sends the model to `list_github_labels` first |
+| `issues.getLabel` 404s on an unknown name, while search does not | Left to throw — it is the answer to "does this label exist?" |
+| `issues.getLabel` returns no more than one list row | `get_github_label` documented as a T21 exception |
 | Milestone numbers ≠ issue numbers | Stated in both milestone tool descriptions |
 
 ## Error handling

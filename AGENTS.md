@@ -1,8 +1,10 @@
 # llm_tools
 
 Local MCP servers, written in TypeScript and executed with Bun. Each server
-under `tools/` is one integration, talks to the client over **stdio**, and is
-**read-only**.
+under `tools/` is one integration and talks to the client over **stdio**. Tools
+are **read-only by default**: a mutating tool must declare
+`TOOL_EFFECT = "write"` and is registered only when the server's write flag is
+set (ADR-0007).
 
 ## Before making changes
 
@@ -30,8 +32,13 @@ decide whether to trust it. Schema: `docs/00-conventions.md`.
   schemas are all fixed at process start.
 - Do not commit credentials, tokens, customer data, or production responses.
   Fixtures are synthetic.
-- Keep tools read-only. A write tool requires an ADR superseding ADR-0003.
-- A tool absent from `TOOL_INSTANCES` does not exist.
+- Every tool declares `TOOL_EFFECT`: `read`, `write` or `destructive`. `read` is
+  the default and is binding — a `read` tool calling a mutating endpoint is a
+  defect. **No `destructive` tool may be registered yet** (ADR-0007).
+- A tool absent from `TOOL_REGISTRATIONS` does not exist — and one whose effect
+  the config disallows is dropped at startup even though it is listed. The
+  reason goes to `stderr`.
+- Gate writes at **registration**, never inside a handler.
 - Every new MCP tool must have:
   - a clear description, written for a model rather than a human,
   - validated input parameters,
@@ -49,6 +56,7 @@ decide whether to trust it. Schema: `docs/00-conventions.md`.
 bun install                        # run at the ROOT — deps live there (ADR-0005)
 bun add <pkg>                      # also at the root, never in tools/<name>/
 bun run start:github               # server waits on stdio
+GITHUB_ALLOW_WRITES=true bun run start:github   # ... with write tools too
 bun run test                       # docs + clean install + typecheck + dependency layout
 bun run typecheck                  # tsc --noEmit over every workspace
 bun run check:docs                 # validate the docs vault
@@ -94,6 +102,9 @@ workflows.
 
 ## Known broken
 
-- Nothing registered is known broken. The github server exposes five tools at
-  v2.0.0; `list_github_labels` is the most recent addition. See
-  `docs/07-plans/current.md`.
+- Nothing registered is known broken. The github server exposes eight tools at
+  v2.4.0 — six reads plus `create_github_label` and `update_github_label`, the
+  repo's two **writes**, which stay unregistered unless `GITHUB_ALLOW_WRITES` is
+  set. The permission layer ADR-0007 points at (SQLite, per-tool, consulted
+  before execution) is **not built**: the `.env` flag is the whole gate today.
+  See `docs/07-plans/current.md`.

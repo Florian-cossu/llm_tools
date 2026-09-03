@@ -29,7 +29,7 @@ tools/<name>/
     ├── mappers/                # API payload → compact model
     ├── utils/
     └── toolbox/
-        ├── index.ts            # TOOL_INSTANCES — the list of tools to register
+        ├── index.ts            # TOOL_REGISTRATIONS — the tools this server can register
         └── tools/              # one file per tool
 ```
 
@@ -106,7 +106,9 @@ for it — so the fallback has to be stated in both places, and a parameter call
 ## Adding a tool to an existing server
 
 1. Create `src/toolbox/tools/<tool_name>.ts` exporting a `ToolInstance`.
-2. Add it to `TOOL_INSTANCES` in `src/toolbox/index.ts`.
+2. Add it to `TOOL_REGISTRATIONS` in `src/toolbox/index.ts`, declaring its
+   `TOOL_EFFECT` (`read` unless it mutates — see
+   [ADR-0007](../docs/03-decisions/ADR-0007-writes-behind-declared-capability.md)).
 3. Document it in the server's `README.md`.
 4. Restart the server from LM Studio.
 

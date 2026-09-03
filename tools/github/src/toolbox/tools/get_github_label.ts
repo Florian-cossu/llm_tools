@@ -1,6 +1,5 @@
 import z from "zod";
 import { ToolInstance, ToolRegistration } from "../index.js";
-import { mapGithubLabelNames, mapGithubMilestone } from "../../mappers/github_compact_mappers.js";
 import {
   describeConfiguredRepository,
   describeDefault,
@@ -8,8 +7,9 @@ import {
   optionalWhenConfigured,
   ToolEffect,
 } from "@llm-tools/shared";
+import { mapGithubLabel } from "../../mappers/github_compact_mappers.js";
 
-export const TOOL_NAME = "get_github_issue";
+export const TOOL_NAME = "get_github_label";
 
 export const TOOL_EFFECT: ToolEffect = "read";
 
@@ -22,15 +22,23 @@ const register: ToolInstance = (server, config) => {
           config.defaultOwner,
           config.defaultRepository,
         ) +
-        `Read a single issue of a GitHub repository by its number, ` +
-        `including the body that list_github_issues leaves out. Use ` +
-        `list_github_issues first when the number is not already known. ` +
-        `Comments are not returned, only the issue itself. Returns ` +
-        `{"number": number, "title", "state", "body", "labels", ` +
-        `"assignees", "milestone"}, where "body" is the issue's ` +
-        `description in Markdown and is null when it has none, and ` +
-        `"milestone" is null or an object shaped as in ` +
-        `list_github_issues.`,
+        `Read a single label of a GitHub repository by its name, and ` +
+        `confirm that the name exists. Call list_github_labels first ` +
+        `when the name is not already known, or when the user's wording ` +
+        `may not match a label exactly; this tool is the cheap ` +
+        `follow-up once a name is certain, not a way to browse. ` +
+        `Returns {"name", "description", "color", "default"}, where ` +
+        `"description" is null when the label has none, "color" is a ` +
+        `six-digit hex code without the leading "#", and "default" is ` +
+        `true for the labels GitHub creates with every repository. ` +
+        `That is the same shape list_github_labels returns for each ` +
+        `label: there is no further detail behind a label, so call this ` +
+        `to check one name rather than to learn more about a label ` +
+        `already listed. The issues carrying the label are not ` +
+        `returned - list them with list_github_issues and a "labels" of ` +
+        `"<name>". The call fails when the repository has no label with ` +
+        `this name, which is itself the answer to "does this label ` +
+        `exist?".`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -50,18 +58,18 @@ const register: ToolInstance = (server, config) => {
             ),
         ),
 
-        number: z
-          .number()
-          .int()
-          .positive()
+        name: z
+          .string()
           .describe(
-            `The number identifying the issue within its repository, as ` +
-              `shown in the GitHub interface and returned in the ` +
-              `"number" field of list_github_issues results.`,
+            `The name identifying the label within its repository, ` +
+              `exactly as shown in the GitHub interface and returned in ` +
+              `the "name" field of list_github_labels results. A label ` +
+              `name may contain spaces; pass it as it is, without ` +
+              `quotes.`,
           ),
       }),
     },
-    async ({ owner, repository, number }) => {
+    async ({ owner, repository, name }) => {
       const effectiveOwner = owner?.trim() || config.defaultOwner;
       const effectiveRepository = repository?.trim() || config.defaultRepository;
 
@@ -75,39 +83,23 @@ const register: ToolInstance = (server, config) => {
       }
 
       const response = await config.octokit.rest.issues
-        .get({
+        .getLabel({
           owner: effectiveOwner,
           repo: effectiveRepository,
-          issue_number: number,
+          name: name,
         })
         .catch((error: unknown) => {
           const reason = error instanceof Error ? error.message : String(error);
-          throw new Error(
-            `Unable to retrieve issue "${number}": ${reason}`,
-          );
+          throw new Error(`Unable to retrieve label "${name}": ${reason}`);
         });
 
-      const githubIssue = response.data
-
-      const compactIssue = {
-        number: githubIssue.number,
-        state: githubIssue.state,
-        title: githubIssue.title,
-        milestone: githubIssue.milestone
-          ? mapGithubMilestone(githubIssue.milestone)
-          : null,
-        labels: mapGithubLabelNames(githubIssue.labels),
-        assignees: (githubIssue.assignees ?? []).map(
-          (assignee) => assignee.login,
-        ),
-        body: githubIssue.body ? githubIssue.body : null,
-      };
+      const payload = mapGithubLabel(response.data);
 
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(compactIssue),
+            text: JSON.stringify(payload),
           },
         ],
       };
@@ -115,7 +107,7 @@ const register: ToolInstance = (server, config) => {
   );
 };
 
-export const getGithubIssue: ToolRegistration = {
+export const getGithubLabel: ToolRegistration = {
   name: TOOL_NAME,
   effect: TOOL_EFFECT,
   register: register,

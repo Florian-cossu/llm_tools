@@ -3,7 +3,7 @@ type: contract
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: Operational rules for credentials - where they live, what must never be committed, and how to scope a token.
 read_when:
   - adding a credential or an environment variable
@@ -88,9 +88,15 @@ The narrowest thing that works:
 - **Classic**: `repo` — coarse, and grants write. Prefer fine-grained.
 - **No token**: public repos only, 60 req/h. Valid for public work.
 
-Token scope is the one control the repository cannot enforce for you. Read-only
-tooling ([ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md)) guarantees
-*these* tools will not write; it cannot stop another client using the same token.
+Token scope is the one control the repository cannot enforce for you, and it
+matters more now that writes exist. The tools guarantee only that a mutating one
+is not registered unless you enabled it
+([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)); a
+token carrying write scope stays write-capable for any other client using the
+same `.env`. **A fine-grained *Issues: Read-only* token makes
+`create_github_label` and `update_github_label` fail even when writes are
+enabled** — which is the
+belt-and-braces position, and the right default until you want the write.
 
 ## Rotating or revoking
 

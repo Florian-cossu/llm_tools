@@ -3,7 +3,7 @@ type: harness
 status: planned
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: PLANNED - the principles any test or eval added here should follow.
 read_when:
   - writing the first tests
@@ -77,5 +77,5 @@ never block a commit. Deterministic tests can and should.
 
 `list_github_milestones` shipped registered while still scaffold,
 calling the wrong endpoint with a mis-described parameter. A test asserting that
-every entry in `TOOL_INSTANCES` has a description over N characters and no
+every entry in `TOOL_REGISTRATIONS` has a description over N characters and no
 `TODO` in its source would have caught it. Write that one early.

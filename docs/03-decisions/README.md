@@ -3,7 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-08-31
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: Index of architectural decision records, plus when and how to write a new one.
 read_when:
   - proposing a cross-cutting change
@@ -29,10 +29,11 @@ contradicts an accepted ADR is a bug in the note.
 | -------------------------------------------- | ----------------------------------------------------------------------------------------- | -------- |
 | [0001](ADR-0001-local-stdio-transport.md)    | Local, stdio-based transport — no hosting, no HTTP                                        | Accepted |
 | [0002](ADR-0002-bun-workspaces.md)           | Bun workspaces, TypeScript run directly, no build step                                    | Accepted |
-| [0003](ADR-0003-read-only-by-default.md)     | Tools are read-only unless explicitly reviewed                                            | Accepted |
+| [0003](ADR-0003-read-only-by-default.md)     | Tools are read-only unless explicitly reviewed                                            | **Superseded by [0007](ADR-0007-writes-behind-declared-capability.md)** |
 | [0004](ADR-0004-server-per-integration.md)   | One MCP server per integration, not one gateway                                           | Accepted |
 | [0005](ADR-0005-root-dependencies.md)        | Dependencies declared once in the root `package.json`                                     | Accepted |
 | [0006](ADR-0006-frugal-output-by-default.md) | Tools and API responses need to be mapped to the strict minimum number of reusable values | Accepted |
+| [0007](ADR-0007-writes-behind-declared-capability.md) | Writes allowed; every tool declares an effect class and writes are gated at registration  | Accepted |
 
 ## When to write one
 
@@ -41,8 +42,9 @@ Write an ADR when a change:
 - crosses a [non-goal](../01-context/goals-and-nongoals.md#non-goals);
 - alters a [contract](../04-contracts/README.md);
 - affects every server rather than one;
-- adds a capability class that does not exist yet — **any write tool
-  qualifies**;
+- adds a capability class that does not exist yet — a `destructive` tool
+  qualifies, and so does the permission layer
+  ([ADR-0007](ADR-0007-writes-behind-declared-capability.md));
 - introduces a runtime, transport or dependency with repo-wide reach.
 
 Do **not** write one for adding a tool, adding a server that follows the

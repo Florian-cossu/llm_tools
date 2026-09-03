@@ -2,8 +2,8 @@
 type: contract
 status: active
 scope: mcp
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-02
+last_updated: 2026-09-03
 summary: What a single tool must implement - naming, schema, defaults, response shape, errors and description quality.
 read_when:
   - adding or changing any tool
@@ -26,18 +26,48 @@ Binding on every file in `src/toolbox/tools/`. Server-level rules:
 
 ```ts
 export const TOOL_NAME = "get_github_issue";
+export const TOOL_EFFECT: ToolEffect = "read";
 
-export const getGithubIssue: ToolInstance = (server, config) => {
+const register: ToolInstance = (server, config) => {
   server.registerTool(TOOL_NAME, { description, inputSchema }, handler);
+};
+
+export const getGithubIssue: ToolRegistration = {
+  name: TOOL_NAME,
+  effect: TOOL_EFFECT,
+  register: register,
 };
 ```
 
 | # | Requirement |
 | --- | --- |
-| T1 | Exports a `ToolInstance` — `(server, config) => void` |
+| T1 | Exports a `ToolRegistration` — `{ name, effect, register }`, whose `register` is a `ToolInstance`: `(server, config) => void` |
 | T2 | Exports `TOOL_NAME`, and uses it in registration *and* in error messages |
-| T3 | Listed in `TOOL_INSTANCES`. **A tool absent from that list does not exist** |
+| T3 | Listed in `TOOL_REGISTRATIONS`. **A tool absent from that list does not exist** — though being listed is necessary, not sufficient, see [effect class](#effect-class-and-writes) |
 | T4 | One tool per file |
+| T4b | Exports `TOOL_EFFECT`, and the registration carries it — never a literal inline, so the file states what it does in one place |
+
+## Effect class and writes
+
+Every tool declares what calling it does upstream
+([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)):
+`read`, `write` or `destructive`. The declaration is data, not a comment — the
+registration gate reads it at startup, `describeMutation` reads it to open the
+description, and the permission layer will read it to decide.
+
+| # | Requirement |
+| --- | --- |
+| T4c | `read` is the default, and it must be true. **A tool declaring `read` and calling a mutating endpoint is a defect** |
+| T4d | `destructive` is not registrable yet. Do not ship one |
+| T4e | A `write` tool opens its description with `describeMutation(TOOL_EFFECT)` rather than improvising a warning |
+| T4f | A `write` tool is idempotent, or fails on the second call. It never silently applies twice |
+| T4g | A `write` tool returns the result **read back from the API**, mapped, never an echo of its own input |
+| T4h | A `write` tool is documented as a write in the server README and the root tool table |
+
+A write tool needs no per-call guard: it is not registered at all unless the
+server's configuration allows writes, so an unauthorised model never sees it.
+That gate lives in the server's `index.ts` — see
+[execution lifecycle](../02-architecture/components/execution-lifecycle.md#what-is-fixed-at-initialisation).
 
 ## Naming
 
@@ -124,6 +154,20 @@ Shapes: [data schemas](data-schemas.md).
 > instead.** Rationale:
 > [github server](../02-architecture/components/github-server.md#no-totalcount-on-the-plain-listings).
 
+> [!note] When the detail *is* the list row
+> T21 assumes the upstream detail endpoint returns more than the list does.
+> `GET /repos/{owner}/{repo}/labels/{name}` does not — it returns exactly one
+> row of `GET /repos/{owner}/{repo}/labels`, and the compact shape already keeps
+> all of it. `get_github_label` therefore returns the same shape as
+> `list_github_labels` and earns its registration on **cost and certainty**
+> instead: one label rather than a hundred, and a 404 that answers "does this
+> label exist?". The rule T21 protects is *a `get_*` must not be dead weight*;
+> that is the test to apply. **Reach for this exception only when the endpoint
+> genuinely has nothing more to give** — `get_github_milestone` looked like this
+> case and was not, and shipped returning the list row until `openIssues` and
+> `closedIssues` were added. Rationale:
+> [github server](../02-architecture/components/github-server.md#get_github_label-returns-no-more-than-the-list).
+
 ## Errors
 
 | # | Requirement |
@@ -144,7 +188,9 @@ Catalogue: [failure modes](../05-harness/failure-modes.md).
 
 ## MUST NOT
 
-- Call a mutating endpoint ([ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md)).
+- Call a mutating endpoint from a tool declaring `read`
+  ([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
+  Writes are allowed; undeclared ones are not.
 - Write to `stdout`.
 - Reshape a payload inline — that is a mapper's job.
 - Read `process.env` directly. Use `config`.
@@ -157,9 +203,9 @@ Catalogue: [failure modes](../05-harness/failure-modes.md).
 
 ## Review checklist
 
-- [ ] T1–T4 structure · [ ] T5–T9 schema · [ ] T10–T15 description
-- [ ] T16–T21 response · [ ] T22–T25 errors
-- [ ] Read-only endpoint
+- [ ] T1–T4 structure · [ ] T4b–T4h effect class · [ ] T5–T9 schema
+- [ ] T10–T15 description · [ ] T16–T21 response · [ ] T22–T25 errors
+- [ ] The endpoint matches the declared effect
 - [ ] Documented in the server README
 - [ ] No `TODO` left from the scaffold
 - [ ] Exercised through the MCP Inspector ([local development](../06-workflows/local-development.md))
