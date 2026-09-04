@@ -11,13 +11,14 @@
     "lm-studio"
   ],
   "scripts": {
-    "test": "rm -rf node_modules && bun run deps:reset && node scripts/check-docs.mjs && bun install && bun run typecheck && node scripts/check-deps.mjs",
+    "test": "rm -rf node_modules && node scripts/check-docs.mjs && bun install && bun run typecheck && node scripts/check-deps.mjs",
     "typecheck": "tsc --noEmit",
     "check:docs": "node scripts/check-docs.mjs",
     "check:deps": "node scripts/check-deps.mjs",
     "deps:reset": "rm -rf node_modules tools/*/node_modules bun.lock && bun install",
     "setup": "node scripts/setup-tools.mjs --write",
-    "start:github": "bun run tools/github/src/index.ts"
+    "start:github": "bun run tools/github/src/index.ts",
+    "migrate": "bun run data/migrate.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "^2.0.0",
@@ -26,8 +27,8 @@
     "zod": "^4.5.4"
   },
   "devDependencies": {
-    "typescript": "^7.0.2",
     "@types/node": "^26.4.0",
-    "bun-types": "^1.4.0"
+    "bun-types": "^1.4.0",
+    "typescript": "^7.0.2"
   }
 }
