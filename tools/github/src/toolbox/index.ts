@@ -10,6 +10,7 @@ import { getGithubLabel } from "./tools/get_github_label.js";
 import { createGithubLabel } from "./tools/create_github_label.js";
 import { updateGithubLabel } from "./tools/update_github_label.js";
 import { deleteGithubLabel } from "./tools/delete_github_label.js";
+import { updateGithubMilestone } from "./tools/update_github_milestone.js";
 
 /**
  * Registers one tool on the server.
@@ -53,6 +54,7 @@ export type ToolRegistration = {
  */
 export const TOOL_REGISTRATIONS: ToolRegistration[] = [
   createGithubLabel,
+  deleteGithubLabel,
   getGithubIssue,
   getGithubLabel,
   getGithubMilestone,
@@ -60,5 +62,5 @@ export const TOOL_REGISTRATIONS: ToolRegistration[] = [
   listGithubLabels,
   listGithubMilestones,
   updateGithubLabel,
-  deleteGithubLabel,
+  updateGithubMilestone,
 ];
