@@ -44,7 +44,7 @@ appliedMigrationsQuery.finalize();
 let applied = appliedMigrations.map((row) => row.filename);
 
 for (let file of migrationFiles) {
-  if (applied.length > 0 && applied.includes(file)) continue;
+  if (applied.includes(file)) continue;
 
   let migrationInstruction = "";
 

@@ -31,13 +31,37 @@ const fail = (kind, where, detail) =>
 
 const readJson = (path) => JSON.parse(readFileSync(path, "utf8"));
 
-/** Workspace manifests: every tools/<name>/package.json, shared included. */
-const workspaceManifests = readdirSync(join(ROOT, "tools"), { withFileTypes: true })
-  .filter((e) => e.isDirectory())
-  .map((e) => join(ROOT, "tools", e.name, "package.json"))
-  .filter(existsSync);
-
 const rootPkg = readJson(join(ROOT, "package.json"));
+
+/**
+ * Resolves the root package.json's own `workspaces` field instead of assuming
+ * everything lives under tools/ — so a workspace added anywhere (e.g. a
+ * literal "control_panel" entry) gets the same checks below, with nothing to
+ * remember to update here. Only the two glob shapes this repo actually uses
+ * are supported: a trailing "/*" (one directory level under the prefix) and a
+ * literal path with no wildcard.
+ */
+function resolveWorkspaceDirs(root, patterns) {
+  const dirs = new Set();
+  for (const pattern of patterns) {
+    if (pattern.endsWith("/*")) {
+      const base = join(root, pattern.slice(0, -2));
+      if (!existsSync(base)) continue;
+      for (const entry of readdirSync(base, { withFileTypes: true })) {
+        if (entry.isDirectory()) dirs.add(join(base, entry.name));
+      }
+    } else {
+      const dir = join(root, pattern);
+      if (existsSync(dir)) dirs.add(dir);
+    }
+  }
+  return [...dirs];
+}
+
+/** Workspace manifests: every package.json the root's `workspaces` field resolves to. */
+const workspaceManifests = resolveWorkspaceDirs(ROOT, rootPkg.workspaces ?? [])
+  .map((dir) => join(dir, "package.json"))
+  .filter(existsSync);
 
 // ---- 1. no pins, anywhere ------------------------------------------------
 // A forced resolution hides a version disagreement instead of removing it.

@@ -1,0 +1,11 @@
+{
+  "name": "@llm-tools/control-panel",
+  "description": "A front end to let the user check their preferences and configs and update them accordngly.",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  }
+}
