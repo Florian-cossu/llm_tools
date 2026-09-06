@@ -13,7 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { PermissionState, ToolDescriptor } from "@/lib/tools";
+import type { PermissionState, ToolDescriptor } from "@/lib/github/tools";
 
 const STATE_COPY: Record<PermissionState, { label: string; hint: string; icon: typeof ShieldCheck }> = {
   allow: {
@@ -62,7 +62,7 @@ export function PermissionControl({ tool }: { tool: ToolDescriptor }) {
     try {
       const body = await request({
         method: "PATCH",
-        body: JSON.stringify({ slug: tool.slug, state }),
+        body: JSON.stringify({ serverId: tool.server_id, slug: tool.slug, state }),
       });
       setSavedState(body.state);
       router.refresh();
@@ -79,7 +79,7 @@ export function PermissionControl({ tool }: { tool: ToolDescriptor }) {
     try {
       const body = await request({
         method: "DELETE",
-        body: JSON.stringify({ slug: tool.slug }),
+        body: JSON.stringify({ serverId: tool.server_id, slug: tool.slug }),
       });
       setState(body.state);
       setSavedState(body.state);

@@ -64,6 +64,8 @@ bun run check:deps                 # one declaration site, one copy of each
 bun run deps:reset                 # nuke node_modules AND bun.lock, reinstall
 bun run setup                      # = node scripts/setup-tools.mjs --write
 bun run migrate                    # apply data/migrations/*.sql to data/harness.db
+bun run dev:panel                  # start the control panel (Next.js, reads/edits harness.db)
+bun run rehome:panel               # move shadcn-written deps out of control_panel/package.json
 npx @modelcontextprotocol/inspector bun run tools/github/src/index.ts
 ```
 
@@ -107,14 +109,17 @@ workflows.
   ADR-0007 D3 names that exact case `destructive`, and no `destructive` tool may
   be registered yet — but the gate reads the declaration, so the tool registers
   whenever `GITHUB_ALLOW_WRITES` is set. It is also missing from the github
-  server's README tool table (D6). The github server lists nine tools at v2.4.0,
-  a version the docs describe as eight.
+  server's README tool table (D6). The github server lists ten tools at v2.5.0.
+  The permission table's own seed (`0003_add_github_tool_name_description_to_permission_table_.sql`)
+  disagrees with the code and classifies this row `destructive` — the two are
+  not the same source of truth, and only the code's `TOOL_EFFECT` gates
+  anything today.
 - The permission layer ADR-0007 points at (SQLite, per-tool, consulted before
   execution) is **still not built**. Its *storage* now exists —
   `bun run migrate` creates `data/harness.db` with one `github_mcp` row per
   tool, holding `allow`/`deny`/`ask` and defaulting to `deny` — but **nothing
   reads it**, so the `.env` flag remains the whole gate. A seeded table is not
-  a permission layer.
+  a permission layer, and neither is a control panel that edits the same table.
 
   See `docs/07-plans/current.md`.
 
@@ -127,5 +132,20 @@ plaintext `.sql` files in filename order and records each in a `meta` table.
 - **Never edit an applied migration** — it will not run again. Add the next one.
 - `harness.db` and its `-wal`/`-shm` siblings are gitignored. Never commit them.
 - Adding a tool does not add its permission row; that needs a migration.
+- `data/access.ts` is the read API Bun code uses; `control_panel/lib/db.ts` is
+  a hand-kept Node mirror of it, since `bun:sqlite` and `node:sqlite` are each
+  only available in their own runtime. Keep the two in sync by hand.
 
 See `docs/02-architecture/components/data-store.md`.
+
+## Control panel
+
+`control_panel/` is a Next.js app, run with `bun run dev:panel`, that reads and
+edits `data/harness.db` through `data/access.ts`'s Node mirror. It is **not**
+the permission layer: nothing in the github server reads what it writes, and
+`GITHUB_ALLOW_WRITES` remains the actual gate. Its own `package.json` must
+declare no third-party dependency directly (ADR-0005) — the shadcn CLI writes
+into it anyway, so run `bun run rehome:panel` after any `shadcn add` to move
+what it added back to the root manifest.
+
+See `docs/02-architecture/components/control-panel.md`.

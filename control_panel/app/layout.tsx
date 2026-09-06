@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { listServers } from "@/lib/servers";
 
 const roboto = Roboto({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -19,12 +20,14 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const servers = listServers();
+
   return (
     <html lang="en" className={cn("font-sans", roboto.variable)}>
       <body>
         <TooltipProvider>
           <SidebarProvider>
-            <AppSidebar />
+            <AppSidebar servers={servers} />
             <SidebarInset>
               <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
                 <SidebarTrigger />

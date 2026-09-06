@@ -2,9 +2,9 @@
 type: component
 status: active
 scope: github
-last_reviewed: 2026-09-02
-last_updated: 2026-09-03
-summary: The github MCP server - its eight tools (six reads and two gated writes), their response shapes, and its configuration.
+last_reviewed: 2026-09-05
+last_updated: 2026-09-06
+summary: The github MCP server - its ten tools (six reads and four gated writes), their response shapes, and its configuration.
 read_when:
   - working on any github tool
   - checking which github capabilities exist
@@ -20,10 +20,18 @@ tags:
 
 # github server
 
-`@llm-tools/github` v2.4.0 — read access to GitHub issues, milestones and
-labels, plus two **writes** on labels: `create_github_label` and
-`update_github_label`, registered only when `GITHUB_ALLOW_WRITES` is set
+`@llm-tools/github` v2.5.0 — read access to GitHub issues, milestones and
+labels, plus four **writes**: `create_github_label`, `update_github_label` and
+`delete_github_label` on labels, and `update_github_milestone` on milestones.
+None is registered unless `GITHUB_ALLOW_WRITES` is set
 ([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
+
+> [!caution] `delete_github_label` is a known defect, not a fourth precedent
+> It declares `TOOL_EFFECT = "write"` while calling `issues.deleteLabel` — D3
+> names deleting a label as the example of `destructive`, and no `destructive`
+> tool may be registered yet. The gate only reads the declaration, so this
+> tool registers whenever `GITHUB_ALLOW_WRITES` is set. See
+> [current plan](../../07-plans/current.md).
 
 User-facing reference (parameters, example prompts, response samples):
 [`tools/github/README.md`](../../../tools/github/README.md). This note covers
@@ -47,6 +55,8 @@ configuration disallows, and logs the reason to stderr.
 | `get_github_label` | `getGithubLabel` | `issues.getLabel` | `read` | Complete |
 | `create_github_label` | `createGithubLabel` | `issues.createLabel` | **`write`** | Complete, gated |
 | `update_github_label` | `updateGithubLabel` | `issues.updateLabel` | **`write`** | Complete, gated |
+| `delete_github_label` | `deleteGithubLabel` | `issues.deleteLabel` | **`write`** (should be `destructive` — see above) | Complete, gated |
+| `update_github_milestone` | `updateGithubMilestone` | `issues.updateMilestone` | **`write`** | Complete, gated |
 
 > [!note]
 > The name the model sees is the `TOOL_NAME` constant, not the filename. Every
@@ -226,14 +236,15 @@ raises `limit` and sees the same list again.
 
 ## The label writes
 
-`create_github_label` and `update_github_label` are the only tools here that
-change anything. Neither is registered unless `GITHUB_ALLOW_WRITES` is set, so
-on a default server the model never sees them
+`create_github_label`, `update_github_label` and `delete_github_label` are the
+tools here that change a label. None is registered unless
+`GITHUB_ALLOW_WRITES` is set, so on a default server the model never sees them
 ([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
-Both open their description with `describeMutation(TOOL_EFFECT)` rather than
-improvising a warning, and both return the label **read back from GitHub**
-through `mapGithubLabel` — the same compact shape the two label reads return,
-wrapped in a one-word envelope that says what happened:
+All three open their description with `describeMutation(TOOL_EFFECT)` rather
+than improvising a warning. `create_github_label` and `update_github_label`
+return the label **read back from GitHub** through `mapGithubLabel` — the same
+compact shape the two label reads return, wrapped in a one-word envelope that
+says what happened:
 
 | | `create_github_label` | `update_github_label` |
 | --- | --- | --- |
@@ -259,8 +270,41 @@ Two things the shapes do not show:
 
 `update_github_label` declares `write` rather than `destructive` because the
 compensating action exists: a rename is undone by another rename, a colour by
-another colour (D3). Nothing here removes a label — that endpoint stays
-unimplemented until the permission layer lands.
+another colour (D3).
+
+### `delete_github_label`
+
+Calls `issues.deleteLabel`, keyed by `name`. GitHub answers `204` with no
+body, so there is no label to read back — the response is
+`{ deleted: true, name }`, echoing the input rather than the envelope's usual
+`label` object. Deleting a label removes it from every issue that carried it;
+the tool has no way to report how many, and its description says so rather
+than implying it knows.
+
+This is the tool [D3](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)
+uses as its own example of `destructive` — undoing a delete means recreating
+the label under the same name, which does not restore it to the issues it was
+on, because GitHub keeps no record of which those were. It still declares
+`TOOL_EFFECT = "write"`, which is the known defect
+[current plan](../../07-plans/current.md) tracks: the gate in `index.ts` reads
+only the declaration, so this tool registers under `GITHUB_ALLOW_WRITES`
+exactly like the other three, when D3 says it should be refused outright until
+the permission layer exists.
+
+## The milestone write
+
+`update_github_milestone` mirrors `update_github_label`'s shape one layer up:
+`milestone_number` says which milestone, every other parameter
+(`title`, `state`, `description`, `due_on`) is a new value left unchanged when
+omitted, and a call carrying none of them is rejected before the request
+rather than reported as a change. It calls `issues.updateMilestone` and
+returns `{ updated: true, milestone }`, `milestone` read back through
+`mapGithubMilestone` — the same compact shape `list_github_milestones` and
+`get_github_milestone` return.
+
+Renaming or closing a milestone does not touch the issues it is on, and no
+tool on this server can apply a milestone to an issue — the description says
+so for the same reason the label writes do.
 
 ## Configuration
 

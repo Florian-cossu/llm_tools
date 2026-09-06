@@ -7,8 +7,10 @@ orchestrator itself never needs installing or building.
 | ------------------------------------------ | --------------------------------------------------- |
 | [setup-tools.mjs](setup-tools.mjs)         | Installs, builds and registers every server in LM Studio |
 | [create-tool.mjs](create-tool.mjs)         | Scaffolds a new MCP server under `tools/`           |
+| [check-deps.mjs](check-deps.mjs)           | Enforces one dependency declaration site, one installed copy |
 | [check-docs.mjs](check-docs.mjs)           | Validates the `docs/` vault: frontmatter, links, code refs |
 | [timestamp-docs.mjs](timestamp-docs.mjs)   | Stamps `last_updated` on the docs notes it is given |
+| [rehome-panel-deps.mjs](rehome-panel-deps.mjs) | Moves dependencies `shadcn` wrote into `control_panel/package.json` back to the root |
 
 ---
 
@@ -68,6 +70,40 @@ non-zero listing what it found.
 
 `DUPLICATE`, `SHADOWED` and `LOCK-STALE` are all cleared by `bun run deps:reset`.
 `PIN` and `DECLARED` are edits.
+
+It resolves which manifests to check from the root `package.json`'s own
+`workspaces` field rather than assuming every workspace lives under `tools/`
+— so `control_panel` (a literal entry, not a `tools/*` glob) gets the same
+checks as any server, with nothing to remember to update here if another
+top-level workspace is added.
+
+---
+
+## `rehome-panel-deps.mjs`
+
+```bash
+node scripts/rehome-panel-deps.mjs [--quiet]
+bun run rehome:panel
+```
+
+The `shadcn` CLI is not workspace-aware: pointed at `--cwd control_panel`, an
+`add` or `init` reads and writes `control_panel/package.json` directly and
+installs into a nested `control_panel/node_modules/` that shadows the root —
+exactly what [ADR-0005](../docs/03-decisions/ADR-0005-root-dependencies.md)
+says not to have. Run this right after any `shadcn` command touches the
+panel:
+
+1. Every dependency in `control_panel/package.json` is moved to the root
+   manifest — updated in place if the range differs from what is already
+   declared there, never duplicated into the other field, so a deliberate
+   reclassification (e.g. a build-time package kept in `devDependencies`)
+   survives the next `shadcn add`.
+2. `control_panel/package.json` is left with no dependency block at all.
+3. The shadowing `control_panel/node_modules/` is deleted.
+4. `bun install` runs from the root.
+
+Follow up with `bun run check:deps` — a `DUPLICATE` it reports from a version
+bump is what `bun run deps:reset` is for.
 
 ---
 

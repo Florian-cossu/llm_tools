@@ -6,11 +6,17 @@
 Talks to the GitHub REST API and hands the model a **compact** payload instead of the full
 GitHub response, which keeps the context window usable on a local model.
 
-**Six of the nine tools are read-only.** The other three, `create_github_label`,
-`update_github_label` and `update_github_milestone`, write — and none is registered at all
-unless you set `GITHUB_ALLOW_WRITES`, so the default server is still one a model cannot use
-to change anything. See
+**Six of the ten tools are read-only.** The other four, `create_github_label`,
+`update_github_label`, `delete_github_label` and `update_github_milestone`, write — and
+none is registered at all unless you set `GITHUB_ALLOW_WRITES`, so the default server is
+still one a model cannot use to change anything. See
 [ADR-0007](../../docs/03-decisions/ADR-0007-writes-behind-declared-capability.md).
+
+> [!caution] `delete_github_label` is currently misclassified
+> It declares itself a `write` like the other three, but deleting a label is the example
+> ADR-0007 D3 uses for `destructive` — a class no tool may register yet. It registers
+> today only because the startup gate reads the declaration, not the endpoint. Treat it as
+> a known defect: [current plan](../../docs/07-plans/current.md).
 
 Owner and repository are configured once in `.env`, so in practice you just ask _"list the
 open issues"_ without naming the repo.
@@ -32,18 +38,19 @@ See the [root README](../../README.md) for requirements and setup, and
 | [`get_github_label`](#get_github_label)                             | Read one label by name, or check it exists     |
 | [`create_github_label`](#create_github_label)                       | **Write** — create a new label                 |
 | [`update_github_label`](#update_github_label)                       | **Write** — rename or restyle an existing label |
+| [`delete_github_label`](#delete_github_label)                       | **Write** — delete an existing label (see the caution above) |
 | [`update_github_milestone`](#update_github_milestone)               | **Write** — change the title, state, description or due date of an existing milestone |
 
 Every tool takes `owner` and `repository`, both optional once the matching `.env` default
 is set, and both omitted from the tables below for brevity.
 
-> [!warning] Three of these write
+> [!warning] Four of these write
 > `create_github_label` calls `POST /labels`, `update_github_label` calls
-> `PATCH /labels/{name}`, and `update_github_milestone` calls `PATCH /milestones/{number}`;
-> all three change the repository. All are absent from the model's tool list unless
-> `GITHUB_ALLOW_WRITES` is set, and when present each announces itself in its own
-> description and each is named in the server instructions. Everything else here only
-> reads.
+> `PATCH /labels/{name}`, `delete_github_label` calls `DELETE /labels/{name}`, and
+> `update_github_milestone` calls `PATCH /milestones/{number}`; all four change the
+> repository. All are absent from the model's tool list unless `GITHUB_ALLOW_WRITES` is
+> set, and when present each announces itself in its own description and each is named
+> in the server instructions. Everything else here only reads.
 
 ---
 
@@ -446,6 +453,52 @@ first to confirm the exact spelling.
 
 ---
 
+### `delete_github_label`
+
+**This tool writes — and deletes, not undoably.** It removes a label from the repository
+and, like the other writes, is registered **only when `GITHUB_ALLOW_WRITES` is set**,
+logging `Not registering delete_github_label` to stderr otherwise.
+
+There is no endpoint that restores a deleted label, and recreating one with the same name
+does not put it back on the issues it was removed from — GitHub keeps no record of which
+those were. Prefer `update_github_label` when the user wants a label renamed, recoloured
+or redescribed rather than gone, and confirm the exact name with the user before calling.
+
+| Parameter | Type              | Description                                                                     |
+| --------- | ----------------- | -------------------------------------------------------------------------------- |
+| `name`    | string, required  | The label's name, exactly as GitHub shows it. Spaces allowed, no quotes. GitHub compares names **case-insensitively**. |
+
+**Example prompts**
+
+> _Delete the "wontfix" label._
+>
+> _Remove the "needs-triage" label — we don't use it anymore._
+
+**Response**
+
+```json
+{
+  "deleted": true,
+  "name": "wontfix"
+}
+```
+
+GitHub answers the delete with an empty body, so unlike `create_github_label` and
+`update_github_label` there is no label object to read back — `deleted` and the echoed
+`name` are the whole of what is true afterwards.
+
+Deleting a label removes it from every issue that carried it; those issues are not
+otherwise changed, and none is closed or deleted. This tool has no way to say how many
+issues were affected — call `list_github_issues` with `labels: "<name>"` beforehand if
+that count matters.
+
+The call **fails** when the repository has no label with that name, and when the token
+has no write access. Neither is retryable without changing the input. Call
+[`list_github_labels`](#list_github_labels) or [`get_github_label`](#get_github_label)
+first to confirm the exact spelling.
+
+---
+
 ### `update_github_milestone`
 
 **This tool writes.** It edits a milestone that already exists — its title, state,
@@ -525,8 +578,9 @@ descriptions, so the model stops asking.
 has to be told. Two things worth knowing before setting it:
 
 - A **fine-grained token with _Issues: read_** makes `create_github_label`,
-  `update_github_label` and `update_github_milestone` fail even with the flag on — milestones
-  sit under the same _Issues_ permission as labels. That is a good belt-and-braces
+  `update_github_label`, `delete_github_label` and `update_github_milestone` fail even
+  with the flag on — milestones sit under the same _Issues_ permission as labels. That is
+  a good belt-and-braces
   position — the flag decides whether the model sees the tool, the token decides whether the
   call can land.
 - Issue and comment bodies are text you don't control that reaches the model. The server
@@ -582,6 +636,7 @@ tools/github/
             ├── get_github_label.ts
             ├── create_github_label.ts   # write — gated at registration
             ├── update_github_label.ts   # write — gated at registration
+            ├── delete_github_label.ts   # write (should be destructive) — gated at registration
             └── update_github_milestone.ts # write — gated at registration
 ```
 

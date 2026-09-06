@@ -15,9 +15,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { SERVERS } from "@/lib/servers";
+import type { ServerDescriptor } from "@/lib/servers";
 
-export function AppSidebar() {
+export function AppSidebar({ servers }: { servers: ServerDescriptor[] }) {
   const pathname = usePathname();
 
   return (
@@ -39,14 +39,14 @@ export function AppSidebar() {
           <SidebarGroupLabel>Servers</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {SERVERS.map((server) => {
+              {servers.map((server) => {
                 const href = `/servers/${server.slug}`;
                 return (
                   <SidebarMenuItem key={server.slug}>
                     <SidebarMenuButton asChild isActive={pathname === href}>
                       <Link href={href}>
                         <Server />
-                        <span>{server.label}</span>
+                        <span>{server.server_name}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

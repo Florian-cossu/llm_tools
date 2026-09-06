@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /**
- * Node-native mirror of `data/access.ts`'s `github_mcp` reads. Next's server
+ * Node-native mirror of `data/access.ts`'s `permissions` reads. Next's server
  * code runs under Node, not Bun, and `bun:sqlite` / `node:sqlite` are each
  * only available in their own runtime - so this can't just import
  * `data/access.ts`. Keep the SELECT in sync with it if the schema changes.
@@ -17,15 +17,15 @@ const DB_PATH = resolve(
 export type PermissionState = "allow" | "deny" | "ask";
 export type ToolEffect = "read" | "write" | "destructive";
 
-export type GithubToolPermission = {
+export type ToolPermission = {
+  id: number;
+  server_id: number;
   slug: string;
-  server_name: string;
-  server_effect: ToolEffect;
-  summary: string | null;
-  known_defects: string | null;
-  default_state: PermissionState;
+  tool_effect: ToolEffect;
+  description: string | null;
   /** The decision a permission layer would consult - editable, unlike `default_state`. */
   state: PermissionState;
+  default_state: PermissionState;
 };
 
 let db: DatabaseSync | undefined;
@@ -45,43 +45,52 @@ function getWritableDb(): DatabaseSync {
 }
 
 const SELECT_COLUMNS =
-  "slug, server_name, server_effect, summary, known_defects, default_state, state";
+  "id, slug, server_id, tool_effect, description, default_state, state";
 
-/** Every row currently seeded in `github_mcp`. */
-export function listGithubToolPermissions(): GithubToolPermission[] {
+/** Every row currently seeded in `permissions`, across every server. */
+export function listAllPermissions(): ToolPermission[] {
   return getDb()
-    .prepare(`SELECT ${SELECT_COLUMNS} FROM github_mcp`)
-    .all() as GithubToolPermission[];
+    .prepare(`SELECT ${SELECT_COLUMNS} FROM permissions`)
+    .all() as ToolPermission[];
+}
+
+/** Every row currently seeded in `permissions` for one server. */
+export function listPermissions(serverId: number): ToolPermission[] {
+  return getDb()
+    .prepare(`SELECT ${SELECT_COLUMNS} FROM permissions WHERE server_id = ?`)
+    .all(serverId) as ToolPermission[];
 }
 
 /** One row by slug, or `null` if the tool has no row yet. */
-export function findGithubToolPermission(
+export function findToolPermission(
   slug: string,
-): GithubToolPermission | null {
+  serverId: number
+): ToolPermission | null {
   const row = getDb()
-    .prepare(`SELECT ${SELECT_COLUMNS} FROM github_mcp WHERE slug = ?`)
-    .get(slug);
-  return (row as GithubToolPermission | undefined) ?? null;
+    .prepare(`SELECT ${SELECT_COLUMNS} FROM permissions WHERE slug = ? AND server_id = ?`)
+    .get(slug, serverId);
+  return (row as ToolPermission | undefined) ?? null;
 }
 
 /**
  * Sets a tool's `state`. Returns `false` if `slug` has no row - the CHECK
  * constraint rejects anything outside `PermissionState` before this runs.
  */
-export function updateGithubToolState(
+export function updateToolState(
+  serverId: number,
   slug: string,
   state: PermissionState,
 ): boolean {
   const result = getWritableDb()
-    .prepare("UPDATE github_mcp SET state = ? WHERE slug = ?")
-    .run(state, slug);
+    .prepare("UPDATE permissions SET state = ? WHERE slug = ? AND server_id = ?")
+    .run(state, slug, serverId);
   return result.changes > 0;
 }
 
 /** Sets a tool's `state` back to its seeded `default_state`. */
-export function resetGithubToolState(slug: string): boolean {
+export function resetToolState(slug: string, serverId: number): boolean {
   const result = getWritableDb()
-    .prepare("UPDATE github_mcp SET state = default_state WHERE slug = ?")
-    .run(slug);
+    .prepare("UPDATE permissions SET state = default_state WHERE slug = ? AND server_id = ?")
+    .run(slug, serverId);
   return result.changes > 0;
 }

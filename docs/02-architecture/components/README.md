@@ -2,8 +2,8 @@
 type: index
 status: active
 scope: repo
-last_reviewed: 2026-08-30
-last_updated: 2026-09-04
+last_reviewed: 2026-09-05
+last_updated: 2026-09-06
 summary: Index of component notes - one per named piece of the system.
 tags:
   - index
@@ -23,5 +23,6 @@ One note per piece. Ordered roughly by how often they are opened.
 | [Execution lifecycle](execution-lifecycle.md) | Spawn → init → serve → exit, and what is fixed when | mcp |
 | [Setup and registration](setup-and-registration.md) | `setup-tools.mjs`, `mcp.json`, registering by hand | scripts |
 | [Data store](data-store.md) | The local SQLite database, its SQL migrations and the runner | repo |
+| [Control panel](control-panel.md) | The Next.js app that reads and edits the permission table — gates nothing | repo |
 
 Whole picture: [system overview](../system-overview.md).

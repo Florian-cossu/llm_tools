@@ -1,26 +1,27 @@
 import Link from "next/link";
-import { AlertTriangle, Info, ShieldCheck, ShieldOff, ShieldQuestion } from "lucide-react";
+import { Info, ShieldCheck, ShieldOff, ShieldQuestion } from "lucide-react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { getGithubTools } from "@/lib/tools";
+import { listAllPermissions } from "@/lib/db";
+import { listServers } from "@/lib/servers";
 
 export const dynamic = "force-dynamic";
 
 export default function Home() {
-  const tools = getGithubTools();
+  const servers = listServers();
+  const tools = listAllPermissions();
   const byServerEffect = {
-    read: tools.filter((t) => t.server_effect === "read").length,
-    write: tools.filter((t) => t.server_effect === "write").length,
-    destructive: tools.filter((t) => t.server_effect === "destructive").length,
+    read: tools.filter((t) => t.tool_effect === "read").length,
+    write: tools.filter((t) => t.tool_effect === "write").length,
+    destructive: tools.filter((t) => t.tool_effect === "destructive").length,
   };
   const byState = {
     allow: tools.filter((t) => t.state === "allow").length,
     deny: tools.filter((t) => t.state === "deny").length,
     ask: tools.filter((t) => t.state === "ask").length,
   };
-  const defects = tools.filter((t) => t.known_defects);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
@@ -49,12 +50,18 @@ export default function Home() {
         <Card>
           <CardHeader>
             <CardDescription>Servers</CardDescription>
-            <CardTitle className="text-3xl">1</CardTitle>
+            <CardTitle className="text-3xl">{servers.length}</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground">
-            <Link href="/servers/github" className="underline underline-offset-2">
-              github
-            </Link>
+          <CardContent className="flex flex-col gap-1 text-sm text-muted-foreground">
+            {servers.map((server) => (
+              <Link
+                key={server.slug}
+                href={`/servers/${server.slug}`}
+                className="underline underline-offset-2"
+              >
+                {server.server_name}
+              </Link>
+            ))}
           </CardContent>
         </Card>
         <Card>
@@ -73,8 +80,8 @@ export default function Home() {
         <CardHeader>
           <CardTitle>Current permission state</CardTitle>
           <CardDescription>
-            Live from <code className="font-mono text-xs">github_mcp</code> in{" "}
-            <code className="font-mono text-xs">data/harness.db</code>.
+            Live from <code className="font-mono text-xs">permissions</code> in{" "}
+            <code className="font-mono text-xs">data/harness.db</code>, across every server.
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2">
@@ -92,29 +99,6 @@ export default function Home() {
           </Badge>
         </CardContent>
       </Card>
-
-      {defects.length > 0 && (
-        <Alert variant="destructive">
-          <AlertTriangle />
-          <AlertTitle>
-            {defects.length} known defect{defects.length === 1 ? "" : "s"}
-          </AlertTitle>
-          <AlertDescription>
-            <ul className="list-inside list-disc">
-              {defects.map((tool) => (
-                <li key={tool.slug}>
-                  <Link
-                    href={`/servers/${tool.server_name}`}
-                    className="font-mono underline underline-offset-2"
-                  >
-                    {tool.slug}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </AlertDescription>
-        </Alert>
-      )}
     </div>
   );
 }

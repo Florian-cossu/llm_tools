@@ -2,8 +2,8 @@
 type: plan
 status: draft
 scope: repo
-last_reviewed: 2026-09-02
-last_updated: 2026-09-04
+last_reviewed: 2026-09-06
+last_updated: 2026-09-06
 summary: NOT AUTHORITATIVE - what is half-finished right now and what is worth doing next.
 read_when:
   - picking up work
@@ -36,9 +36,19 @@ the same defect class as `update_github_label` shipping its first draft as a
 `read`, and the reason the [testing checklist](../06-workflows/testing.md)
 greps Octokit calls against the declaration rather than trusting it.
 
-Two smaller things came with it: it is **absent from the github server's README
-tool table**, which D6 requires, and the server version was not bumped past
-`2.4.0`, the release the docs describe as eight tools.
+One smaller thing came with it: it is **absent from the github server's README
+tool table**, which D6 requires. The server is now `2.5.0` with ten tools
+(`update_github_milestone` shipped after this defect was first written up).
+
+The permission table's own seed
+(`data/migrations/0004_add_github_tools_permissions.sql`, into the
+`permissions` table `0003_init_permissions_table.sql` creates — this used to
+be one `github_mcp` table and is now `servers` + `permissions`, see
+[data store](../02-architecture/components/data-store.md#schema))
+classifies this row's `tool_effect` as `destructive` — the correct answer
+per D3 — while the code's `TOOL_EFFECT` still says `write`. The two are
+hand-maintained separately and disagree; only `TOOL_EFFECT` is consulted by
+the gate, so the row being "right" in the database changes nothing.
 
 Fixing it means declaring `destructive` — at which point the gate refuses it and
 it stops reaching the model, which is the intended state until the permission
@@ -55,9 +65,11 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 
 | Item | Where |
 | --- | --- |
-| The permission layer ADR-0007 points at does not exist. Its **storage** now does — `data/harness.db` holds one row per github tool — but nothing consults it, so `GITHUB_ALLOW_WRITES` is still the whole gate, per server rather than per tool | `index.ts`, [data store](../02-architecture/components/data-store.md) |
-| `github_mcp` does not record each tool's effect class, which ADR-0007 puts in the same row as the decision. It lives only in `TOOL_EFFECT` | `data/migrations/0001_initial.sql` |
-| Nothing keeps `github_mcp` rows in step with `TOOL_REGISTRATIONS`. A new tool needs a hand-written migration or it is simply unlisted | — |
+| The permission layer ADR-0007 points at does not exist. Its **storage** now does — `data/harness.db` holds one row per github tool, and a [control panel](../02-architecture/components/control-panel.md) reads and edits it — but nothing in the github server consults it, so `GITHUB_ALLOW_WRITES` is still the whole gate, per server rather than per tool | `index.ts`, [data store](../02-architecture/components/data-store.md) |
+| `permissions` records each tool's effect class (`tool_effect`) alongside the decision, closing the gap this row used to describe. But it is **hand-written into the migration, not derived from `TOOL_EFFECT`**, so a row can say one thing while the code says another — `delete_github_label`'s row already does (see the known-broken entry above) | `data/migrations/0004_add_github_tools_permissions.sql` |
+| Nothing keeps `permissions` rows in step with `TOOL_REGISTRATIONS`. A new tool needs a hand-written migration or it is simply unlisted, and the control panel silently omits it the same way | — |
+| `data/access.ts` was never updated when the schema split `github_mcp` into `servers` + `permissions` (+ the new `github_profiles`). It still queries a `github_mcp` table that no longer exists. Nothing imports it today, so it's dead rather than crashing anyone — but it needs a rewrite, not a resurrection, before the real permission-layer gate can use it. `control_panel/lib/db.ts` is the one file that does match the current schema | `data/access.ts`, [data store](../02-architecture/components/data-store.md#reading-and-writing-it) |
+| `github_profiles` (owner/repo presets, with an `is_active` flag enforced single-active by the write, not a constraint) is now editable from the control panel — add, list, and toggle active — but nothing in the github server reads which profile is active. Same gap as the permission table, one layer up | `control_panel/app/servers/github/lib/github_profiles.tsx`, [control panel](../02-architecture/components/control-panel.md#github-profiles) |
 | No audit trail. Nothing records that a write happened | — |
 | No CI, so `bun run test` only runs when someone remembers to | — |
 | No eval scenario for either milestone tool, and the one that exists is `status: planned` | `docs/05-harness/scenarios/` |
@@ -81,10 +93,15 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
    `destructive` tools (ADR-0007 D3). Gets its own ADR.
    **The storage half now exists** — see
    [data store](../02-architecture/components/data-store.md), which already
-   carries the allow/deny/**ask** vocabulary, defaults to `deny` and constrains
-   `state` to that closed set. What remains: recording the effect class
-   alongside the decision, and calling the table from the gate. Until something
-   consults it, none of this is a permission layer.
+   carries the allow/deny/**ask** vocabulary, defaults to `deny`, constrains
+   `state` to that closed set, and now records the effect class alongside the
+   decision (`0003`). **A human-facing editor now exists too** — the
+   [control panel](../02-architecture/components/control-panel.md) reads and
+   writes `state` through a UI, so the storage half is no longer read-only-by-
+   convenience. What remains is the same thing it always was: **calling the
+   table from the gate**. Until an MCP server consults it before registering
+   or executing a tool, none of this — schema, editor, or seed data — is a
+   permission layer.
 4. **A scenario for the write path**: the model asked to create a label calls
    `list_github_labels` first, confirms, calls once, and does not retry the
    422. And the injection case — an issue body telling it to create a label
@@ -119,6 +136,76 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
   ([T18 exception](../04-contracts/tool-contract.md#responses))
 
 ## Done
+
+- **The schema was restructured, and the control panel grew a `github_profiles`
+  manager.** `github_mcp`, the single per-tool table the bullets below
+  describe, is gone: `data/migrations/0001_initial.sql` through
+  `0003_add_github_tool_name_description_to_permission_table_.sql` were
+  replaced with four new files —
+  `0001_init_servers_table.sql`, `0002_init_github_profiles_table.sql`,
+  `0003_init_permissions_table.sql`, `0004_add_github_tools_permissions.sql` —
+  none of which exist under their old names anymore. The bullets under this
+  one are history as written at the time; for the schema as it actually is
+  today, see [data store](../02-architecture/components/data-store.md#schema),
+  not these filenames.
+  - `servers` exists so a second MCP server has somewhere to attach its own
+    rows; `permissions` is `github_mcp` scoped by `server_id` instead of
+    assuming there is only ever one server.
+  - `github_profiles` is new and is **not** a permission table: one row per
+    named owner/repo preset, with an `is_active` flag. `/servers/github` now
+    renders an add-profile form and a table of existing profiles, each with a
+    toggle. At most one profile is active per server — enforced by the write
+    (`UPDATE github_profiles SET is_active = (id = ?) WHERE server_id = ?` in
+    one statement), not by a schema constraint. See
+    [control panel](../02-architecture/components/control-panel.md#github-profiles).
+  - Same gap as the permission table: nothing in the github server reads
+    `is_active`, or anything else in `github_profiles`.
+  - The shadcn `switch` and `table` components were added for this
+    (`ProfileActiveToggle`, `GithubProfilesTable`) — both `bun run
+    rehome:panel` no-ops turned out to be, since the packages they needed
+    (`cn`, `radix-ui`) were already root dependencies from earlier `shadcn`
+    runs, so there was nothing left to rehome after the CLI wrote its usual
+    redundant block into `control_panel/package.json`.
+  - `data/access.ts` was **not** updated as part of this and still queries
+    the old `github_mcp` shape — dead code today since nothing imports it, but
+    a real trap for whoever writes the permission-layer gate and reaches for
+    it expecting it to work. See the defect table above.
+
+- **A control panel and the schema migration behind it** (`0003`, pre-dating
+  the restructure above). A Next.js
+  app under `control_panel/`, run with `bun run dev:panel`, reads `github_mcp`
+  through a Node-side mirror of `data/access.ts`
+  ([control panel](../02-architecture/components/control-panel.md)) and edits
+  `state` through `PATCH`/`DELETE /api/github_mcp_update_permission`.
+  `0003_add_github_tool_name_description_to_permission_table_.sql` renamed the
+  primary key to `slug` and added `server_name`, `server_effect`, `summary`,
+  `known_defects` and `default_state` — the columns the control panel needed
+  to show something other than a bare slug and a decision, and the ones
+  ADR-0007 puts alongside the decision in the first place.
+  - **It is a viewer and an editor, not the permission layer.** Nothing in the
+    github server reads `github_mcp`; `GITHUB_ALLOW_WRITES` is unchanged. See
+    the warning on [data store](../02-architecture/components/data-store.md)
+    and on [control panel](../02-architecture/components/control-panel.md).
+  - **The seed and the code can now visibly disagree.** `0003` classifies
+    `delete_github_label` as `destructive` in `server_effect` — correct per
+    D3 — while the tool's own `TOOL_EFFECT` still says `write`. Recording the
+    class made this mismatch inspectable; it did not fix it.
+  - `control_panel/package.json` is a workspace under ADR-0005 like any
+    server, but the `shadcn` CLI that scaffolded its UI components is not
+    workspace-aware and writes dependencies into it directly.
+    `scripts/rehome-panel-deps.mjs` (`bun run rehome:panel`) moves what it
+    wrote back to the root manifest. `check-deps.mjs` was generalised at the
+    same time to resolve workspace directories from the root `package.json`'s
+    own `workspaces` field instead of assuming everything lives under
+    `tools/`, so `control_panel` gets the same checks a server would.
+
+- **`update_github_milestone` added** (server 2.4.0 → 2.5.0), and its
+  permission row seeded in `0002_add_update_milestone_permission.sql` (`deny`).
+  Follows `update_github_label`'s shape one layer up: `milestone_number`
+  identifies the milestone, every other parameter (`title`, `state`,
+  `description`, `due_on`) is a new value left unchanged when omitted, and a
+  call carrying none of them is rejected rather than treated as a no-op. See
+  [github server](../02-architecture/components/github-server.md#the-milestone-write).
 
 - **A local SQLite store and a migration runner**
   ([data store](../02-architecture/components/data-store.md)). `data/migrate.ts`
