@@ -3,7 +3,7 @@ type: workflow
 status: draft
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-03
+last_updated: 2026-09-04
 summary: The manual validation checklist that is the only real gate today, plus what an automated suite would need.
 read_when:
   - validating a change before committing
@@ -39,6 +39,10 @@ tags:
 > tests**: it proves the code *compiles*, not that it is correct. Do not read a
 > green `bun run test` as "the code works".
 >
+> It does **not** apply migrations. `bun run migrate` is a separate, deliberate
+> step ([data store](../02-architecture/components/data-store.md)) — a command
+> named `test` has no business writing to a database.
+>
 > Run `bun run setup` first, so the client registration matches the tree you are
 > about to validate.
 
@@ -62,6 +66,7 @@ The checklist below is the actual gate.
 bun run setup       # register every server against the current tree
 bun run test        # docs + clean install + typecheck + dependency layout. Runs no tests
 bun run typecheck   # just the types, when that is all you changed
+bun run migrate     # apply pending SQL migrations to data/harness.db
 ```
 
 Four steps, each failing loudly:
@@ -129,24 +134,33 @@ For each tool:
       compensating action, so [D3](../03-decisions/ADR-0007-writes-behind-declared-capability.md)
       allows them
 
+> [!warning] This check currently fails
+> `delete_github_label` calls `issues.deleteLabel` while declaring
+> `TOOL_EFFECT = "write"`, so the gate registers it whenever
+> `GITHUB_ALLOW_WRITES` is set. D3 names deleting a label as the example of
+> `destructive`, and `registrationRefusal` refuses `destructive` outright — so
+> the declaration is what is holding the gate open. See
+> [current plan](../07-plans/current.md#known-broken).
+
 ```bash
 grep -rn "octokit\.rest" tools/*/src/ | grep -Ev "\.(get|list|search)"
 ```
 
 Every line of output must come from a file declaring `TOOL_EFFECT = "write"`.
-Today that is exactly two: `create_github_label` calling `issues.createLabel`,
-and `update_github_label` calling `issues.updateLabel`. A mutating call in a
-file declaring `read` is a contract violation
+Today that is three: `create_github_label` calling `issues.createLabel`,
+`update_github_label` calling `issues.updateLabel`, and `delete_github_label`
+calling `issues.deleteLabel` — the third being the defect above, since a
+delete is not a `write`. A mutating call in a file declaring `read` is a
+contract violation
 ([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)) —
 and the likeliest one to reach review, since a tool scaffolded from a read keeps
 `read` until someone changes it.
 
-- [ ] With `GITHUB_ALLOW_WRITES` unset, the server logs
-      `Not registering create_github_label` and
-      `Not registering update_github_label` to **stderr** and the model's tool
-      list has six entries
-- [ ] With it set, the tool list has eight and the server instructions **name
-      both write tools** rather than promising read-only
+- [ ] With `GITHUB_ALLOW_WRITES` unset, the server logs a refusal for
+      `create_github_label`, `update_github_label` and `delete_github_label`
+      to **stderr** and the model's tool list has six entries
+- [ ] With it set, the tool list has nine and the server instructions **name
+      every registered write tool** rather than promising read-only
 
 ### 5. Model behaviour
 

@@ -63,6 +63,7 @@ bun run check:docs                 # validate the docs vault
 bun run check:deps                 # one declaration site, one copy of each
 bun run deps:reset                 # nuke node_modules AND bun.lock, reinstall
 bun run setup                      # = node scripts/setup-tools.mjs --write
+bun run migrate                    # apply data/migrations/*.sql to data/harness.db
 npx @modelcontextprotocol/inspector bun run tools/github/src/index.ts
 ```
 
@@ -102,9 +103,29 @@ workflows.
 
 ## Known broken
 
-- Nothing registered is known broken. The github server exposes eight tools at
-  v2.4.0 — six reads plus `create_github_label` and `update_github_label`, the
-  repo's two **writes**, which stay unregistered unless `GITHUB_ALLOW_WRITES` is
-  set. The permission layer ADR-0007 points at (SQLite, per-tool, consulted
-  before execution) is **not built**: the `.env` flag is the whole gate today.
+- **`delete_github_label` declares `write` while calling `issues.deleteLabel`.**
+  ADR-0007 D3 names that exact case `destructive`, and no `destructive` tool may
+  be registered yet — but the gate reads the declaration, so the tool registers
+  whenever `GITHUB_ALLOW_WRITES` is set. It is also missing from the github
+  server's README tool table (D6). The github server lists nine tools at v2.4.0,
+  a version the docs describe as eight.
+- The permission layer ADR-0007 points at (SQLite, per-tool, consulted before
+  execution) is **still not built**. Its *storage* now exists —
+  `bun run migrate` creates `data/harness.db` with one `github_mcp` row per
+  tool, holding `allow`/`deny`/`ask` and defaulting to `deny` — but **nothing
+  reads it**, so the `.env` flag remains the whole gate. A seeded table is not
+  a permission layer.
+
   See `docs/07-plans/current.md`.
+
+## Data store
+
+A local SQLite database under `data/`, applied by a migration runner that reads
+plaintext `.sql` files in filename order and records each in a `meta` table.
+
+- `bun run migrate` is safe to re-run; a second run applies nothing.
+- **Never edit an applied migration** — it will not run again. Add the next one.
+- `harness.db` and its `-wal`/`-shm` siblings are gitignored. Never commit them.
+- Adding a tool does not add its permission row; that needs a migration.
+
+See `docs/02-architecture/components/data-store.md`.

@@ -3,7 +3,7 @@ type: workflow
 status: active
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-03
+last_updated: 2026-09-04
 summary: Clone, install, configure, register and iterate - the day-to-day loop for working on a server.
 read_when:
   - setting the repository up for the first time
@@ -30,6 +30,8 @@ node scripts/setup-tools.mjs --write   # registers servers in ~/.lmstudio/mcp.js
 
 cp tools/github/.env.example tools/github/.env
 $EDITOR tools/github/.env              # fill in the values
+
+bun run migrate                        # create data/harness.db from data/migrations/
 ```
 
 Then restart the servers from the client. Requires **Bun 1.3+** and, for LM
@@ -111,6 +113,7 @@ Useful only to check it starts without crashing.
 | Change a response shape | [data schemas](../04-contracts/data-schemas.md#changing-a-shape) |
 | Add an env variable | [security and secrets](../04-contracts/security-and-secrets.md#adding-a-variable) |
 | Re-register after a move | `node scripts/setup-tools.mjs --write` — paths are absolute |
+| Change the database schema | [data store](../02-architecture/components/data-store.md#adding-a-migration) — a new `.sql` file, never an edit to an applied one |
 
 ## Before committing
 

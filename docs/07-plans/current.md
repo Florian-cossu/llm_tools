@@ -3,7 +3,7 @@ type: plan
 status: draft
 scope: repo
 last_reviewed: 2026-09-02
-last_updated: 2026-09-03
+last_updated: 2026-09-04
 summary: NOT AUTHORITATIVE - what is half-finished right now and what is worth doing next.
 read_when:
   - picking up work
@@ -21,6 +21,29 @@ tags:
 
 ## Known broken
 
+### `delete_github_label` declares `write` and deletes
+
+It calls `issues.deleteLabel` while exporting `TOOL_EFFECT = "write"`, and it is
+listed in `TOOL_REGISTRATIONS`. So it registers whenever `GITHUB_ALLOW_WRITES`
+is set.
+
+[ADR-0007 D3](../03-decisions/ADR-0007-writes-behind-declared-capability.md)
+uses deleting a label as its example of `destructive`, and says no `destructive`
+tool may be registered until the permission layer exists —
+`registrationRefusal` refuses the class outright. The declaration is the only
+thing consulted, so a wrong one does not fail loudly; it opens the gate. This is
+the same defect class as `update_github_label` shipping its first draft as a
+`read`, and the reason the [testing checklist](../06-workflows/testing.md)
+greps Octokit calls against the declaration rather than trusting it.
+
+Two smaller things came with it: it is **absent from the github server's README
+tool table**, which D6 requires, and the server version was not bumped past
+`2.4.0`, the release the docs describe as eight tools.
+
+Fixing it means declaring `destructive` — at which point the gate refuses it and
+it stops reaching the model, which is the intended state until the permission
+layer lands.
+
 ### `bun test` is a false green
 
 No test files exist; the runner exits successfully having run nothing. Note this
@@ -32,7 +55,9 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 
 | Item | Where |
 | --- | --- |
-| The permission layer ADR-0007 points at does not exist. `GITHUB_ALLOW_WRITES` is the whole gate, and it is per server, not per tool | `index.ts` |
+| The permission layer ADR-0007 points at does not exist. Its **storage** now does — `data/harness.db` holds one row per github tool — but nothing consults it, so `GITHUB_ALLOW_WRITES` is still the whole gate, per server rather than per tool | `index.ts`, [data store](../02-architecture/components/data-store.md) |
+| `github_mcp` does not record each tool's effect class, which ADR-0007 puts in the same row as the decision. It lives only in `TOOL_EFFECT` | `data/migrations/0001_initial.sql` |
+| Nothing keeps `github_mcp` rows in step with `TOOL_REGISTRATIONS`. A new tool needs a hand-written migration or it is simply unlisted | — |
 | No audit trail. Nothing records that a write happened | — |
 | No CI, so `bun run test` only runs when someone remembers to | — |
 | No eval scenario for either milestone tool, and the one that exists is `status: planned` | `docs/05-harness/scenarios/` |
@@ -54,6 +79,12 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
    default for anything unlisted. It replaces `GITHUB_ALLOW_WRITES`, which is
    deliberately the crudest version of the same idea, and unblocks
    `destructive` tools (ADR-0007 D3). Gets its own ADR.
+   **The storage half now exists** — see
+   [data store](../02-architecture/components/data-store.md), which already
+   carries the allow/deny/**ask** vocabulary, defaults to `deny` and constrains
+   `state` to that closed set. What remains: recording the effect class
+   alongside the decision, and calling the table from the gate. Until something
+   consults it, none of this is a permission layer.
 4. **A scenario for the write path**: the model asked to create a label calls
    `list_github_labels` first, confirms, calls once, and does not retry the
    422. And the injection case — an issue body telling it to create a label
@@ -88,6 +119,26 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
   ([T18 exception](../04-contracts/tool-contract.md#responses))
 
 ## Done
+
+- **A local SQLite store and a migration runner**
+  ([data store](../02-architecture/components/data-store.md)). `data/migrate.ts`
+  applies plaintext `.sql` files from `data/migrations/` in filename order,
+  recording each in a `meta` table so a second run applies nothing, inside a
+  transaction so a failure cannot leave a half-applied schema with its
+  bookkeeping already written. `bun run migrate` is the entry point;
+  `harness.db` and its WAL siblings are gitignored.
+  - `0001_initial.sql` creates `github_mcp` and seeds one row per tool, using
+    ADR-0007's own vocabulary: `state` is `allow`, `deny` or `ask` — enforced by
+    a `CHECK`, not by convention — defaulting to `deny`, with the six reads
+    seeded `allow` and the three label mutations `deny`. Nothing is seeded
+    `ask`, because nothing implements asking.
+  - This is **storage only**. No server reads it, and the gate is unchanged —
+    see the defect table above before describing the permission layer as
+    started.
+  - Both `data/schema.ts` and `data/seed.ts` were removed. They defined the
+    same schema in TypeScript, which is the approach migrations replace, and
+    keeping an empty `seed.ts` would have advertised a seeding step that did
+    not exist.
 
 - **`update_github_label` added** (server 2.3.0 → 2.4.0). The second write, and
   the first tool written against ADR-0007 rather than alongside it. It calls

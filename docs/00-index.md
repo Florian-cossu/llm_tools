@@ -3,7 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-09-02
-last_updated: 2026-09-03
+last_updated: 2026-09-04
 summary: Entry point for the llm_tools documentation vault - routes a task to the notes that answer it.
 read_when:
   - starting any task in this repository
@@ -44,6 +44,7 @@ New to the vault itself? Read [vault conventions](00-conventions.md) first.
 | Work against the GitHub API | [GitHub API contract](04-contracts/github-api.md) → [github server](02-architecture/components/github-server.md) |
 | The server won't start or the model ignores it | [Debugging](06-workflows/debugging.md) → [Failure modes](05-harness/failure-modes.md) |
 | Run things locally | [Local development](06-workflows/local-development.md) |
+| Change the database schema, or add a migration | [Data store](02-architecture/components/data-store.md) |
 | Change a cross-cutting decision | [Decisions index](03-decisions/README.md) → write a new ADR |
 | Know what is half-finished right now | [Current plan](07-plans/current.md) |
 
@@ -83,11 +84,16 @@ authoritative about its source, but is never edited by hand.
 ## Current state, briefly
 
 - One server ships: [github](02-architecture/components/github-server.md),
-  version 2.4.0 — six read tools plus two gated writes.
-- All eight tools are complete. `update_github_label` is the newest, and the
-  second **write** in the repo after `create_github_label`: both are registered
-  only when `GITHUB_ALLOW_WRITES` is set
+  version 2.4.0 — six read tools plus three registrations declaring `write`,
+  gated behind `GITHUB_ALLOW_WRITES`
   ([ADR-0007](03-decisions/ADR-0007-writes-behind-declared-capability.md)).
-  See [current plan](07-plans/current.md).
+- `delete_github_label` is the newest, and **declares `write` while calling a
+  delete endpoint** — ADR-0007 D3 names exactly that case `destructive`, which
+  no tool may declare yet. Treat it as a known defect, not a precedent:
+  [current plan](07-plans/current.md).
+- A local **SQLite store** now exists with a migration runner
+  ([data store](02-architecture/components/data-store.md)), holding one
+  `allow`/`deny`/`ask` row per github tool. **Nothing consults it** — the
+  permission layer is still not built.
 - There is **no test suite yet** — `bun test` matches zero files. See
   [testing](06-workflows/testing.md).

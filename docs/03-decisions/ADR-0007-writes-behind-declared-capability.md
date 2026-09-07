@@ -3,7 +3,7 @@ type: decision
 status: accepted
 scope: repo
 last_reviewed: 2026-09-03
-last_updated: 2026-09-03
+last_updated: 2026-09-04
 summary: Supersedes ADR-0003 — mutating tools are allowed, but every tool declares an effect class, reads stay the default, irreversible tools wait for the permission layer.
 read_when:
   - adding a tool that creates, edits, closes or deletes
@@ -13,6 +13,7 @@ read_when:
 code_refs:
   - tools/github/src/toolbox/tools/create_github_label.ts
   - tools/github/src/toolbox/tools/update_github_label.ts
+  - tools/github/src/toolbox/tools/delete_github_label.ts
   - tools/shared/src/tool_effect.ts
   - tools/github/src/toolbox/index.ts
   - tools/github/src/index.ts
@@ -117,7 +118,17 @@ it the declaration to read, D4 gives it the place to intervene.
 > the whole gate today: it is per server, not per tool, it is read once at
 > startup, and it says nothing about *which* repository the model may change —
 > the token decides that. Nothing consults a stored decision before execution.
-> Treat this box as the state of the repo: see
+>
+> **Its storage now exists, and only its storage.** `data/harness.db` holds a
+> `github_mcp` table with one row per tool, carrying the allow/deny/**ask**
+> decision described above, defaulting to `deny` and constrained to that closed
+> set ([data store](../02-architecture/components/data-store.md)). **No code
+> reads it**, and it does not carry the effect class. A seeded table is not a
+> gate.
+>
+> **D3 is currently violated in code.** `delete_github_label` declares `write`
+> while calling `issues.deleteLabel`, so the gate registers it. Treat this box
+> as the state of the repo: see
 > [current plan](../07-plans/current.md).
 
 ## Consequences

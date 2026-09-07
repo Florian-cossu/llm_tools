@@ -3,7 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-04
 summary: Index of component notes - one per named piece of the system.
 tags:
   - index
@@ -22,5 +22,6 @@ One note per piece. Ordered roughly by how often they are opened.
 | [github server](github-server.md) | The one shipping server, and its scaffold tool | github |
 | [Execution lifecycle](execution-lifecycle.md) | Spawn → init → serve → exit, and what is fixed when | mcp |
 | [Setup and registration](setup-and-registration.md) | `setup-tools.mjs`, `mcp.json`, registering by hand | scripts |
+| [Data store](data-store.md) | The local SQLite database, its SQL migrations and the runner | repo |
 
 Whole picture: [system overview](../system-overview.md).

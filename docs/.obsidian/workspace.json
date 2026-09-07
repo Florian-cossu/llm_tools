@@ -187,6 +187,7 @@
   },
   "active": "5c9b63ee04650dca",
   "lastOpenFiles": [
+    "02-architecture/components/data-store.md",
     "07-plans/current.md",
     "03-decisions/ADR-0007-writes-behind-declared-capability.md",
     "02-architecture/components/shared-package.md",
@@ -221,7 +222,6 @@
     "05-harness/README.md",
     "02-architecture/components/README.md",
     "02-architecture/README.md",
-    "01-context/README.md",
     "05-harness/fixtures/github/issue-detail.json"
   ]
 }
