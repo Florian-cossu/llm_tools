@@ -3,7 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: The fixed limits every design here must respect - transport, context window, rate limits, tooling.
 read_when:
   - designing a new tool or server
@@ -70,8 +70,12 @@ Non-negotiable limits. Each one has bitten, or would.
 ## Security
 
 - **`.env` is never committed.** Only `.env.example` is tracked.
-- **Read-only unless the tool declares otherwise and the user enabled it.**
-  Writes are opt-in per server via `GITHUB_ALLOW_WRITES`, and `destructive`
-  tools cannot be registered at all.
-  See [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)
+- **Read-only unless the tool declares otherwise and a human enabled it.** A
+  `write` or `destructive` tool registers only when its permission-table row
+  is `allow` — every mutating row seeds `deny`, so it stays unreachable until
+  a human changes that row in the control panel. There is no separate env-var
+  flag; the table is the whole gate.
+  See [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md),
+  [ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md),
+  [ADR-0009](../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)
   and [security and secrets](../04-contracts/security-and-secrets.md).

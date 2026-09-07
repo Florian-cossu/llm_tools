@@ -2,8 +2,8 @@
 type: workflow
 status: active
 scope: repo
-last_reviewed: 2026-09-01
-last_updated: 2026-09-04
+last_reviewed: 2026-09-05
+last_updated: 2026-09-06
 summary: Clone, install, configure, register and iterate - the day-to-day loop for working on a server.
 read_when:
   - setting the repository up for the first time
@@ -103,6 +103,20 @@ bun run start:github     # waits on stdio; ^C to stop
 
 Useful only to check it starts without crashing.
 
+### The control panel
+
+```bash
+bun run migrate          # data/harness.db must exist first
+bun run dev:panel        # starts the Next.js app
+```
+
+Reads and edits `github_mcp` — see
+[control panel](../02-architecture/components/control-panel.md). It does not
+gate anything: editing a tool's `state` here has no effect on what the github
+server registers. If a `shadcn` command touched `control_panel/`, run
+`bun run rehome:panel` before committing
+([ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#control_panel-and-shadcn)).
+
 ## Common tasks
 
 | Task | Route |
@@ -114,6 +128,8 @@ Useful only to check it starts without crashing.
 | Add an env variable | [security and secrets](../04-contracts/security-and-secrets.md#adding-a-variable) |
 | Re-register after a move | `node scripts/setup-tools.mjs --write` — paths are absolute |
 | Change the database schema | [data store](../02-architecture/components/data-store.md#adding-a-migration) — a new `.sql` file, never an edit to an applied one |
+| Run the permission control panel | `bun run dev:panel` — see [control panel](../02-architecture/components/control-panel.md) |
+| Fix a `shadcn`-touched `control_panel/package.json` | `bun run rehome:panel` |
 
 ## Before committing
 

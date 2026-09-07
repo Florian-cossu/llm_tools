@@ -11,7 +11,7 @@ import {
 
 export const TOOL_NAME = "delete_github_label";
 
-export const TOOL_EFFECT: ToolEffect = "write";
+export const TOOL_EFFECT: ToolEffect = "destructive";
 
 const register: ToolInstance = (server, config) => {
   server.registerTool(

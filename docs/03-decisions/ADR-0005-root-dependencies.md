@@ -2,17 +2,20 @@
 type: decision
 status: accepted
 scope: repo
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-05
+last_updated: 2026-09-06
 summary: Third-party dependencies are declared once in the root package.json; a server's own package.json declares only its workspace siblings.
 read_when:
   - adding a dependency to a server
   - wondering why tools/<name>/package.json has almost nothing in it
   - a server resolves an unexpected version of a package
+  - a shadcn command changed control_panel/package.json
 code_refs:
   - package.json
   - tools/github/package.json
   - tools/shared/package.json
+  - control_panel/package.json
+  - scripts/rehome-panel-deps.mjs
 tags:
   - adr
   - tooling
@@ -158,6 +161,26 @@ not assumed.
 The check that matters most is the duplicate: more than one `zod` means a schema
 built in `@llm-tools/shared` and a schema built in a tool are different
 libraries, and `instanceof` across that boundary is false.
+
+### `control_panel/` and `shadcn`
+
+This decision applies to every workspace, not just `tools/*` — `control_panel`
+(see [control panel](../02-architecture/components/control-panel.md)) should
+declare no third-party package either. The `shadcn` CLI used to scaffold its
+UI components does not know that: run with `--cwd control_panel`, it reads and
+writes `control_panel/package.json` directly and installs into a nested
+`control_panel/node_modules/` that shadows the root exactly the way a leftover
+`tools/github/node_modules/` did above.
+
+[`scripts/rehome-panel-deps.mjs`](../../scripts/rehome-panel-deps.mjs)
+(`bun run rehome:panel`) is the fix, run by hand after any `shadcn` command:
+it moves what the CLI wrote into `control_panel/package.json` back to the
+root — updating the range in place if the package is already declared there,
+rather than duplicating it — deletes the shadowing `node_modules/`, and
+reinstalls. `check-deps.mjs` resolves which manifests to check from the root
+`package.json`'s own `workspaces` field now, rather than assuming everything
+lives under `tools/`, so `control_panel` gets the same `DECLARED` and
+`SHADOWED` checks any server would.
 
 ## Alternatives
 

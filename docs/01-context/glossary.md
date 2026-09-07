@@ -3,7 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: Vocabulary used across this vault - MCP terms, repo-specific types, and GitHub concepts.
 read_when:
   - a term in another note is unfamiliar
@@ -111,9 +111,11 @@ that keep a parameter's prose and its schema in agreement. See
 [shared package](../02-architecture/components/shared-package.md).
 
 ### configured default
-A value from `.env` (`GITHUB_DEFAULT_OWNER`, …) that a tool substitutes when the
-call omits it. Must be announced in **both** the schema and the prose, or the
-model asks the user for it anyway.
+A value a tool substitutes when the call omits it — `GITHUB_DEFAULT_USERNAME`
+from `.env`, or `owner`/`repository` from whichever `github_profiles` row is
+active, read from the same local database as the permission table but a
+separate table within it. Must be announced in **both** the schema and the
+prose, or the model asks the user for it anyway.
 
 ### `@me` sentinel
 GitHub search syntax resolving to the authenticated account. The server maps

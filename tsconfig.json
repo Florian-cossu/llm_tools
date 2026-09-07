@@ -8,8 +8,10 @@
     "allowImportingTsExtensions": true,
     "skipLibCheck": true,
     "paths": {
-      "@llm-tools/shared": ["./tools/shared/src/index.ts"]
+      "@llm-tools/shared": ["./tools/shared/src/index.ts"],
+      "@llm-tools/data": ["./data/access.ts"]
     },
     "types": ["bun-types"]
-  }
+  },
+  "exclude": ["control_panel"]
 }

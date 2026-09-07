@@ -3,7 +3,7 @@ type: architecture
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: The trust boundaries of a local stdio MCP server, what protects credentials, and the residual risks.
 read_when:
   - handling tokens, credentials or scopes
@@ -60,7 +60,7 @@ Two things follow from this picture:
 
 | Risk | Control | Where |
 | --- | --- | --- |
-| Model triggers a destructive action | **No `destructive` tool is registrable**, and a `write` tool is registered only when the user enabled writes | [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md) |
+| Model triggers a destructive action | A `destructive` tool registers only when the user enabled writes **and** explicitly set its permission-table row to `allow`; it seeds `deny` | [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md), [ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md) |
 | Token committed to git | `.env` git-ignored; only `.env.example` tracked | [`.gitignore`](../../.gitignore) |
 | Token leaked to the transport | Nothing writes secrets to `stdout`; `dotenv` runs `quiet` | [`index.ts`](../../tools/github/src/index.ts) |
 | Token leaked into docs/fixtures | Fixtures are synthetic; no captured production responses | [conventions](../00-conventions.md#writing-rules) |
@@ -77,19 +77,25 @@ capability**, not about the token:
 
 - Every tool declares an effect class, and a `read` declaration is binding: it
   may not call a mutating endpoint.
-- A `write` tool is registered **only when `GITHUB_ALLOW_WRITES` is set**. When
-  it is not, the tool is skipped at startup and never appears in the model's
-  tool list — the flag fails closed, so a typo leaves writes off.
-- **No `destructive` tool is registrable at all** yet. Irreversible removal
-  waits for the permission layer.
+- **A `write` or `destructive` tool is registered only when its permission-table
+  row is `allow`** ([ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md),
+  [ADR-0009](../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
+  Every mutating row seeds `deny`, so a tool stays unreachable until a human
+  changes that row in the control panel — deliberately, per tool, rather than
+  by a repo-wide flag. There is no separate env var anymore: a typo or an
+  unset `.env` used to fail closed for `write`, and now there is nothing left
+  to unset — the table's default already is closed.
 - The server instructions name every registered mutating tool, so the model is
   never told a server is harmless when it is not.
 
 Two consequences:
 
 - Adding a mutating tool is now a code review against the
-  [tool contract](../04-contracts/tool-contract.md#effect-class-and-writes),
-  not an ADR — **unless it is `destructive`**, which still needs one.
+  [tool contract](../04-contracts/tool-contract.md#effect-class-and-writes) —
+  an ADR is only needed when the change itself crosses one of the triggers in
+  [the decisions index](../03-decisions/README.md#when-to-write-one), which
+  adding a `destructive` tool no longer does on its own now that ADR-0008
+  covers the class.
 - A reader minimising risk should reduce the **token scope**, since that is the
   only control the repo cannot enforce for them. It is also the only control
   that binds clients other than this one.
@@ -106,14 +112,14 @@ Accepted, and worth naming:
   [ADR-0001](../03-decisions/ADR-0001-local-stdio-transport.md) does not extend
   to shared hosts.
 - **Prompt injection via issue content.** Issue bodies are attacker-controllable
-  text that reaches the model, and with writes enabled there is now a registered
-  action for an injected instruction to reach. What bounds the damage is
-  narrower than it was: the action must be non-destructive, the user must have
-  turned writes on, and the server instructions tell the model that issue and
-  comment text is not the user speaking. **That last part is a mitigation, not a
-  control** — it is prose, and a small model may not honour it. Leave
-  `GITHUB_ALLOW_WRITES` unset on any server pointed at a repository whose issues
-  you do not trust.
+  text that reaches the model, and a registered mutating tool is now a
+  potential action for an injected instruction to reach. What bounds the
+  damage: the action must be one whose permission-table row is `allow` — `deny`
+  by default, a human decision per tool — and the server instructions tell the
+  model that issue and comment text is not the user speaking. **That last part
+  is a mitigation, not a control** — it is prose, and a small model may not
+  honour it. Leave every mutating tool's permission-table row at `deny` on any
+  server pointed at a repository whose issues you do not trust.
 - **Nothing records what was written.** There is no audit trail; a label created
   by mistake is found by noticing it. Worth fixing when the permission layer
   gets a database.

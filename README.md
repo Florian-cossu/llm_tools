@@ -18,7 +18,7 @@ gateway, credentials stay in a local `.env`.
 
 | Tool                             | Version | Description                             | Tools exposed                                                                                       |
 | -------------------------------- | ------- | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [github](tools/github/README.md) | 2.4.0   | GitHub issues, milestones and labels; reads, plus two gated writes | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels`, `get_github_label`, `create_github_label`, `update_github_label` **(both writes, off unless `GITHUB_ALLOW_WRITES` is set)** |
+| [github](tools/github/README.md) | 2.9.0   | GitHub issues, milestones and labels; reads, plus eight gated mutating tools | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels`, `get_github_label`, `create_github_label`, `update_github_label`, `delete_github_label`, `update_github_milestone`, `create_github_milestone`, `delete_github_milestone`, `update_github_issue`, `create_github_issue` **(all eight off until their permission-table row says `allow` — no env var controls this)** |
 
 ---
 
@@ -62,10 +62,19 @@ llm_tools/
 ├── package.json       # Bun workspace root
 ├── tsconfig.json      # shared TypeScript config
 ├── scripts/           # setup-tools.mjs, create-tool.mjs — see scripts/README.md
+├── data/              # local SQLite store + migrations — see docs/02-architecture/components/data-store.md
+├── control_panel/     # Next.js UI over the permission table — bun run dev:panel
 └── tools/             # one folder = one MCP server — see tools/README.md
     ├── shared/        # @llm-tools/shared, used by every server
     └── github/
 ```
+
+**[control_panel/](control_panel/)** reads and edits the per-tool permission state in
+`data/harness.db` — it does not gate anything yet, see
+[docs/02-architecture/components/control-panel.md](docs/02-architecture/components/control-panel.md).
+Run it with `bun run dev:panel`; if a `shadcn` command touched it, follow up with
+`bun run rehome:panel` to move what it wrote back to the root `package.json`
+([ADR-0005](docs/03-decisions/ADR-0005-root-dependencies.md)).
 
 - **[scripts/README.md](scripts/README.md)** — the setup and scaffolding scripts, their
   flags, and how to register a server by hand when something misbehaves.

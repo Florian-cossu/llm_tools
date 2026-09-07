@@ -3,7 +3,7 @@ type: architecture
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: How client, server, toolbox, mappers and the external API fit together, and where each concern lives.
 read_when:
   - you need the whole picture before changing anything
@@ -35,10 +35,10 @@ layer** that talks to an external API and shrinks its answers.
 ┌───────────────────────▼─────────────────────────────────┐
 │  MCP server            tools/github/src/index.ts        │
 │                                                          │
-│  .env ──► ServerConfig ──► buildServerInstructions()     │
+│  .env/DB ──► ServerConfig ──► buildServerInstructions()  │
 │              │                     └─► system prompt     │
 │              ▼                                           │
-│    TOOL_REGISTRATIONS ─(gate)─► registerTool() × n       │
+│    TOOL_REGISTRATIONS ─(DB gate)─► registerTool() × n    │
 └───────────────────────┬─────────────────────────────────┘
                         │  registration.register(server, config)
 ┌───────────────────────▼─────────────────────────────────┐
@@ -61,7 +61,7 @@ layer** that talks to an external API and shrinks its answers.
 | Layer | Lives in | Owns | Must not |
 | --- | --- | --- | --- |
 | Orchestration | [`scripts/`](../../scripts/README.md) | Install, build, register servers in the client | Know anything runtime-specific — that's `tool.json` |
-| Bootstrap | `src/index.ts` | Read `.env`, build `ServerConfig`, register tools, connect stdio | Contain tool logic |
+| Bootstrap | `src/index.ts` | Read `.env` and the database (active profile, permission table), build `ServerConfig`, register tools, connect stdio | Contain tool logic |
 | Instructions | `src/server_instructions.ts` | Tell the model what the server already knows | Restate a default that isn't configured |
 | Toolbox | `src/toolbox/` | Schemas, defaults, handlers, error messages | Reshape API payloads inline |
 | Models | `src/models/` | The API shape *and* the compact shape, as types | Contain logic |

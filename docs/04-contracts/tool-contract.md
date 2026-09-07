@@ -3,7 +3,7 @@ type: contract
 status: active
 scope: mcp
 last_reviewed: 2026-09-02
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: What a single tool must implement - naming, schema, defaults, response shape, errors and description quality.
 read_when:
   - adding or changing any tool
@@ -52,20 +52,23 @@ export const getGithubIssue: ToolRegistration = {
 Every tool declares what calling it does upstream
 ([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)):
 `read`, `write` or `destructive`. The declaration is data, not a comment — the
-registration gate reads it at startup, `describeMutation` reads it to open the
-description, and the permission layer will read it to decide.
+`describeMutation` reads it to open the description, and the permission
+table's per-tool `state` is the **only** thing that decides whether a tool of
+any effect class actually registers
+([ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md),
+[ADR-0009](../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
 
 | # | Requirement |
 | --- | --- |
 | T4c | `read` is the default, and it must be true. **A tool declaring `read` and calling a mutating endpoint is a defect** |
-| T4d | `destructive` is not registrable yet. Do not ship one |
+| T4d | `destructive` registers only when its permission-table row is `allow` — seed it `deny` |
 | T4e | A `write` tool opens its description with `describeMutation(TOOL_EFFECT)` rather than improvising a warning |
 | T4f | A `write` tool is idempotent, or fails on the second call. It never silently applies twice |
 | T4g | A `write` tool returns the result **read back from the API**, mapped, never an echo of its own input |
-| T4h | A `write` tool is documented as a write in the server README and the root tool table |
+| T4h | A `write` tool is documented as a write (or destructive) in the server README and the root tool table |
 
-A write tool needs no per-call guard: it is not registered at all unless the
-server's configuration allows writes, so an unauthorised model never sees it.
+A mutating tool needs no per-call guard: it is not registered at all unless
+its permission-table row says `allow`, so an unauthorised model never sees it.
 That gate lives in the server's `index.ts` — see
 [execution lifecycle](../02-architecture/components/execution-lifecycle.md#what-is-fixed-at-initialisation).
 
@@ -91,7 +94,7 @@ That gate lives in the server's `index.ts` — see
 | T8 | Closed sets are `z.enum([...])`, never a free string |
 | T9 | A parameter with a configured fallback uses `optionalWhenConfigured(...)` — required in the schema exactly when it is required in prose |
 
-## Defaults from `.env`
+## Static vs. configured defaults
 
 Two mechanisms, not to be confused
 ([data flows](../02-architecture/data-flows.md#where-each-concern-is-applied)):
@@ -99,7 +102,7 @@ Two mechanisms, not to be confused
 | Kind | Applied by | Example |
 | --- | --- | --- |
 | Static | zod `.default()` at validation | `state`, `limit`, `sortBy` |
-| Configured | The handler, from `ServerConfig` | `owner`, `repository` |
+| Configured | The handler, from `ServerConfig` — itself sourced from `.env` (`defaultUsername`) or the active `github_profiles` row (`owner`, `repository`) | `owner`, `repository` |
 
 Configured defaults resolve with one idiom, and fail with one message:
 

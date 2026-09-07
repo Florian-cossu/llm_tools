@@ -1,6 +1,7 @@
 import z from "zod";
 import { ToolInstance, ToolRegistration } from "../index.js";
-import { mapGithubLabelNames, mapGithubMilestone } from "../../mappers/github_compact_mappers.js";
+import { mapGithubIssue } from "../../mappers/github_compact_mappers.js";
+import { GithubApiIssue } from "../../models/github_issues.js";
 import {
   describeConfiguredRepository,
   describeDefault,
@@ -87,19 +88,10 @@ const register: ToolInstance = (server, config) => {
           );
         });
 
-      const githubIssue = response.data
+      const githubIssue = response.data as GithubApiIssue & { body?: string | null };
 
       const compactIssue = {
-        number: githubIssue.number,
-        state: githubIssue.state,
-        title: githubIssue.title,
-        milestone: githubIssue.milestone
-          ? mapGithubMilestone(githubIssue.milestone)
-          : null,
-        labels: mapGithubLabelNames(githubIssue.labels),
-        assignees: (githubIssue.assignees ?? []).map(
-          (assignee) => assignee.login,
-        ),
+        ...mapGithubIssue(githubIssue),
         body: githubIssue.body ? githubIssue.body : null,
       };
 

@@ -3,7 +3,7 @@ type: component
 status: active
 scope: mcp
 last_reviewed: 2026-08-30
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: The lifecycle of a server process - spawn, initialise, serve calls, die with the client - and what is fixed at each stage.
 read_when:
   - a config change does not seem to take effect
@@ -46,15 +46,17 @@ most common confusion:
 | --- | --- |
 | `.env` values | **Editing `.env` does nothing until restart** |
 | `ServerConfig` | Read once, captured by every tool closure |
+| Active `github_profiles` row | Read once via `getActiveGithubProfile`, same moment as everything else in `ServerConfig`. **Toggling a profile active in the control panel needs a restart** to change `defaultOwner`/`defaultRepository` |
 | Server instructions | Built from config; a newly-set default won't appear until restart |
 | Tool descriptions | Composed with `describeConfiguredRepository(config…)` at registration |
 | Input schemas | `optionalWhenConfigured(config…)` decides required-vs-optional **once** |
-| Tool list | `TOOL_REGISTRATIONS`, minus whatever the effect gate refused — no dynamic registration |
-| Write capability | `GITHUB_ALLOW_WRITES` is read once. **Enabling writes needs a restart**, and so does turning them off — the tool is already registered ([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)) |
+| Tool list | `TOOL_REGISTRATIONS`, minus whatever the permission-table gate refused — no dynamic registration |
+| Write/destructive capability | The permission table's `state` is read once per tool, at registration. **Flipping a row needs a restart**, whether turning a tool on or off — the tool list is already fixed either way ([ADR-0008](../../03-decisions/ADR-0008-permission-table-gates-registration.md), [ADR-0009](../../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)) |
 
-So a server started before `GITHUB_DEFAULT_OWNER` was set advertises `owner` as
-**required**, and keeps advertising it as required for the life of the process.
-Restart from the client after any `.env` change. See
+So a server started before any `github_profiles` row was toggled active
+advertises `owner` and `repository` as **required**, and keeps advertising them
+as required for the life of the process. Restart after activating a profile
+(or after any `.env` change) from the client. See
 [debugging](../../06-workflows/debugging.md).
 
 ## What is *not* fixed

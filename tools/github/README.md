@@ -6,14 +6,26 @@
 Talks to the GitHub REST API and hands the model a **compact** payload instead of the full
 GitHub response, which keeps the context window usable on a local model.
 
-**Six of the eight tools are read-only.** The other two, `create_github_label` and
-`update_github_label`, write — and neither is registered at all unless you set
-`GITHUB_ALLOW_WRITES`, so the default server is still one a model cannot use to change
-anything. See
-[ADR-0007](../../docs/03-decisions/ADR-0007-writes-behind-declared-capability.md).
+**Six of the fourteen tools are read-only.** `create_github_label`, `update_github_label`,
+`update_github_milestone`, `create_github_milestone`, `update_github_issue` and
+`create_github_issue` write; `delete_github_label` and `delete_github_milestone` are
+`destructive`. None of the eight is registered at all unless its permission-table row
+says `allow` — every one of them seeds `deny`, so the default server is still one a
+model cannot use to change anything. There is no separate env var for this; the
+permission table, edited through the control panel, is the whole gate. See
+[ADR-0007](../../docs/03-decisions/ADR-0007-writes-behind-declared-capability.md),
+[ADR-0008](../../docs/03-decisions/ADR-0008-permission-table-gates-registration.md) and
+[ADR-0009](../../docs/03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md).
 
-Owner and repository are configured once in `.env`, so in practice you just ask _"list the
-open issues"_ without naming the repo.
+> [!note] `delete_github_label` and `delete_github_milestone` need an explicit `allow`, same as the rest
+> Deleting a label is the example ADR-0007 D3 used for `destructive` — a class that was
+> once refused outright regardless of configuration. [ADR-0008](../../docs/03-decisions/ADR-0008-permission-table-gates-registration.md)
+> revised that: both register under the same rule as any write tool, their
+> permission-table row saying `allow`, which each seeds `deny`. They stay out until someone
+> opens the control panel and changes that row.
+
+Owner and repository come from whichever profile is active in the control panel, so in
+practice you just ask _"list the open issues"_ without naming the repo.
 
 See the [root README](../../README.md) for requirements and setup, and
 [tools/README.md](../README.md) for the conventions shared by every server here.
@@ -32,16 +44,29 @@ See the [root README](../../README.md) for requirements and setup, and
 | [`get_github_label`](#get_github_label)                             | Read one label by name, or check it exists     |
 | [`create_github_label`](#create_github_label)                       | **Write** — create a new label                 |
 | [`update_github_label`](#update_github_label)                       | **Write** — rename or restyle an existing label |
+| [`delete_github_label`](#delete_github_label)                       | **Destructive** — delete an existing label (see the note above) |
+| [`update_github_milestone`](#update_github_milestone)               | **Write** — change the title, state, description or due date of an existing milestone |
+| [`create_github_milestone`](#create_github_milestone)               | **Write** — create a new milestone |
+| [`delete_github_milestone`](#delete_github_milestone)               | **Destructive** — delete an existing milestone (see the note above) |
+| [`update_github_issue`](#update_github_issue)                       | **Write** — change the title, body, state, milestone or assignees of an existing issue |
+| [`create_github_issue`](#create_github_issue)                       | **Write** — create a new issue |
 
 Every tool takes `owner` and `repository`, both optional once the matching `.env` default
 is set, and both omitted from the tables below for brevity.
 
-> [!warning] Two of these write
-> `create_github_label` calls `POST /labels` and `update_github_label` calls
-> `PATCH /labels/{name}`; both change the repository. Both are absent from the model's tool
-> list unless `GITHUB_ALLOW_WRITES` is set, and when present each announces itself in its
-> own description and both are named in the server instructions. Everything else here only
-> reads.
+> [!warning] Eight of these write
+> `create_github_label` calls `POST /labels`, `update_github_label` calls
+> `PATCH /labels/{name}`, `delete_github_label` calls `DELETE /labels/{name}`,
+> `update_github_milestone` calls `PATCH /milestones/{number}`,
+> `create_github_milestone` calls `POST /milestones`, `delete_github_milestone`
+> calls `DELETE /milestones/{number}`, `update_github_issue`
+> calls `PATCH /issues/{number}`, and `create_github_issue` calls `POST /issues`;
+> all eight change the
+> repository. All are absent from the model's tool list unless their permission-table
+> row says `allow` — each one seeds `deny`, so every one of them stays absent by
+> default, independently of the others. When present each announces itself in
+> its own description and each is named in the server instructions. Everything else
+> here only reads.
 
 ---
 
@@ -341,10 +366,10 @@ are not returned; ask `list_github_issues` with `labels: "<name>"`.
 
 ### `create_github_label`
 
-**This tool writes.** It creates a label in the repository and is the only tool here that
-changes anything. It is registered **only when `GITHUB_ALLOW_WRITES` is set** — leave that
-unset and the server behaves exactly as it did before this tool existed, logging
-`Not registering create_github_label` to stderr at startup.
+**This tool writes.** It creates a label in the repository. It is registered
+**only when its permission-table row says `allow`** — leave it at the seeded
+`deny` and the server behaves exactly as it did before this tool existed,
+logging `Not registering create_github_label` to stderr at startup.
 
 Creating a label labels nothing: no issue carries it until someone applies it, and no tool
 here can do that.
@@ -390,9 +415,9 @@ there and to match the naming convention.
 ### `update_github_label`
 
 **This tool writes.** It edits a label that already exists — its name, its colour, its
-description — and like `create_github_label` it is registered **only when
-`GITHUB_ALLOW_WRITES` is set**, logging `Not registering update_github_label` to stderr
-otherwise.
+description — and like `create_github_label` it is registered **only when its
+permission-table row says `allow`**, logging `Not registering update_github_label` to
+stderr otherwise.
 
 `name` says *which* label to edit and is never the new name; `newName` is the rename.
 Every other parameter is a new value, and one you omit is left as it is, so send only what
@@ -444,6 +469,332 @@ first to confirm the exact spelling.
 
 ---
 
+### `delete_github_label`
+
+**This tool writes — and deletes, not undoably.** It removes a label from the repository
+and declares `TOOL_EFFECT = "destructive"`. It registers **only when its
+permission-table row says `allow`** — it seeds `deny`, so it stays out until someone
+changes it in the control panel, logging `Not registering delete_github_label` to
+stderr otherwise.
+
+There is no endpoint that restores a deleted label, and recreating one with the same name
+does not put it back on the issues it was removed from — GitHub keeps no record of which
+those were. Prefer `update_github_label` when the user wants a label renamed, recoloured
+or redescribed rather than gone, and confirm the exact name with the user before calling.
+
+| Parameter | Type              | Description                                                                     |
+| --------- | ----------------- | -------------------------------------------------------------------------------- |
+| `name`    | string, required  | The label's name, exactly as GitHub shows it. Spaces allowed, no quotes. GitHub compares names **case-insensitively**. |
+
+**Example prompts**
+
+> _Delete the "wontfix" label._
+>
+> _Remove the "needs-triage" label — we don't use it anymore._
+
+**Response**
+
+```json
+{
+  "deleted": true,
+  "name": "wontfix"
+}
+```
+
+GitHub answers the delete with an empty body, so unlike `create_github_label` and
+`update_github_label` there is no label object to read back — `deleted` and the echoed
+`name` are the whole of what is true afterwards.
+
+Deleting a label removes it from every issue that carried it; those issues are not
+otherwise changed, and none is closed or deleted. This tool has no way to say how many
+issues were affected — call `list_github_issues` with `labels: "<name>"` beforehand if
+that count matters.
+
+The call **fails** when the repository has no label with that name, and when the token
+has no write access. Neither is retryable without changing the input. Call
+[`list_github_labels`](#list_github_labels) or [`get_github_label`](#get_github_label)
+first to confirm the exact spelling.
+
+---
+
+### `update_github_milestone`
+
+**This tool writes.** It edits a milestone that already exists — its title, state,
+description or due date — and like the label writes it is registered **only when its
+permission-table row says `allow`**, logging `Not registering update_github_milestone`
+to stderr otherwise.
+
+`milestone_number` says *which* milestone to edit. Every other parameter is a new value,
+and one you omit is left as it is, so send only what changed rather than resending the
+whole milestone.
+
+| Parameter          | Type              | Default   | Description                                                                                     |
+| ------------------ | ----------------- | --------- | ------------------------------------------------------------------------------------------------- |
+| `milestone_number` | integer, required | —         | The milestone's number, from [`list_github_milestones`](#list_github_milestones).                |
+| `title`             | string, optional  | unchanged | The title to give it instead.                                                                    |
+| `state`             | `open` \| `closed`, optional | unchanged | A closed milestone can be shut by hand, whether or not every issue in it was finished.  |
+| `description`       | string, optional  | unchanged | What the milestone is for, shown beside it in GitHub. Pass an empty string to clear it.          |
+| `due_on`            | string, optional  | unchanged | ISO 8601 with time and timezone, e.g. `"2026-12-31T00:00:00Z"`.                                  |
+
+At least one of `title`, `state`, `description` and `due_on` is required; a call carrying
+none of them is rejected rather than treated as a no-op.
+
+**Example prompts**
+
+> _Close milestone 3._
+>
+> _Push the due date on milestone 2 to the end of the year._
+
+**Response**
+
+```json
+{
+  "updated": true,
+  "milestone": {
+    "number": 3,
+    "title": "v1.2",
+    "state": "closed",
+    "description": "Glucose import fixes",
+    "dueOn": "2026-12-31T00:00:00Z"
+  }
+}
+```
+
+`milestone` is read back from GitHub after the change, and is the same shape
+[`list_github_milestones`](#list_github_milestones) returns.
+
+Renaming **keeps the milestone on the issues that carry it** — they show the new title, and
+this call by itself does not add or remove it from any issue. Assigning a milestone to an
+issue is [`create_github_issue`](#create_github_issue)'s job at creation time, or
+[`update_github_issue`](#update_github_issue)'s afterwards — not this tool's.
+
+The call **fails** when the repository has no milestone numbered `milestone_number`, and
+when the token has no write access. Neither is retryable without changing the input. Call
+[`list_github_milestones`](#list_github_milestones) with a `limit` of 60 first to confirm
+the exact number.
+
+---
+
+### `create_github_milestone`
+
+**This tool writes.** It creates a milestone in the repository. It is registered
+**only when its permission-table row says `allow`** — leave it at the seeded
+`deny` and the server behaves exactly as it did before this tool existed,
+logging `Not registering create_github_milestone` to stderr at startup.
+
+Creating a milestone links no issues to it: nothing is assigned by this call. Assigning
+it to an issue is [`create_github_issue`](#create_github_issue)'s job at creation time,
+or [`update_github_issue`](#update_github_issue)'s afterwards — not this tool's.
+
+| Parameter     | Type              | Default   | Description                                                                                                                    |
+| ------------- | ----------------- | --------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `title`       | string, required  | —         | The milestone's title, as it should appear in GitHub. GitHub rejects a title that already exists in the repository.           |
+| `state`       | `open` \| `closed`, optional | `open` | The status to give the new milestone.                                                                                          |
+| `description` | string, optional  | —         | What the milestone is for, shown beside it in GitHub.                                                                          |
+| `due_on`      | string, optional  | —         | ISO 8601 with time and timezone, e.g. `"2026-12-31T00:00:00Z"`.                                                                |
+
+**Example prompts**
+
+> _Create a milestone called "v1.3" due at the end of the year._
+>
+> _Add a milestone matching the naming convention the others use, for the next release._
+
+**Response**
+
+```json
+{
+  "created": true,
+  "milestone": {
+    "number": 4,
+    "title": "v1.3",
+    "state": "open",
+    "description": null,
+    "dueOn": "2026-12-31T00:00:00Z"
+  }
+}
+```
+
+`milestone` is read back from GitHub rather than echoed from the input, and is the same
+shape [`list_github_milestones`](#list_github_milestones) returns — issue counts are not
+included; call [`get_github_milestone`](#get_github_milestone) with the returned `number`
+for those.
+
+The call **fails** when a milestone with this title already exists (GitHub answers `422`),
+and when the token has no write access. Neither is retryable: a second identical call
+fails the same way, so a failure here is not a reason to try again. Call
+[`list_github_milestones`](#list_github_milestones) first to check whether the milestone
+is already there and to match the naming convention.
+
+---
+
+### `delete_github_milestone`
+
+**This tool writes — and deletes, not undoably.** It removes a milestone from the
+repository and declares `TOOL_EFFECT = "destructive"`. It registers **only when its
+permission-table row says `allow`** — it seeds `deny`, so it stays out until someone
+changes it in the control panel, logging `Not registering delete_github_milestone` to
+stderr otherwise.
+
+There is no endpoint that restores a deleted milestone, and recreating one with the same
+title does not put it back on the issues it was removed from — GitHub keeps no record of
+which those were. Prefer `update_github_milestone` when the user wants a milestone
+renamed or redescribed rather than gone, and confirm the exact title with the user before
+calling.
+
+| Parameter | Type              | Description                                                                     |
+| --------- | ----------------- | -------------------------------------------------------------------------------- |
+| `number`  | integer, required | The milestone's number, from [`list_github_milestones`](#list_github_milestones) or [`get_github_milestone`](#get_github_milestone). |
+
+**Example prompts**
+
+> _Delete milestone 2._
+>
+> _Remove the "v1.0" milestone — it shipped and we don't need it anymore._
+
+**Response**
+
+```json
+{
+  "deleted": true,
+  "number": 2
+}
+```
+
+GitHub answers the delete with an empty body, so unlike `create_github_milestone` and
+`update_github_milestone` there is no milestone object to read back — `deleted` and the
+echoed `number` are the whole of what is true afterwards.
+
+Deleting a milestone removes it from every issue that carried it; those issues are not
+otherwise changed, and none is closed or deleted. This tool has no way to say how many
+issues were affected — call `list_github_issues` with a `search` of `milestone:"<title>"`
+beforehand if that count matters.
+
+The call **fails** when the repository has no milestone numbered `number`, and when the
+token has no write access. Neither is retryable without changing the input. Call
+[`list_github_milestones`](#list_github_milestones) or
+[`get_github_milestone`](#get_github_milestone) first to confirm the exact number.
+
+---
+
+### `update_github_issue`
+
+**This tool writes.** It edits an issue that already exists — its title, body, state,
+milestone or assignees — and like the other writes it is registered **only when its
+permission-table row says `allow`**, logging `Not registering update_github_issue` to
+stderr otherwise.
+
+`number` says *which* issue to edit. Every other parameter is a new value, and one you
+omit is left as it is, so send only what changed rather than resending the whole issue.
+This tool cannot change an issue's labels — no tool on this server can.
+
+| Parameter          | Type              | Default   | Description                                                                                     |
+| ------------------ | ----------------- | --------- | ------------------------------------------------------------------------------------------------- |
+| `number`            | integer, required | —         | The issue's number, from [`list_github_issues`](#list_github_issues) or [`get_github_issue`](#get_github_issue). |
+| `title`             | string, optional  | unchanged | The title to give it instead.                                                                    |
+| `body`              | string, optional  | unchanged | The issue's description in Markdown. Pass an empty string to clear it.                          |
+| `state`             | `open` \| `closed`, optional | unchanged | A closed issue may have been completed or dismissed as not planned; this tool does not distinguish the two. |
+| `milestone_number`  | integer, optional | unchanged | A milestone number from [`list_github_milestones`](#list_github_milestones) to attach the issue to. There is no way to clear an already-set milestone with this tool. |
+| `assignees`         | string[], optional | unchanged | The **full** list of logins that should be assigned, replacing the current list rather than adding to it. Pass an empty array to unassign everyone. |
+
+At least one of `title`, `body`, `state`, `milestone_number` and `assignees` is required;
+a call carrying none of them is rejected rather than treated as a no-op.
+
+**Example prompts**
+
+> _Close issue 42._
+>
+> _Assign issue 108 to octocat and put it on milestone 3._
+
+**Response**
+
+```json
+{
+  "updated": true,
+  "issue": {
+    "number": 42,
+    "title": "Crash on glucose import",
+    "state": "closed",
+    "body": "Steps to reproduce...",
+    "labels": ["bug"],
+    "assignees": ["octocat"],
+    "milestone": {
+      "number": 3,
+      "title": "v1.2",
+      "state": "open",
+      "description": null,
+      "dueOn": null
+    }
+  }
+}
+```
+
+`issue` is read back from GitHub after the change, and is the same shape
+[`get_github_issue`](#get_github_issue) returns — `labels` reflects the issue's current
+labels but this tool cannot change them; no tool on this server can.
+
+The call **fails** when the repository has no issue numbered `number`, and when the
+token has no write access. Neither is retryable without changing the input. Call
+[`list_github_issues`](#list_github_issues) or [`get_github_issue`](#get_github_issue)
+first to confirm the exact number.
+
+---
+
+### `create_github_issue`
+
+**This tool writes.** It creates an issue in the repository, always opened `open` — there
+is no way to create one already closed. It is registered **only when its permission-table
+row says `allow`** — leave it at the seeded `deny` and the server behaves exactly as it
+did before this tool existed, logging `Not registering create_github_issue` to stderr at
+startup.
+
+Unlike a label or a milestone, **GitHub does not reject a duplicate title**: calling this
+twice with the same title creates two separate issues rather than failing the second
+time, so confirm with the user before calling rather than retrying a call whose result is
+uncertain. This tool cannot set the issue's labels — no tool on this server can.
+
+| Parameter          | Type              | Default    | Description                                                                                     |
+| ------------------ | ----------------- | ---------- | ------------------------------------------------------------------------------------------------- |
+| `title`             | string, required  | —          | The new issue's title.                                                                          |
+| `body`              | string, optional  | none       | The issue's description in Markdown.                                                            |
+| `milestone_number`  | integer, optional | none       | A milestone number from [`list_github_milestones`](#list_github_milestones) to attach the issue to. |
+| `assignees`         | string[], optional | unassigned | The GitHub logins to assign to the new issue.                                                   |
+
+**Example prompts**
+
+> _Open an issue titled "Crash on glucose import" with the steps to reproduce._
+>
+> _Create an issue for the v1.2 milestone and assign it to octocat._
+
+**Response**
+
+```json
+{
+  "created": true,
+  "issue": {
+    "number": 43,
+    "title": "Crash on glucose import",
+    "state": "open",
+    "body": "Steps to reproduce...",
+    "labels": [],
+    "assignees": ["octocat"],
+    "milestone": null
+  }
+}
+```
+
+`issue` is read back from GitHub rather than echoed from the input, and is the same shape
+[`get_github_issue`](#get_github_issue) returns. `labels` is always empty on a new issue,
+since this tool cannot set them.
+
+The call **fails** when the configured token has no write access to the repository, or
+when `milestone_number` or an `assignees` login does not exist. None of those is
+retryable without changing the input. Call
+[`list_github_issues`](#list_github_issues) first to check whether a similar issue
+already exists, and [`get_github_issue`](#get_github_issue) on one to match the phrasing
+and structure of the bodies the repository already uses.
+
+---
+
 ## Configuration
 
 ```bash
@@ -453,24 +804,35 @@ cp .env.example .env
 | Variable                    | Purpose                                                                                                                                                      |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GITHUB_TOKEN`              | Personal access token. Without it you're limited to public repos and 60 requests/hour. A classic token with `repo` (or fine-grained _Issues: read_) is enough. |
-| `GITHUB_DEFAULT_OWNER`      | Owner used when a call omits it.                                                                                                                             |
-| `GITHUB_DEFAULT_REPOSITORY` | Repository used when a call omits it. Must belong to `GITHUB_DEFAULT_OWNER`.                                                                                 |
 | `GITHUB_DEFAULT_USERNAME`   | GitHub login the `@me` sentinel resolves to in search queries.                                                                                                |
-| `GITHUB_ALLOW_WRITES`       | **Registers the write tools.** `1`, `true`, `yes` or `on` enables them; anything else, including a typo, leaves them off. Read once at startup — changing it needs a restart. |
 
-All are optional, but setting the defaults is what lets you skip naming the repository in
-every prompt — they're also injected into the server instructions and the tool
-descriptions, so the model stops asking.
+Both optional. There is no env var for owner/repository anymore: add a profile in the
+control panel (`bun run dev:panel`) and toggle it active — `defaultOwner`/`defaultRepository`
+come from whichever `github_profiles` row has `is_active = 1`. Activating one is what lets
+you skip naming the repository in every prompt — the value is injected into the server
+instructions and the tool descriptions, so the model stops asking. Switching the active
+profile needs a server restart, same as any other configuration here.
 
-`GITHUB_ALLOW_WRITES` is the one that changes what the model can *do* rather than what it
-has to be told. Two things worth knowing before setting it:
+There is no `.env` variable for write capability. What changes what the model can *do*
+rather than what it has to be told is the **permission table**, edited through the
+control panel (`bun run dev:panel`) — one `allow`/`deny`/`ask` row per tool, seeded
+`deny` for all eight mutating tools
+([ADR-0008](../../docs/03-decisions/ADR-0008-permission-table-gates-registration.md),
+[ADR-0009](../../docs/03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
+Changing a row needs a server restart to take effect, same as any other configuration
+here. Two things worth knowing before flipping one to `allow`:
 
-- A **fine-grained token with _Issues: read_** makes `create_github_label` and
-  `update_github_label` fail even with the flag on. That is a good belt-and-braces position — the flag decides whether the
-  model sees the tool, the token decides whether the call can land.
+- A **fine-grained token with _Issues: read_** makes `create_github_label`,
+  `update_github_label`, `delete_github_label`, `update_github_milestone`,
+  `create_github_milestone`, `delete_github_milestone`, `update_github_issue` and
+  `create_github_issue` fail even with their rows set to `allow` — milestones and
+  issues sit under the same _Issues_ permission as labels. That is a good
+  belt-and-braces position — the permission table decides whether the model sees the
+  tool, the token decides whether the call can land.
 - Issue and comment bodies are text you don't control that reaches the model. The server
   instructions tell it that such text is not you speaking, but that is prose, not a
-  control. Leave the flag unset for any repository whose issues you don't trust.
+  control. Leave every mutating tool's row at `deny` for any repository whose issues you
+  don't trust.
 
 ---
 
@@ -499,17 +861,19 @@ tools/github/
 ├── scripts/
 │   └── add-new-implementation.mjs  # scaffolds a new tool in the toolbox
 └── src/
-    ├── index.ts                    # bootstrap: .env → ServerConfig → effect gate → registration
+    ├── index.ts                    # bootstrap: .env → ServerConfig → permission gate → registration
     ├── metadata.ts                 # name, version, API defaults
     ├── server_instructions.ts      # system prompt injected into the MCP session
     ├── models/                     # GitHub API shapes + the compact shapes sent to the LLM
     │   ├── github_issues.ts
     │   ├── github_labels.ts
-    │   └── github_milestones.ts
+    │   ├── github_milestones.ts
+    │   └── github_profiles.ts
     ├── mappers/
     │   └── github_compact_mappers.ts
     ├── utils/
-    │   └── github_search_query.ts  # builds the GitHub search query string
+    │   ├── github_search_query.ts  # builds the GitHub search query string
+    │   └── get_repo_config.ts      # reads the active github_profiles row
     └── toolbox/
         ├── index.ts                # ToolRegistration + TOOL_REGISTRATIONS
         └── tools/
@@ -520,7 +884,13 @@ tools/github/
             ├── list_github_labels.ts
             ├── get_github_label.ts
             ├── create_github_label.ts   # write — gated at registration
-            └── update_github_label.ts   # write — gated at registration
+            ├── update_github_label.ts   # write — gated at registration
+            ├── delete_github_label.ts   # destructive — gated at registration, deny by default
+            ├── update_github_milestone.ts # write — gated at registration
+            ├── create_github_milestone.ts # write — gated at registration
+            ├── delete_github_milestone.ts # destructive — gated at registration, deny by default
+            ├── update_github_issue.ts     # write — gated at registration
+            └── create_github_issue.ts     # write — gated at registration
 ```
 
 ---

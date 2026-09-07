@@ -3,7 +3,7 @@ type: component
 status: active
 scope: mcp
 last_reviewed: 2026-08-30
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: The bootstrap pattern every server follows - env to ServerConfig to instructions to tool registration to stdio.
 read_when:
   - writing or changing a server's index.ts
@@ -12,6 +12,8 @@ code_refs:
   - tools/github/src/index.ts
   - tools/github/src/metadata.ts
   - tools/github/src/server_instructions.ts
+  - tools/github/src/utils/get_repo_config.ts
+  - data/access.ts
 tags:
   - component
   - mcp
@@ -37,18 +39,19 @@ dotenv.config({
 // 2. Build the per-server context, once
 const token = stringOrNull(process.env.GITHUB_TOKEN);
 const octokit = new Octokit({ auth: token });
+const activeProfile = getActiveGithubProfile();
 const config: ServerConfig = {
   serverName: APP_NAME, serverVersion: APP_VERSION,
   token, octokit,
   defaultUsername:   stringOrNull(process.env.GITHUB_DEFAULT_USERNAME),
-  defaultOwner:      stringOrNull(process.env.GITHUB_DEFAULT_OWNER),
-  defaultRepository: stringOrNull(process.env.GITHUB_DEFAULT_REPOSITORY),
+  defaultOwner:      stringOrNull(activeProfile?.repository_owner),
+  defaultRepository: stringOrNull(activeProfile?.repository_name),
 };
 
-// 3. Decide what may be registered at all — a tool whose effect the
-//    config does not allow is skipped here and never seen (ADR-0007)
+// 3. Decide what may be registered at all — a tool whose permission-table
+//    row isn't `allow` is skipped here and never seen (ADR-0008, ADR-0009)
 const allowed = TOOL_REGISTRATIONS.filter(
-  (r) => registrationRefusal(r.effect, config.allowWrites) === null,
+  (r) => isToolAllowed(r.name, "github"),
 );
 
 // 4. Construct the server. Instructions are built from what the gate
@@ -76,16 +79,19 @@ it.
 | `token` | `.env` | Auth; `null` means unauthenticated |
 | `octokit` | constructed | The API client, shared by all tools |
 | `defaultUsername` | `.env` | Resolving the `@me` sentinel |
-| `defaultOwner` | `.env` | Owner fallback |
-| `defaultRepository` | `.env` | Repository fallback |
+| `defaultOwner` | active `github_profiles` row | Owner fallback |
+| `defaultRepository` | active `github_profiles` row | Repository fallback |
 
 Adding a field means: extend the type, read it with `stringOrNull`, and decide
 whether it belongs in the [server instructions](#server-instructions) too.
 
 > [!important]
-> `stringOrNull` — not `??` — is what normalises `.env`. An unset variable and
-> an empty one (`GITHUB_TOKEN=`) must both become `null`, and `??` only catches
-> the first. See [shared package](shared-package.md).
+> `stringOrNull` — not `??` — is what normalises a possibly-empty value,
+> whether it comes from `.env` (an unset variable and an empty one,
+> `GITHUB_TOKEN=`, must both become `null`) or from the database (no active
+> profile means `activeProfile` itself is `null`, so `activeProfile?.repository_owner`
+> is `undefined`, which `stringOrNull` also turns into `null`) — `??` only
+> catches one of these cases. See [shared package](shared-package.md).
 
 ## Identity comes from `package.json`
 
