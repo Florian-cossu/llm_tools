@@ -3,7 +3,7 @@ type: workflow
 status: draft
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-04
+last_updated: 2026-09-07
 summary: The manual validation checklist that is the only real gate today, plus what an automated suite would need.
 read_when:
   - validating a change before committing
@@ -129,38 +129,37 @@ For each tool:
 ### 4. Read-only
 
 - [ ] Every Octokit call in the diff matches its tool's declared `TOOL_EFFECT`
-- [ ] No `.delete`, `.remove`, `.merge` — those are `destructive`, and no tool
-      may declare that yet. `.create` and `.update` are `write`: they have a
+- [ ] No `.delete`, `.remove`, `.merge` in a file declaring `write` — those are
+      `destructive`. `.create` and `.update` are `write`: they have a
       compensating action, so [D3](../03-decisions/ADR-0007-writes-behind-declared-capability.md)
-      allows them
-
-> [!warning] This check currently fails
-> `delete_github_label` calls `issues.deleteLabel` while declaring
-> `TOOL_EFFECT = "write"`, so the gate registers it whenever
-> `GITHUB_ALLOW_WRITES` is set. D3 names deleting a label as the example of
-> `destructive`, and `registrationRefusal` refuses `destructive` outright — so
-> the declaration is what is holding the gate open. See
-> [current plan](../07-plans/current.md#known-broken).
+      (as revised by [ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md))
+      treats them as the lower class
 
 ```bash
 grep -rn "octokit\.rest" tools/*/src/ | grep -Ev "\.(get|list|search)"
 ```
 
-Every line of output must come from a file declaring `TOOL_EFFECT = "write"`.
-Today that is three: `create_github_label` calling `issues.createLabel`,
-`update_github_label` calling `issues.updateLabel`, and `delete_github_label`
-calling `issues.deleteLabel` — the third being the defect above, since a
-delete is not a `write`. A mutating call in a file declaring `read` is a
-contract violation
+Every line of output must come from a file declaring `TOOL_EFFECT = "write"` or
+`"destructive"`. Today that is four: `create_github_label` calling
+`issues.createLabel`, `update_github_label` calling `issues.updateLabel`,
+`update_github_milestone` calling `issues.updateMilestone`, all `write`; and
+`delete_github_label` calling `issues.deleteLabel`, `destructive`. A mutating
+call in a file declaring `read` is a contract violation
 ([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)) —
 and the likeliest one to reach review, since a tool scaffolded from a read keeps
 `read` until someone changes it.
 
-- [ ] With `GITHUB_ALLOW_WRITES` unset, the server logs a refusal for
-      `create_github_label`, `update_github_label` and `delete_github_label`
-      to **stderr** and the model's tool list has six entries
-- [ ] With it set, the tool list has nine and the server instructions **name
-      every registered write tool** rather than promising read-only
+- [ ] With every permission-table row at its seeded default, the server logs a
+      refusal for all four mutating tools to **stderr** and the model's tool
+      list has six entries — there is no env var left to unset; `deny` is the
+      row default
+- [ ] Flip `create_github_label`, `update_github_label` and
+      `update_github_milestone` to `allow` in the control panel, restart the
+      server, and the tool list has nine — `delete_github_label` stays out —
+      and the server instructions **name every registered mutating tool**
+      rather than promising read-only
+- [ ] Flip `delete_github_label`'s row to `allow` too, restart, and the tool
+      list has ten. Flip every row back to `deny` afterwards
 
 ### 5. Model behaviour
 

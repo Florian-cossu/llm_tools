@@ -3,8 +3,10 @@
 Local MCP servers, written in TypeScript and executed with Bun. Each server
 under `tools/` is one integration and talks to the client over **stdio**. Tools
 are **read-only by default**: a mutating tool must declare
-`TOOL_EFFECT = "write"` and is registered only when the server's write flag is
-set (ADR-0007).
+`TOOL_EFFECT = "write"` or `"destructive"`, and registers only when its row in
+the permission table says `allow` (ADR-0008, ADR-0009). There is no env-var
+write flag anymore — `destructive` and `write` are gated identically, deny by
+default, through the permission table alone.
 
 ## Before making changes
 
@@ -34,11 +36,16 @@ decide whether to trust it. Schema: `docs/00-conventions.md`.
   Fixtures are synthetic.
 - Every tool declares `TOOL_EFFECT`: `read`, `write` or `destructive`. `read` is
   the default and is binding — a `read` tool calling a mutating endpoint is a
-  defect. **No `destructive` tool may be registered yet** (ADR-0007).
+  defect. `destructive` registers only when its permission-table row says
+  `allow` — it defaults to `deny`, same as any other mutating tool (ADR-0008,
+  revising ADR-0007 D3; ADR-0009 removed the separate env flag `write` used to
+  also need).
 - A tool absent from `TOOL_REGISTRATIONS` does not exist — and one whose effect
-  the config disallows is dropped at startup even though it is listed. The
-  reason goes to `stderr`.
-- Gate writes at **registration**, never inside a handler.
+  the config disallows, or whose permission-table row is not `allow`, is
+  dropped at startup even though it is listed. The reason goes to `stderr`.
+- Gate writes at **registration**, never inside a handler. This includes the
+  permission-table check — it runs alongside the effect-class check in
+  `index.ts`, not inside a tool's handler.
 - Every new MCP tool must have:
   - a clear description, written for a model rather than a human,
   - validated input parameters,
@@ -55,8 +62,8 @@ decide whether to trust it. Schema: `docs/00-conventions.md`.
 ```bash
 bun install                        # run at the ROOT — deps live there (ADR-0005)
 bun add <pkg>                      # also at the root, never in tools/<name>/
-bun run start:github               # server waits on stdio
-GITHUB_ALLOW_WRITES=true bun run start:github   # ... with write tools too
+bun run start:github               # server waits on stdio; which tools register depends
+                                    # on the permission table, not an env var (ADR-0009)
 bun run test                       # docs + clean install + typecheck + dependency layout
 bun run typecheck                  # tsc --noEmit over every workspace
 bun run check:docs                 # validate the docs vault
@@ -105,23 +112,12 @@ workflows.
 
 ## Known broken
 
-- **`delete_github_label` declares `write` while calling `issues.deleteLabel`.**
-  ADR-0007 D3 names that exact case `destructive`, and no `destructive` tool may
-  be registered yet — but the gate reads the declaration, so the tool registers
-  whenever `GITHUB_ALLOW_WRITES` is set. It is also missing from the github
-  server's README tool table (D6). The github server lists ten tools at v2.5.0.
-  The permission table's own seed (`0003_add_github_tool_name_description_to_permission_table_.sql`)
-  disagrees with the code and classifies this row `destructive` — the two are
-  not the same source of truth, and only the code's `TOOL_EFFECT` gates
-  anything today.
-- The permission layer ADR-0007 points at (SQLite, per-tool, consulted before
-  execution) is **still not built**. Its *storage* now exists —
-  `bun run migrate` creates `data/harness.db` with one `github_mcp` row per
-  tool, holding `allow`/`deny`/`ask` and defaulting to `deny` — but **nothing
-  reads it**, so the `.env` flag remains the whole gate. A seeded table is not
-  a permission layer, and neither is a control panel that edits the same table.
-
-  See `docs/07-plans/current.md`.
+- The permission layer's `ask` state has no effect distinct from `deny` — there
+  is no confirmation flow to hand it to yet. A changed row also needs a
+  **server restart** to take effect, same limitation `GITHUB_ALLOW_WRITES`
+  always had, and nothing audits who changed a row or when. See
+  [ADR-0008](docs/03-decisions/ADR-0008-permission-table-gates-registration.md)
+  and `docs/07-plans/current.md`.
 
 ## Data store
 
@@ -141,9 +137,13 @@ See `docs/02-architecture/components/data-store.md`.
 ## Control panel
 
 `control_panel/` is a Next.js app, run with `bun run dev:panel`, that reads and
-edits `data/harness.db` through `data/access.ts`'s Node mirror. It is **not**
-the permission layer: nothing in the github server reads what it writes, and
-`GITHUB_ALLOW_WRITES` remains the actual gate. Its own `package.json` must
+edits `data/harness.db` through `data/access.ts`'s Node mirror. Its writes
+reach the gate: the github server reads each tool's `state` at registration
+and that is the **only** thing deciding what registers (ADR-0008, ADR-0009) —
+so flipping a row here changes what the model can see, after a server
+restart, since the tool list is fixed at startup. It is still not the whole
+permission layer: `ask` does nothing yet, and there is no audit trail.
+Its own `package.json` must
 declare no third-party dependency directly (ADR-0005) — the shadcn CLI writes
 into it anyway, so run `bun run rehome:panel` after any `shadcn add` to move
 what it added back to the root manifest.

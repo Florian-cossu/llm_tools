@@ -18,7 +18,7 @@ gateway, credentials stay in a local `.env`.
 
 | Tool                             | Version | Description                             | Tools exposed                                                                                       |
 | -------------------------------- | ------- | --------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [github](tools/github/README.md) | 2.5.0   | GitHub issues, milestones and labels; reads, plus four gated writes | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels`, `get_github_label`, `create_github_label`, `update_github_label`, `delete_github_label`, `update_github_milestone` **(all four writes, off unless `GITHUB_ALLOW_WRITES` is set)** |
+| [github](tools/github/README.md) | 2.9.0   | GitHub issues, milestones and labels; reads, plus eight gated mutating tools | `list_github_issues`, `get_github_issue`, `get_github_milestone`, `list_github_milestones`, `list_github_labels`, `get_github_label`, `create_github_label`, `update_github_label`, `delete_github_label`, `update_github_milestone`, `create_github_milestone`, `delete_github_milestone`, `update_github_issue`, `create_github_issue` **(all eight off until their permission-table row says `allow` — no env var controls this)** |
 
 ---
 

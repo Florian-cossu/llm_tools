@@ -3,14 +3,16 @@ type: component
 status: active
 scope: github
 last_reviewed: 2026-09-05
-last_updated: 2026-09-06
-summary: The github MCP server - its ten tools (six reads and four gated writes), their response shapes, and its configuration.
+last_updated: 2026-09-07
+summary: The github MCP server - its fourteen tools (six reads and eight gated writes), their response shapes, and its configuration.
 read_when:
   - working on any github tool
   - checking which github capabilities exist
 code_refs:
   - tools/github/src/toolbox/index.ts
   - tools/github/src/toolbox/tools/
+  - tools/github/src/utils/get_repo_config.ts
+  - tools/github/src/models/github_profiles.ts
   - tools/github/README.md
 tags:
   - component
@@ -20,18 +22,16 @@ tags:
 
 # github server
 
-`@llm-tools/github` v2.5.0 — read access to GitHub issues, milestones and
-labels, plus four **writes**: `create_github_label`, `update_github_label` and
-`delete_github_label` on labels, and `update_github_milestone` on milestones.
-None is registered unless `GITHUB_ALLOW_WRITES` is set
-([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
-
-> [!caution] `delete_github_label` is a known defect, not a fourth precedent
-> It declares `TOOL_EFFECT = "write"` while calling `issues.deleteLabel` — D3
-> names deleting a label as the example of `destructive`, and no `destructive`
-> tool may be registered yet. The gate only reads the declaration, so this
-> tool registers whenever `GITHUB_ALLOW_WRITES` is set. See
-> [current plan](../../07-plans/current.md).
+`@llm-tools/github` v2.9.0 — read access to GitHub issues, milestones and
+labels, plus six **writes** (`create_github_label`, `update_github_label`,
+`update_github_milestone`, `create_github_milestone`, `update_github_issue`,
+`create_github_issue`) and two **destructive** tools (`delete_github_label`,
+`delete_github_milestone`).
+None of the eight is registered unless its permission-table row is `allow` —
+every one of them seeds `deny`. There is no separate write-enabling env var
+([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md),
+[ADR-0008](../../03-decisions/ADR-0008-permission-table-gates-registration.md),
+[ADR-0009](../../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
 
 User-facing reference (parameters, example prompts, response samples):
 [`tools/github/README.md`](../../../tools/github/README.md). This note covers
@@ -41,9 +41,17 @@ structure and status.
 
 Registration order is `TOOL_REGISTRATIONS` in
 [`toolbox/index.ts`](../../../tools/github/src/toolbox/index.ts). **Listed is
-not the same as registered** — the gate in
-[`index.ts`](../../../tools/github/src/index.ts) drops anything whose effect the
-configuration disallows, and logs the reason to stderr.
+not the same as registered** — [`index.ts`](../../../tools/github/src/index.ts)
+runs a **single filter** over that list: `isToolAllowed(registration.name,
+"github")`, which drops anything whose permission-table row is not `allow`,
+logging the reason to stderr. There is no separate effect-class gate —
+`TOOL_EFFECT` still decides what `describeMutation` and the server
+instructions say about a tool, but it plays no part in whether the tool
+registers ([ADR-0009](../../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)
+retired the older two-gate design). A newly added tool of **any** effect
+class, `read` included, therefore registers only once a migration seeds its
+permissions row — a forgotten row silently excludes it, the same as a `deny`
+row would.
 
 | Tool | Export | Endpoint | Effect | State |
 | --- | --- | --- | --- | --- |
@@ -55,8 +63,12 @@ configuration disallows, and logs the reason to stderr.
 | `get_github_label` | `getGithubLabel` | `issues.getLabel` | `read` | Complete |
 | `create_github_label` | `createGithubLabel` | `issues.createLabel` | **`write`** | Complete, gated |
 | `update_github_label` | `updateGithubLabel` | `issues.updateLabel` | **`write`** | Complete, gated |
-| `delete_github_label` | `deleteGithubLabel` | `issues.deleteLabel` | **`write`** (should be `destructive` — see above) | Complete, gated |
+| `delete_github_label` | `deleteGithubLabel` | `issues.deleteLabel` | **`destructive`** | Complete, gated — permission row seeds `deny` |
 | `update_github_milestone` | `updateGithubMilestone` | `issues.updateMilestone` | **`write`** | Complete, gated |
+| `create_github_milestone` | `createGithubMilestone` | `issues.createMilestone` | **`write`** | Complete, gated |
+| `delete_github_milestone` | `deleteGithubMilestone` | `issues.deleteMilestone` | **`destructive`** | Complete, gated — permission row seeds `deny` |
+| `update_github_issue` | `updateGithubIssue` | `issues.update` | **`write`** | Complete, gated |
+| `create_github_issue` | `createGithubIssue` | `issues.create` | **`write`** | Complete, gated |
 
 > [!note]
 > The name the model sees is the `TOOL_NAME` constant, not the filename. Every
@@ -120,9 +132,9 @@ Single issue by number, **including `body`** (Markdown, or `null`). Comments are
 not returned. Its description points the model back to `list_github_issues` when
 the number isn't known.
 
-Note it builds its compact object inline rather than calling `mapGithubIssue` —
-because the detail shape adds `body`. It still uses `mapGithubMilestone` and
-`mapGithubLabelNames`.
+Like `get_github_milestone`, it spreads the shared mapper (`mapGithubIssue`)
+and adds the one field the list omits — `body` — rather than reshaping the
+issue by hand.
 
 ## `get_github_milestone`
 
@@ -237,9 +249,11 @@ raises `limit` and sees the same list again.
 ## The label writes
 
 `create_github_label`, `update_github_label` and `delete_github_label` are the
-tools here that change a label. None is registered unless
-`GITHUB_ALLOW_WRITES` is set, so on a default server the model never sees them
-([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
+tools here that change a label. None is registered unless its permission-table
+row is `allow`, so on a default server (every row at its seeded `deny`) the
+model never sees them
+([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md),
+[ADR-0009](../../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
 All three open their description with `describeMutation(TOOL_EFFECT)` rather
 than improvising a warning. `create_github_label` and `update_github_label`
 return the label **read back from GitHub** through `mapGithubLabel` — the same
@@ -284,14 +298,13 @@ than implying it knows.
 This is the tool [D3](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)
 uses as its own example of `destructive` — undoing a delete means recreating
 the label under the same name, which does not restore it to the issues it was
-on, because GitHub keeps no record of which those were. It still declares
-`TOOL_EFFECT = "write"`, which is the known defect
-[current plan](../../07-plans/current.md) tracks: the gate in `index.ts` reads
-only the declaration, so this tool registers under `GITHUB_ALLOW_WRITES`
-exactly like the other three, when D3 says it should be refused outright until
-the permission layer exists.
+on, because GitHub keeps no record of which those were. It declares
+`TOOL_EFFECT = "destructive"`, and registers under exactly the same rule as
+any `write` tool: its permission-table row has to say `allow`, and it seeds
+`deny` ([ADR-0008](../../03-decisions/ADR-0008-permission-table-gates-registration.md),
+[ADR-0009](../../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
 
-## The milestone write
+## The milestone writes
 
 `update_github_milestone` mirrors `update_github_label`'s shape one layer up:
 `milestone_number` says which milestone, every other parameter
@@ -299,26 +312,98 @@ the permission layer exists.
 omitted, and a call carrying none of them is rejected before the request
 rather than reported as a change. It calls `issues.updateMilestone` and
 returns `{ updated: true, milestone }`, `milestone` read back through
-`mapGithubMilestone` — the same compact shape `list_github_milestones` and
-`get_github_milestone` return.
+`mapGithubMilestone` — the same compact shape `list_github_milestones`
+returns. It does **not** include `openIssues`/`closedIssues` — those are
+`get_github_milestone`'s addition, not part of the shared compact shape.
 
-Renaming or closing a milestone does not touch the issues it is on, and no
-tool on this server can apply a milestone to an issue — the description says
-so for the same reason the label writes do.
+`create_github_milestone` mirrors `create_github_label`'s shape one layer up:
+only `title` is required, `state` defaults to `open` the same way GitHub's own
+endpoint defaults it, and it calls `issues.createMilestone`, returning
+`{ created: true, milestone }` in the same compact shape as the update tool.
+A second call with the same title fails rather than doing nothing — GitHub
+rejects a duplicate title in a repository.
+
+`delete_github_milestone` mirrors `delete_github_label`'s shape one layer up:
+keyed by `number` rather than a name, it calls `issues.deleteMilestone` and,
+since that endpoint answers `204` with no body the same way `deleteLabel`
+does, returns `{ deleted: true, number }` — echoing the input rather than
+reading anything back. It declares `TOOL_EFFECT = "destructive"` and
+registers under the same rule as any write tool: its permission-table row
+has to say `allow`, and it seeds `deny`.
+
+Renaming, closing, creating or deleting a milestone does not touch the
+issues it is on — none of the four tools' descriptions implies otherwise.
+Assigning a milestone to an issue is `create_github_issue`'s job at creation
+time, or `update_github_issue`'s afterwards — not any milestone tool's.
+
+## The issue writes
+
+`update_github_issue` and `create_github_issue` are the only tools here that
+touch an issue's own fields — title, body, milestone, assignees — and the
+only ones that can put a milestone on an issue or take it off the assignee
+list; no other tool does. Neither can change an issue's labels — no tool on
+this server can, and both descriptions say so explicitly, since a model
+reading several other mutable-looking fields might otherwise assume labels
+are one of them.
+
+`update_github_issue` identifies the issue by `number`; every other
+parameter (`title`, `body`, `state`, `milestone_number`, `assignees`) is a
+new value left unchanged when omitted, and a call carrying none of them is
+rejected before the request, the same guard the label and milestone update
+tools use. It calls `issues.update` and returns `{ updated: true, issue }`,
+`issue` built the same way `get_github_issue` builds its response:
+`mapGithubIssue` spread with `body` added, since the detail shape (not the
+list shape) is the useful one to read back after an edit that can change
+the body.
+
+`create_github_issue` mirrors it one layer up: only `title` is required,
+the new issue is always `open` (GitHub's endpoint has no way to create one
+already closed), and unlike a label or a milestone **GitHub does not reject
+a duplicate title** — calling it twice creates two separate issues rather
+than failing the second time, so its description warns the model to confirm
+with the user rather than retry. It calls `issues.create` and returns
+`{ created: true, issue }` in the same shape the update tool returns.
+
+Two things worth knowing about the shared parameters:
+
+- **`assignees` replaces the whole list** on `update_github_issue`, matching
+  `issues.update`'s own semantics — it is not additive, so the description
+  tells the model to pass every login that should remain assigned, not just
+  the new one. `create_github_issue` has no "current list" to replace, so
+  this only applies to the update tool.
+- **Neither tool has a milestone-clearing path.** GitHub's `issues.update`
+  endpoint accepts `null` to remove a milestone from an issue; this
+  server's schema only accepts a positive integer or omission, so there is
+  currently no way to unset an issue's milestone through this server. Worth
+  revisiting if that need comes up.
 
 ## Configuration
 
 | Variable | Effect when set |
 | --- | --- |
 | `GITHUB_TOKEN` | Authenticates. Without it: public repos only, 60 req/h |
-| `GITHUB_DEFAULT_OWNER` | Owner fallback; enables the repository paragraph in the system prompt |
-| `GITHUB_DEFAULT_REPOSITORY` | Repository fallback; must belong to the owner |
 | `GITHUB_DEFAULT_USERNAME` | Resolves `@me`; enables the identity paragraph |
-| `GITHUB_ALLOW_WRITES` | Registers the `write` tools. Read through `booleanFromEnv`, so only `1`/`true`/`yes`/`on` count — a typo leaves writes off |
 
-All optional — but setting the two repository defaults is what lets a user say
-"list the open issues" without naming a repo, because the value is then stated
-in all [three places](shared-package.md#the-three-places-rule).
+Only two variables remain. The owner/repository fallback is no longer an env
+var: `defaultOwner`/`defaultRepository` come from whichever `github_profiles`
+row has `is_active = 1`, read via `tools/github/src/utils/get_repo_config.ts`'s
+`getActiveGithubProfile` — add and activate a profile in the control panel
+instead of setting `GITHUB_DEFAULT_OWNER`/`GITHUB_DEFAULT_REPOSITORY`.
+`github_profiles` is github-specific, so its model and query live in the
+github tool rather than in `data/access.ts` alongside the cross-server
+`servers`/`permissions` tables — `data/access.ts` exports `getDb` and
+`findServerBySlug` as the shared primitives that query builds on. Activating
+a profile is what lets a user say "list the open issues" without naming a
+repo, because the value is then stated in all
+[three places](shared-package.md#the-three-places-rule).
+There is no env var for write capability either: whether `create_github_label`,
+`update_github_label`, `update_github_milestone`, `create_github_milestone`,
+`update_github_issue`, `create_github_issue`, `delete_github_label` or
+`delete_github_milestone` register is decided entirely by
+their permission-table rows, edited through the same control panel
+([ADR-0009](../../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
+Both the active profile and every permission row are read once at
+registration, so changing either needs a **server restart**.
 
 ## Adding a tool
 

@@ -3,8 +3,8 @@ type: component
 status: active
 scope: repo
 last_reviewed: 2026-09-06
-last_updated: 2026-09-06
-summary: A Next.js app that reads and edits data/harness.db's permission and github_profiles tables - storage only, it gates nothing.
+last_updated: 2026-09-07
+summary: A Next.js app that reads and edits data/harness.db's permission and github_profiles tables - both now read by the github server at registration.
 read_when:
   - working on control_panel
   - wondering whether the permission layer exists yet
@@ -20,6 +20,9 @@ code_refs:
   - control_panel/app/api/github_add_profile/route.ts
   - control_panel/app/api/github_set_active_profile/route.ts
   - scripts/rehome-panel-deps.mjs
+  - data/access.ts
+  - tools/github/src/index.ts
+  - tools/github/src/utils/get_repo_config.ts
 tags:
   - component
   - control-panel
@@ -39,14 +42,19 @@ named owner/repo presets for the github server, both in
 bun run dev:panel
 ```
 
-> [!warning] It gates nothing
-> Editing a tool's `state` here writes to the same row the permission layer
-> would eventually consult. **Nothing reads it yet.** The github server's
-> `GITHUB_ALLOW_WRITES` remains the entire gate, exactly as before this app
-> existed — see [current plan](../../07-plans/current.md). This app is a
-> viewer and editor for storage, not the permission layer ADR-0007 describes.
-> `github_profiles` isn't consulted anywhere either — nothing in the github
-> server reads which profile is active yet.
+> [!note] Both tables now reach the server, at registration only
+> Editing a tool's `state` here writes the row `tools/github/src/index.ts`
+> reads via `isToolAllowed`
+> ([ADR-0008](../../03-decisions/ADR-0008-permission-table-gates-registration.md),
+> [ADR-0009](../../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)) —
+> flipping it changes what the model can see. Toggling a `github_profiles` row
+> active does the same for `defaultOwner`/`defaultRepository`, via
+> `tools/github/src/utils/get_repo_config.ts`'s `getActiveGithubProfile` —
+> github-specific, so it lives with the github tool rather than in
+> `data/access.ts`, which only owns the cross-server `servers` and
+> `permissions` tables. Both take a **server restart**
+> to matter, since both are read once at startup. `ask` is editable but has no
+> effect distinct from `deny` yet, and there's no audit trail for either table.
 
 ## Pages
 
@@ -117,9 +125,14 @@ below the tool list, both reading and writing through
   (`PATCH`) by
   [`ProfileActiveToggle`](../../../control_panel/app/servers/github/components/profile-active-toggle.tsx),
   a client component wrapping the shadcn `Switch`, per row of the table.
-- Same as permissions: nothing in the github server reads `is_active` yet.
-  The profile a tool call would actually use is still whatever the server's
-  own config says.
+- The github server now reads `is_active`:
+  `tools/github/src/utils/get_repo_config.ts`'s `getActiveGithubProfile`
+  selects the one row with `is_active = 1`, scoped by `server_id`, and
+  `index.ts` uses its `repository_owner`/`repository_name` as
+  `defaultOwner`/`defaultRepository` in `ServerConfig`. This lives in the
+  github tool, not in `data/access.ts` — the table is specific to this one
+  server, unlike `servers`/`permissions`, which every server shares. A server
+  restart is still required to pick up a newly activated row.
 
 ## `lib/db.ts` mirrors `data/access.ts` — sort of
 

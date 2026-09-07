@@ -9,7 +9,7 @@ import {
   ToolEffect,
 } from "@llm-tools/shared";
 
-export const TOOL_NAME = "delete_github_label";
+export const TOOL_NAME = "delete_github_milestone";
 
 export const TOOL_EFFECT: ToolEffect = "destructive";
 
@@ -23,27 +23,26 @@ const register: ToolInstance = (server, config) => {
           config.defaultRepository,
         ) +
         describeMutation(TOOL_EFFECT) +
-        `Delete one label from a GitHub repository, by its name. This ` +
-        `cannot be undone: no endpoint restores a deleted label, and ` +
-        `recreating one with the same name does not put it back on the ` +
+        `Delete one milestone from a GitHub repository, by its milestone ` +
+        `number. Cannot be undone: no endpoint restores a deleted milestone, and ` +
+        `recreating one with the same title does not put it back on the ` +
         `issues it was removed from, because GitHub keeps no record of ` +
         `which issues those were. Ask the user to confirm this exact ` +
-        `label by name before calling, and prefer update_github_label ` +
-        `when the user wants the label renamed, recoloured or ` +
-        `redescribed rather than gone. Call list_github_labels or ` +
-        `get_github_label first to confirm the label exists under the ` +
-        `exact name being passed, and to check the name is the one the ` +
-        `user meant. Returns {"deleted": true, "name"}, echoing the ` +
-        `name that was deleted - GitHub answers with an empty body, so ` +
-        `unlike create_github_label and update_github_label there is no ` +
-        `label object to read back, and the label it described no ` +
-        `longer exists. Deleting a label removes it from every issue ` +
+        `milestone by title before calling, and prefer update_github_milestone ` +
+        `when the user wants the milestone renamed or redescribed rather than ` +
+        `gone. Call list_github_milestones or get_github_milestone first to confirm ` +
+        `the milestone exists under the exact number being passed, and to check the ` +
+        `title is the one the user meant. Returns {"deleted": true, "number"}, ` +
+        `echoing the number that was deleted - GitHub answers with an empty body, so ` +
+        `unlike create_github_milestone and update_github_milestone there is no ` +
+        `milestone object to read back, and the milestone it described no ` +
+        `longer exists. Deleting a milestone removes it from every issue ` +
         `that carried it; those issues are not otherwise changed and ` +
         `none of them is closed or deleted. Report how many issues were ` +
-        `affected only if list_github_issues with a "labels" of ` +
-        `"<name>" was called beforehand - this tool does not say, and ` +
+        `affected only if list_github_issues with a "search" of ` +
+        `milestone:"<title>" was called beforehand - this tool does not say, and ` +
         `afterwards nothing can. The call fails when the repository has ` +
-        `no label with this name, and when the configured token has no ` +
+        `no milestone numbered "number", and when the configured token has no ` +
         `write access to the repository; neither is retryable without ` +
         `changing the input.`,
       inputSchema: z.object({
@@ -65,23 +64,21 @@ const register: ToolInstance = (server, config) => {
             ),
         ),
 
-        name: z
-          .string()
-          .min(1)
+        number: z
+          .number()
+          .int()
+          .positive()
           .describe(
-            `The name of the label to delete, exactly as shown in the ` +
-              `GitHub interface and returned in the "name" field of ` +
-              `list_github_labels results. A label name may contain ` +
-              `spaces; pass it as it is, without quotes. Required, and ` +
-              `never invented or guessed at: take it from ` +
-              `list_github_labels rather than from the user's wording, ` +
-              `since a name that nearly matches either fails or deletes ` +
-              `the wrong label. GitHub compares names ` +
-              `case-insensitively, so "Bug" deletes an existing "bug".`,
+            `The number identifying the milestone to delete, as shown in ` +
+              `the GitHub interface and returned in the "number" field of ` +
+              `list_github_milestones results. Required, and never ` +
+              `invented or guessed at: take it from list_github_milestones ` +
+              `rather than from the user's wording, since a wrong number ` +
+              `deletes the wrong milestone.`,
           ),
       }),
     },
-    async ({ owner, repository, name }) => {
+    async ({ owner, repository, number }) => {
       const effectiveOwner = owner?.trim() || config.defaultOwner;
       const effectiveRepository = repository?.trim() || config.defaultRepository;
 
@@ -95,28 +92,29 @@ const register: ToolInstance = (server, config) => {
       }
 
       await config.octokit.rest.issues
-        .deleteLabel({
+        .deleteMilestone({
           owner: effectiveOwner,
           repo: effectiveRepository,
-          name: name,
+          milestone_number: number,
         })
         .catch((error: unknown) => {
           const reason = error instanceof Error ? error.message : String(error);
           throw new Error(
-            `${TOOL_NAME} failed to delete the label "${name}": ${reason}`,
+            `${TOOL_NAME} failed to delete the milestone "${number}": ${reason}`,
           );
         });
 
-      // The other label writes return the label read back from GitHub
-      // (T4g). This one cannot: the endpoint answers 204 with no body,
-      // and the label is gone. Echoing the name is the whole of what is
-      // true afterwards, so it goes in "name" rather than in the
-      // "label" key the create and update envelopes use for an object.
+      // The other milestone writes return the milestone read back from
+      // GitHub (T4g). This one cannot: the endpoint answers 204 with no
+      // body, and the milestone is gone. Echoing the number is the whole
+      // of what is true afterwards, so it goes in "number" rather than
+      // the "milestone" key the create and update envelopes use for an
+      // object.
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify({ deleted: true, name: name }),
+            text: JSON.stringify({ deleted: true, number: number }),
           },
         ],
       };
@@ -124,7 +122,7 @@ const register: ToolInstance = (server, config) => {
   );
 };
 
-export const deleteGithubLabel: ToolRegistration = {
+export const deleteGithubMilestone: ToolRegistration = {
   name: TOOL_NAME,
   effect: TOOL_EFFECT,
   register: register,

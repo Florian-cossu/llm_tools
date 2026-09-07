@@ -3,8 +3,8 @@ type: component
 status: active
 scope: repo
 last_reviewed: 2026-09-06
-last_updated: 2026-09-06
-summary: The local SQLite database, its plaintext SQL migrations and the runner that applies them - the storage the permission layer will read, with nothing reading it yet.
+last_updated: 2026-09-07
+summary: The local SQLite database, its plaintext SQL migrations and the runner that applies them - now consulted by the github server at registration for allow/deny (ADR-0008).
 read_when:
   - changing the database schema
   - adding a migration
@@ -32,14 +32,18 @@ plaintext `.sql` files. It exists to hold the **per-tool permission state** that
 [ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md#the-permission-layer)
 describes.
 
-> [!warning] Read and edited, but not consulted
-> The store and its runner are real and work, and the
-> [control panel](control-panel.md) now reads and edits `state` through it.
-> The **permission layer is still not built**: no MCP server consults
-> `permissions` before registering or executing anything, and
-> `GITHUB_ALLOW_WRITES` remains the entire gate. A row you flip to `deny` in
-> the control panel has no effect on what the github server does. This note
-> describes storage, not enforcement. See
+> [!note] Read and edited, and now the only registration gate
+> The [control panel](control-panel.md) reads and edits `state` through this
+> store, and `tools/github/src/index.ts` reads it back via `data/access.ts`'s
+> `isToolAllowed` — the **only** filter `TOOL_REGISTRATIONS` goes through
+> ([ADR-0008](../../03-decisions/ADR-0008-permission-table-gates-registration.md),
+> [ADR-0009](../../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
+> There is no separate `GITHUB_ALLOW_WRITES` anymore; it was removed once this
+> table's default-deny made it redundant. A row flipped to `deny` (or left at
+> its seeded default) keeps that tool out of the model's list — after a
+> **server restart**, since the table is still read once at startup. `ask` is
+> stored and constrained but has no effect distinct from `deny` yet, and
+> nothing audits who changed a row. See
 > [current plan](../../07-plans/current.md).
 
 ## Layout
@@ -182,14 +186,18 @@ The ten rows `0004` seeds match `TOOL_REGISTRATIONS` in
 seeded `allow`, the four mutations seeded `deny`. No row is seeded `ask` —
 nothing implements asking yet.
 
-> [!important] The seed disagrees with the code for one row
-> `0004` classifies `delete_github_label`'s `tool_effect` as `destructive`,
-> matching what ADR-0007 D3 says it should be. The tool's own `TOOL_EFFECT`
-> export still says `write` — that mismatch is the known defect
-> [current plan](../../07-plans/current.md) tracks. `tool_effect` is
-> hand-maintained by whoever writes the migration, not generated from
-> `TOOL_EFFECT`, so the two can and do drift. Only `TOOL_EFFECT`, read by the
-> gate in `index.ts`, decides what actually registers.
+`0004`'s `tool_effect` for `delete_github_label` (`destructive`) now matches the
+tool's own `TOOL_EFFECT` export — they used to disagree, which was a known
+defect while only `TOOL_EFFECT` gated anything. `tool_effect` is still
+hand-maintained by whoever writes the migration, not generated from
+`TOOL_EFFECT`, so the two columns *can* drift again; nothing enforces they
+agree. What changed is that `state` now matters too:
+`tools/github/src/index.ts` reads it via `data/access.ts`'s `isToolAllowed`
+as a second registration filter, alongside the `TOOL_EFFECT` gate
+([ADR-0008](../../03-decisions/ADR-0008-permission-table-gates-registration.md)) —
+so a tool must pass both to register, and `tool_effect` drifting from
+`TOOL_EFFECT` is now a documentation problem rather than a gate one, since the
+gate never reads this column.
 
 Three constraints carry rules rather than leaving them to convention:
 

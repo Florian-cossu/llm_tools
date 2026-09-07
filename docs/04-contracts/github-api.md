@@ -3,7 +3,7 @@ type: contract
 status: active
 scope: github
 last_reviewed: 2026-09-02
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: The GitHub REST endpoints this server calls, their quirks, and the rate limits that shape tool design.
 read_when:
   - adding a tool that calls the GitHub API
@@ -39,8 +39,9 @@ unauthenticated when it is absent.
 | `issues.updateLabel` | `PATCH /repos/{owner}/{repo}/labels/{name}` | `update_github_label` | ❌ **write** |
 
 Those two are the only mutating endpoints called here, and both tools declare
-`effect: "write"` and are registered only when `GITHUB_ALLOW_WRITES` is set
-([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)).
+`effect: "write"` and are registered only when their permission-table row is
+`allow` ([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md),
+[ADR-0009](../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
 
 `issues.createLabel` returns `201` with the created label, and **`422` when the
 name already exists** — which is the expected failure, not a transport problem,

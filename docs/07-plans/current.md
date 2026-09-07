@@ -3,7 +3,7 @@ type: plan
 status: draft
 scope: repo
 last_reviewed: 2026-09-06
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 summary: NOT AUTHORITATIVE - what is half-finished right now and what is worth doing next.
 read_when:
   - picking up work
@@ -21,39 +21,6 @@ tags:
 
 ## Known broken
 
-### `delete_github_label` declares `write` and deletes
-
-It calls `issues.deleteLabel` while exporting `TOOL_EFFECT = "write"`, and it is
-listed in `TOOL_REGISTRATIONS`. So it registers whenever `GITHUB_ALLOW_WRITES`
-is set.
-
-[ADR-0007 D3](../03-decisions/ADR-0007-writes-behind-declared-capability.md)
-uses deleting a label as its example of `destructive`, and says no `destructive`
-tool may be registered until the permission layer exists —
-`registrationRefusal` refuses the class outright. The declaration is the only
-thing consulted, so a wrong one does not fail loudly; it opens the gate. This is
-the same defect class as `update_github_label` shipping its first draft as a
-`read`, and the reason the [testing checklist](../06-workflows/testing.md)
-greps Octokit calls against the declaration rather than trusting it.
-
-One smaller thing came with it: it is **absent from the github server's README
-tool table**, which D6 requires. The server is now `2.5.0` with ten tools
-(`update_github_milestone` shipped after this defect was first written up).
-
-The permission table's own seed
-(`data/migrations/0004_add_github_tools_permissions.sql`, into the
-`permissions` table `0003_init_permissions_table.sql` creates — this used to
-be one `github_mcp` table and is now `servers` + `permissions`, see
-[data store](../02-architecture/components/data-store.md#schema))
-classifies this row's `tool_effect` as `destructive` — the correct answer
-per D3 — while the code's `TOOL_EFFECT` still says `write`. The two are
-hand-maintained separately and disagree; only `TOOL_EFFECT` is consulted by
-the gate, so the row being "right" in the database changes nothing.
-
-Fixing it means declaring `destructive` — at which point the gate refuses it and
-it stops reaching the model, which is the intended state until the permission
-layer lands.
-
 ### `bun test` is a false green
 
 No test files exist; the runner exits successfully having run nothing. Note this
@@ -65,11 +32,10 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 
 | Item | Where |
 | --- | --- |
-| The permission layer ADR-0007 points at does not exist. Its **storage** now does — `data/harness.db` holds one row per github tool, and a [control panel](../02-architecture/components/control-panel.md) reads and edits it — but nothing in the github server consults it, so `GITHUB_ALLOW_WRITES` is still the whole gate, per server rather than per tool | `index.ts`, [data store](../02-architecture/components/data-store.md) |
-| `permissions` records each tool's effect class (`tool_effect`) alongside the decision, closing the gap this row used to describe. But it is **hand-written into the migration, not derived from `TOOL_EFFECT`**, so a row can say one thing while the code says another — `delete_github_label`'s row already does (see the known-broken entry above) | `data/migrations/0004_add_github_tools_permissions.sql` |
+| The permission layer now gates registration for **allow/deny** (see Done, below), but `ask` has no effect distinct from `deny`, a changed row needs a **server restart**, and nothing audits who changed a row | `index.ts`, [data store](../02-architecture/components/data-store.md) |
+| `permissions` records each tool's effect class (`tool_effect`) alongside the decision. It is **hand-written into the migration, not derived from `TOOL_EFFECT`**, so a row can say one thing while the code says another — nothing enforces they agree, even though the one known instance of this (`delete_github_label`) is now fixed | `data/migrations/0004_add_github_tools_permissions.sql` |
 | Nothing keeps `permissions` rows in step with `TOOL_REGISTRATIONS`. A new tool needs a hand-written migration or it is simply unlisted, and the control panel silently omits it the same way | — |
-| `data/access.ts` was never updated when the schema split `github_mcp` into `servers` + `permissions` (+ the new `github_profiles`). It still queries a `github_mcp` table that no longer exists. Nothing imports it today, so it's dead rather than crashing anyone — but it needs a rewrite, not a resurrection, before the real permission-layer gate can use it. `control_panel/lib/db.ts` is the one file that does match the current schema | `data/access.ts`, [data store](../02-architecture/components/data-store.md#reading-and-writing-it) |
-| `github_profiles` (owner/repo presets, with an `is_active` flag enforced single-active by the write, not a constraint) is now editable from the control panel — add, list, and toggle active — but nothing in the github server reads which profile is active. Same gap as the permission table, one layer up | `control_panel/app/servers/github/lib/github_profiles.tsx`, [control panel](../02-architecture/components/control-panel.md#github-profiles) |
+| `github_profiles`'s `is_active` flag is enforced single-active by the write, not a constraint — `setGithubProfileActive`'s `UPDATE ... SET is_active = (id = ?)` trick is the only thing preventing two active rows, not the schema | `control_panel/app/servers/github/lib/github_profiles.tsx` |
 | No audit trail. Nothing records that a write happened | — |
 | No CI, so `bun run test` only runs when someone remembers to | — |
 | No eval scenario for either milestone tool, and the one that exists is `status: planned` | `docs/05-harness/scenarios/` |
@@ -85,23 +51,18 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 2. **Add the registration sanity test** (every `TOOL_REGISTRATIONS` entry has a real
    description and no `TODO`). This is what would have caught the milestone
    scaffold before it shipped registered.
-3. **The permission layer** — the point of ADR-0007's D1. SQLite, one row per
-   tool with its effect class and an allow/deny/ask decision, user-editable,
-   consulted *before execution* so a change needs no restart, and deny by
-   default for anything unlisted. It replaces `GITHUB_ALLOW_WRITES`, which is
-   deliberately the crudest version of the same idea, and unblocks
-   `destructive` tools (ADR-0007 D3). Gets its own ADR.
-   **The storage half now exists** — see
-   [data store](../02-architecture/components/data-store.md), which already
-   carries the allow/deny/**ask** vocabulary, defaults to `deny`, constrains
-   `state` to that closed set, and now records the effect class alongside the
-   decision (`0003`). **A human-facing editor now exists too** — the
-   [control panel](../02-architecture/components/control-panel.md) reads and
-   writes `state` through a UI, so the storage half is no longer read-only-by-
-   convenience. What remains is the same thing it always was: **calling the
-   table from the gate**. Until an MCP server consults it before registering
-   or executing a tool, none of this — schema, editor, or seed data — is a
-   permission layer.
+3. **`ask` and an audit trail for the permission layer.** Allow/deny now gate
+   registration and are the **only** gate
+   ([ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md),
+   [ADR-0009](../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)):
+   `tools/github/src/index.ts` consults `data/access.ts`'s `isToolAllowed` as
+   its single filter over `TOOL_REGISTRATIONS`; `GITHUB_ALLOW_WRITES` is gone,
+   and `destructive` is gated the same way `write` is rather than
+   blanket-refused. Still open: `ask` has no effect distinct from `deny`; a
+   row change needs a **server restart**, same limitation the old env var had
+   (live reload — enabling/disabling an already-registered tool via the MCP
+   SDK's `RegisteredTool` handle, on `tools/list_changed` — is a separate,
+   bigger change, not done); and nothing records who changed a row or when.
 4. **A scenario for the write path**: the model asked to create a label calls
    `list_github_labels` first, confirms, calls once, and does not retry the
    422. And the injection case — an issue body telling it to create a label
@@ -118,9 +79,10 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
   room for both
   ([github API](../04-contracts/github-api.md#label-qualifiers)).
 - ~~Do write tools ever get added, and behind what gate?~~ **Answered** by
-  [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md): yes,
-  behind a declared effect class and a startup gate, with the `.env` opt-in
-  standing in until the permission layer lands.
+  [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md) and
+  [ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md):
+  yes, behind a declared effect class, the `.env` opt-in, and now the
+  permission table's per-tool `state` too.
 - Should the effect gate live in `@llm-tools/shared` (where
   `registrationRefusal` is) or become part of the MCP server construction
   itself? Today every server has to remember to call it — the second server
@@ -136,6 +98,64 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
   ([T18 exception](../04-contracts/tool-contract.md#responses))
 
 ## Done
+
+- **`github_profiles`'s active row now sets `defaultOwner`/`defaultRepository`,
+  closing the gap the previous entry (below) used to describe** — and
+  `GITHUB_DEFAULT_OWNER`/`GITHUB_DEFAULT_REPOSITORY` are gone from `.env.example`,
+  continuing the same env-reduction direction as the permission-table work.
+  Landed in two passes:
+  - First pass put the query in `data/access.ts` (`findActiveGithubProfile`,
+    typed model in `data/models/GithubProfile.ts`), matching how `permissions`
+    is read. **A real bug was caught before it shipped**: the very first draft
+    (written directly in a `tools/github/src/utils/` file, before it moved)
+    was `SELECT * FROM ? WHERE is_active = ?`, binding the table name as a
+    parameter — SQL parameters can't stand in for identifiers, and running it
+    crashed the server outright (`SQLiteError: near "?": syntax error`) rather
+    than just failing to find a profile. It also had no `server_id` filter at
+    all, so once the syntax error was gone it would still have matched any
+    server's active profile rather than specifically github's — harmless with
+    one server, wrong for the multi-server design `server_id` exists for.
+  - Second pass moved it back out of `data/access.ts`: `github_profiles` is
+    specific to this one server, unlike `servers`/`permissions`, which every
+    server shares, so its model (`tools/github/src/models/github_profiles.ts`)
+    and its query (`tools/github/src/utils/get_repo_config.ts`'s
+    `getActiveGithubProfile`, keeping the fix for both bugs above) now live in
+    the github tool. `data/access.ts` exports `getDb` and `findServerBySlug`
+    as the generic primitives that query is built on, and owns nothing
+    github-specific anymore.
+  `tools/github/src/index.ts` calls `getActiveGithubProfile()` once at startup
+  and feeds the result into `ServerConfig`, same as `.env` values used to be.
+  Restart still required to pick up a newly activated profile.
+
+- **`GITHUB_ALLOW_WRITES` removed; the permission table is the only registration
+  gate** ([ADR-0009](../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
+  Once every mutating tool had a permission-table row defaulting to `deny`
+  (previous entry), the env flag decided nothing that row didn't already
+  decide, so it was deleted along with `registrationRefusal` and
+  `booleanFromEnv` in `tools/shared/src/tool_effect.ts` — neither had another
+  caller. `tools/github/src/index.ts` now runs one filter,
+  `isToolAllowed(name, "github")`, over all of `TOOL_REGISTRATIONS`, for every
+  effect class. `ServerConfig.allowWrites` is gone, and so is the
+  `GITHUB_ALLOW_WRITES` line in `.env.example` and `tools/github/.env`. The
+  cost this trades away: there is no longer an independent, env-file kill
+  switch that works regardless of what the permission table says — the table
+  is now a single point of failure for "no mutating tool registers," where
+  before there were two independent gates.
+
+- **The permission table now gates registration, for allow/deny** ([ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md)).
+  `data/access.ts` gained `isToolAllowed(slug, server_slug)`; `tools/github/src/index.ts`
+  runs it as a second `.filter()` over `TOOL_REGISTRATIONS`, after the existing
+  effect-class gate, logging a refusal to stderr the same way. A tool now needs
+  both gates to pass. As part of this, `registrationRefusal` in
+  `tools/shared/src/tool_effect.ts` **dropped its unconditional refusal of
+  `destructive`** — that class is gated the same way `write` is (env flag) plus
+  the permission table (deny by default), rather than refused regardless of
+  configuration, since the table now provides the finer-grained, per-tool
+  consent ADR-0007 D3 was written to wait for. `delete_github_label`'s
+  `TOOL_EFFECT` was corrected from `write` to `destructive` to match, closing
+  the mismatch the data-store note used to flag. Still open: `ask` has no
+  effect distinct from `deny`, a row change needs a server restart, and there
+  is no audit trail — see the smaller-defects table above.
 
 - **The schema was restructured, and the control panel grew a `github_profiles`
   manager.** `github_mcp`, the single per-tool table the bullets below
@@ -205,7 +225,7 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
   identifies the milestone, every other parameter (`title`, `state`,
   `description`, `due_on`) is a new value left unchanged when omitted, and a
   call carrying none of them is rejected rather than treated as a no-op. See
-  [github server](../02-architecture/components/github-server.md#the-milestone-write).
+  [github server](../02-architecture/components/github-server.md#the-milestone-writes).
 
 - **A local SQLite store and a migration runner**
   ([data store](../02-architecture/components/data-store.md)). `data/migrate.ts`

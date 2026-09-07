@@ -11,6 +11,10 @@ import { createGithubLabel } from "./tools/create_github_label.js";
 import { updateGithubLabel } from "./tools/update_github_label.js";
 import { deleteGithubLabel } from "./tools/delete_github_label.js";
 import { updateGithubMilestone } from "./tools/update_github_milestone.js";
+import { createGithubMilestone } from "./tools/create_github_milestone.js";
+import { updateGithubIssue } from "./tools/update_github_issue.js";
+import { deleteGithubMilestone } from "./tools/delete_github_milestone.js";
+import { createGithubIssue } from "./tools/create_github_issue.js";
 
 /**
  * Registers one tool on the server.
@@ -53,14 +57,18 @@ export type ToolRegistration = {
  * never reaches the model - `index.ts` holds that gate.
  */
 export const TOOL_REGISTRATIONS: ToolRegistration[] = [
+  createGithubIssue,
   createGithubLabel,
+  createGithubMilestone,
   deleteGithubLabel,
+  deleteGithubMilestone,
   getGithubIssue,
   getGithubLabel,
   getGithubMilestone,
   listGithubIssuesTool,
   listGithubLabels,
   listGithubMilestones,
+  updateGithubIssue,
   updateGithubLabel,
   updateGithubMilestone,
 ];

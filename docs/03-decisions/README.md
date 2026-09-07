@@ -3,7 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-08-31
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: Index of architectural decision records, plus when and how to write a new one.
 read_when:
   - proposing a cross-cutting change
@@ -33,7 +33,9 @@ contradicts an accepted ADR is a bug in the note.
 | [0004](ADR-0004-server-per-integration.md)   | One MCP server per integration, not one gateway                                           | Accepted |
 | [0005](ADR-0005-root-dependencies.md)        | Dependencies declared once in the root `package.json`                                     | Accepted |
 | [0006](ADR-0006-frugal-output-by-default.md) | Tools and API responses need to be mapped to the strict minimum number of reusable values | Accepted |
-| [0007](ADR-0007-writes-behind-declared-capability.md) | Writes allowed; every tool declares an effect class and writes are gated at registration  | Accepted |
+| [0007](ADR-0007-writes-behind-declared-capability.md) | Writes allowed; every tool declares an effect class and writes are gated at registration  | Accepted, D3 revised by [0008](ADR-0008-permission-table-gates-registration.md), D4's mechanism retired by [0009](ADR-0009-permission-table-is-the-only-write-gate.md) |
+| [0008](ADR-0008-permission-table-gates-registration.md) | The permission table's per-tool state gates registration; `destructive` is no longer blanket-refused | Accepted |
+| [0009](ADR-0009-permission-table-is-the-only-write-gate.md) | `GITHUB_ALLOW_WRITES` removed; the permission table is the only registration gate, for every effect class | Accepted |
 
 ## When to write one
 

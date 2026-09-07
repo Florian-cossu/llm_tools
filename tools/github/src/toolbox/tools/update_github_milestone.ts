@@ -32,17 +32,19 @@ const register: ToolInstance = (server, config) => {
         `whole milestone. At least one of "title", "state", "description" or ` +
         `"due_on" is required: a call carrying none of them is rejected ` +
         `rather than treated as a no-op. Call list_github_milestones with ` +
-        `a limit of 60 first, both to confirm the milestone exists under ` +
-        `the exact number being passed on and to follow the wording ` +
+        `a "limit" of 60 first, both to confirm the milestone exists under ` +
+        `the exact number being passed and to follow the wording ` +
         `conventions the repository already uses. Returns {"updated": ` +
         `true, "milestone": {"number", "title", "state", "description", ` +
-        `"dueOn"}}, the same milestone shape list_github_milestones and ` +
-        `get_github_milestone return, read back from Github after the change. ` +
+        `"dueOn"}}, the same milestone shape list_github_milestones ` +
+        `returns, read back from Github after the change. ` +
         `Renaming a milestone keeps it on the issues that ` +
         `carry it: those issues now show the new name, and no issue ` +
-        `gains or loses the milestone. Nothing else about the issues ` +
-        `changes, and no tool on this server can apply a milestone to an ` +
-        `issue - say so rather than implying the issues were edited. ` +
+        `gains or loses the milestone as a side effect of this call. ` +
+        `Nothing else about the issues changes - say so rather than ` +
+        `implying the issues were edited. Assigning this milestone to an ` +
+        `issue is update_github_issue's job (or create_github_issue's, at ` +
+        `creation time), not this tool's. ` +
         `The call fails when the repository has no milestone numbered "milestone_number" or ` +
         `when the configured token has no write access to the ` +
         `repository; none of those is retryable without changing the ` +
@@ -150,7 +152,7 @@ const register: ToolInstance = (server, config) => {
         due_on === undefined
       ) {
         throw new Error(
-          `${TOOL_NAME} was called with nothing to change: pass at least one of "title", "state" "description" or "due_on".`,
+          `${TOOL_NAME} was called with nothing to change: pass at least one of "title", "state", "description" or "due_on".`,
         );
       }
 

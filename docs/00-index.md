@@ -3,7 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-09-05
-last_updated: 2026-09-06
+last_updated: 2026-09-07
 summary: Entry point for the llm_tools documentation vault - routes a task to the notes that answer it.
 read_when:
   - starting any task in this repository
@@ -85,21 +85,20 @@ authoritative about its source, but is never edited by hand.
 ## Current state, briefly
 
 - One server ships: [github](02-architecture/components/github-server.md),
-  version 2.5.0 — six read tools plus four registrations declaring `write`,
-  gated behind `GITHUB_ALLOW_WRITES`
-  ([ADR-0007](03-decisions/ADR-0007-writes-behind-declared-capability.md)).
-- `delete_github_label` is the newest label tool, and **declares `write`
-  while calling a delete endpoint** — ADR-0007 D3 names exactly that case
-  `destructive`, which no tool may declare yet. Treat it as a known defect,
-  not a precedent: [current plan](07-plans/current.md).
+  version 2.9.0 — six read tools, six registrations declaring `write`, two
+  declaring `destructive`. All eight register only when their permission-table
+  row says `allow` — there is no separate env-var flag anymore
+  ([ADR-0007](03-decisions/ADR-0007-writes-behind-declared-capability.md),
+  [ADR-0008](03-decisions/ADR-0008-permission-table-gates-registration.md),
+  [ADR-0009](03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
 - A local **SQLite store** exists with a migration runner
   ([data store](02-architecture/components/data-store.md)), holding one
   `allow`/`deny`/`ask` row per github tool, plus its effect class and a
-  summary. **Nothing in the github server consults it** — the permission
-  layer is still not built.
+  summary. **The github server reads it at registration, and it is the only
+  gate** (ADR-0009); `ask` and audit remain unbuilt — see
+  [current plan](07-plans/current.md).
 - A **control panel** ([control panel](02-architecture/components/control-panel.md)),
-  a Next.js app under `control_panel/`, now reads and edits that same table.
-  It changes what is *recorded*, not what the github server allows — same
-  gap as above.
+  a Next.js app under `control_panel/`, reads and edits that same table. Its
+  edits now reach the gate above, after a server restart.
 - There is **no test suite yet** — `bun test` matches zero files. See
   [testing](06-workflows/testing.md).

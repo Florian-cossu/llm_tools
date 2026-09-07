@@ -3,7 +3,7 @@ type: harness
 status: planned
 scope: github
 last_reviewed: 2026-09-02
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: PLANNED - the reference evaluation scenario, checking a model lists open issues without asking which repository.
 read_when:
   - running an evaluation by hand
@@ -32,14 +32,16 @@ configured default announced in
 
 ## Preconditions
 
-`.env` **fully configured**, server restarted, fresh chat, tool-capable model:
+**Fully configured**, server restarted, fresh chat, tool-capable model:
 
 ```
 GITHUB_TOKEN=<valid>
-GITHUB_DEFAULT_OWNER=<owner>
-GITHUB_DEFAULT_REPOSITORY=<repo>
 GITHUB_DEFAULT_USERNAME=<login>
 ```
+
+plus one `github_profiles` row for the github server with `is_active = 1`,
+its `repository_owner`/`repository_name` set to `<owner>`/`<repo>` — activated
+through the control panel, not `.env`.
 
 Configuration is the whole point: an unconfigured server *should* ask which
 repository, and asking would be correct.

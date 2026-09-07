@@ -3,8 +3,8 @@ type: decision
 status: accepted
 scope: repo
 last_reviewed: 2026-09-03
-last_updated: 2026-09-04
-summary: Supersedes ADR-0003 — mutating tools are allowed, but every tool declares an effect class, reads stay the default, irreversible tools wait for the permission layer.
+last_updated: 2026-09-07
+summary: Supersedes ADR-0003 — mutating tools are allowed, every tool declares an effect class, reads stay the default. D3 revised by ADR-0008; D4's env-flag mechanism retired by ADR-0009.
 read_when:
   - adding a tool that creates, edits, closes or deletes
   - wondering why a tool declares an effect class
@@ -27,6 +27,16 @@ tags:
 # ADR-0007: Writes behind a declared capability
 
 Supersedes [ADR-0003](ADR-0003-read-only-by-default.md).
+
+> [!warning] D3 revised by [ADR-0008](ADR-0008-permission-table-gates-registration.md); D4's mechanism retired by [ADR-0009](ADR-0009-permission-table-is-the-only-write-gate.md)
+> **`destructive` is no longer blanket-refused**, and **`GITHUB_ALLOW_WRITES`
+> no longer exists.** D3 and D4 below reflect the decision as it stood before
+> the permission table's `state` became the sole registration gate for every
+> effect class. Read D3/D4 below for the reasoning that motivated the
+> permission layer; read ADR-0008 and ADR-0009 for the rules actually in
+> force. D1, D2, D5, D6 are unchanged — a mutating tool still declares itself,
+> still opens its description with a warning, still is documented as what it
+> is.
 
 ## Context
 
@@ -78,8 +88,8 @@ In its place, six rules:
 | --- | --- |
 | **D1** | **Every tool declares an effect class**: `read`, `write` or `destructive`. It is a field on the registration, not a comment — the permission layer, the description surface and any review tooling all read the same declaration. |
 | **D2** | **`read` is the default and stays honest.** A tool that declares nothing is a read, and a read tool calling a mutating endpoint is a defect, not a shortcut. Everything ADR-0003 required of a read tool still applies to it. |
-| **D3** | **`destructive` is not registered yet.** Irreversible removal — deleting a label, a comment, a branch — waits for the permission layer. `write` that creates or adds is allowed now, because the compensating action exists and a user can take it. |
-| **D4** | **A write tool is gated at registration**, not inside the handler. When its gate is off the tool is never registered, so the model never sees a capability the user has not enabled — this is what composes with the [execution lifecycle](../02-architecture/components/execution-lifecycle.md), where the tool list is fixed at initialisation. |
+| **D3** | ~~**`destructive` is not registered yet.**~~ Revised by [ADR-0008](ADR-0008-permission-table-gates-registration.md): gated by the permission table instead, deny by default. Irreversible removal — deleting a label, a comment, a branch — waits for a human to say `allow`, not for a future ADR to unblock the class. |
+| **D4** | **A mutating tool is gated at registration**, not inside the handler. When its gate is off the tool is never registered, so the model never sees a capability the user has not enabled — this is what composes with the [execution lifecycle](../02-architecture/components/execution-lifecycle.md), where the tool list is fixed at initialisation. The gate itself is no longer an env flag — see [ADR-0009](ADR-0009-permission-table-is-the-only-write-gate.md). |
 | **D5** | **A write tool declares itself to the model in its first sentence**, requires confirmation before the call, is idempotent-or-fails rather than silently double-applying, and returns what was written **read back from the API** rather than an echo of the input. |
 | **D6** | **A write tool is documented as a write** in its server README and in the root tool table, and its effect class appears next to its name wherever tools are listed. A reader must be able to see what the server can change without opening a source file. |
 
@@ -102,34 +112,33 @@ The gate's target form, and where this is heading:
 - Defaulting to **deny for anything not listed**, so a newly added write tool
   is inert until someone says otherwise.
 
-That layer does **not exist yet**. It gets its own ADR when it is built, and
-this one is written so that it can arrive without another supersession: D1 gives
-it the declaration to read, D4 gives it the place to intervene.
+That layer's storage and read path now exist ([ADR-0008](ADR-0008-permission-table-gates-registration.md)
+picks this back up in full); the parts below describe what is still missing.
 
 > [!warning] What is actually implemented today
-> **D1 through D6 are in code.** Every tool exports `TOOL_EFFECT`;
-> `registrationRefusal` in `@llm-tools/shared` refuses `destructive` outright
-> and refuses `write` unless `GITHUB_ALLOW_WRITES` is set; the github server's
-> `index.ts` applies it before registering anything and logs each refusal to
-> stderr; `buildServerInstructions` is built from what the gate allowed, so it
-> cannot promise read-only while a write tool is registered.
+> **D1, D2, D5, D6 are in code as written; D3 and D4 are not — read
+> [ADR-0008](ADR-0008-permission-table-gates-registration.md) and
+> [ADR-0009](ADR-0009-permission-table-is-the-only-write-gate.md) for the
+> rules actually in force.** Every tool still exports `TOOL_EFFECT`, and
+> `buildServerInstructions` is still built from whatever the gate allowed, so
+> it cannot promise read-only while a mutating tool is registered — but the
+> gate itself is no longer `registrationRefusal` plus `GITHUB_ALLOW_WRITES`.
+> Both were deleted (ADR-0009); no env var decides write capability anymore.
 >
-> **The permission layer described above is not built.** An `.env` boolean is
-> the whole gate today: it is per server, not per tool, it is read once at
-> startup, and it says nothing about *which* repository the model may change —
-> the token decides that. Nothing consults a stored decision before execution.
+> **The permission layer's storage and read path exist, and are now the whole
+> registration gate.** `data/harness.db`'s `servers` + `permissions` tables
+> carry the allow/deny/**ask** decision per tool, defaulting to `deny`
+> ([data store](../02-architecture/components/data-store.md)).
+> `data/access.ts`'s `isToolAllowed` is the **only** thing
+> `tools/github/src/index.ts` consults before registering a tool, for every
+> effect class — a row set to `deny` (or absent) keeps a tool out, `allow`
+> lets it through, regardless of what `TOOL_EFFECT` says.
 >
-> **Its storage now exists, and only its storage.** `data/harness.db` holds a
-> `github_mcp` table with one row per tool, carrying the allow/deny/**ask**
-> decision described above, defaulting to `deny` and constrained to that closed
-> set ([data store](../02-architecture/components/data-store.md)). **No code
-> reads it**, and it does not carry the effect class. A seeded table is not a
-> gate.
->
-> **D3 is currently violated in code.** `delete_github_label` declares `write`
-> while calling `issues.deleteLabel`, so the gate registers it. Treat this box
-> as the state of the repo: see
-> [current plan](../07-plans/current.md).
+> **Still missing:** `ask` has no effect distinct from `deny`; a changed row
+> needs a **server restart** to matter, same as `GITHUB_ALLOW_WRITES` used to;
+> and nothing audits who changed a row or when. See
+> [ADR-0009](ADR-0009-permission-table-is-the-only-write-gate.md) and
+> [current plan](../07-plans/current.md) for what remains.
 
 ## Consequences
 

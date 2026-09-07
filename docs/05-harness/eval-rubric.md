@@ -3,7 +3,7 @@ type: harness
 status: planned
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-07
 summary: PLANNED - how to score whether a model uses these tools correctly, run manually today.
 read_when:
   - judging a change to a tool description or server instructions
@@ -79,8 +79,8 @@ Did it respect the budget?
 
 ## Running one
 
-1. Configure `.env` **fully** — `GITHUB_DEFAULT_OWNER`,
-   `GITHUB_DEFAULT_REPOSITORY`, `GITHUB_DEFAULT_USERNAME`.
+1. Configure fully — `GITHUB_DEFAULT_USERNAME` in `.env`, and an **active**
+   `github_profiles` row (owner/repository) via the control panel.
 2. Restart the server ([lifecycle](../02-architecture/components/execution-lifecycle.md)).
 3. Fresh chat, tool-capable model, server enabled.
 4. Send the scenario prompt **verbatim**. No hints.

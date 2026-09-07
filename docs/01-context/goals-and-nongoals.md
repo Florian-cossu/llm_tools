@@ -3,7 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: What llm_tools is trying to be, and the things it deliberately refuses to become.
 read_when:
   - proposing a feature, dependency or architectural change
@@ -48,7 +48,7 @@ about.
 | Hosting servers, or an HTTP/SSE transport | Local stdio keeps credentials local and the setup trivial | [ADR-0001](../03-decisions/ADR-0001-local-stdio-transport.md) |
 | A build/bundle step | Bun runs TypeScript directly; a build is one more thing to break between edit and restart | [ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md) |
 | One mega-server fronting every integration | Credentials, rate limits and failure blast radius stay separated per integration | [ADR-0004](../03-decisions/ADR-0004-server-per-integration.md) |
-| Write operations **by default** | An LLM calling a destructive tool unprompted is the failure this repo refuses. Writes exist, off unless enabled, and irreversible ones not at all | [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md) |
+| Write operations **by default** | An LLM calling a destructive tool unprompted is the failure this repo refuses. Writes exist, off unless enabled; an irreversible one additionally needs a human to have flipped its permission-table row to `allow` | [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md), [ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md) |
 | Being a general-purpose GitHub client | Only the endpoints a model actually needs, in the shape it can use | [github API](../04-contracts/github-api.md) |
 | Publishing to npm, or a plugin marketplace | Personal tooling, cloned and run in place | — |
 | Multi-user, auth, or tenancy | One machine, one user, one `.env` | [ADR-0001](../03-decisions/ADR-0001-local-stdio-transport.md) |
