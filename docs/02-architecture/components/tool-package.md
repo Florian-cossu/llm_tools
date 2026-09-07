@@ -3,7 +3,7 @@ type: component
 status: active
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: Anatomy of a tools/<name>/ server folder - the files, the tool.json manifest, and what each directory owns.
 read_when:
   - creating a new MCP server
@@ -125,9 +125,11 @@ node tools/github/scripts/add-new-implementation.mjs close_github_issue \
   --description "Close a single issue by its number."
 ```
 
-It emits the file with owner/repository parameters, `.env` fallbacks and error
-handling already wired, leaving two `TODO`s: the real `inputSchema` parameters,
-and the API call plus its mapping. See [github server](github-server.md#adding-a-tool).
+It emits the file with owner/repository parameters, their configured fallbacks
+(read from `ServerConfig`, ultimately the active `github_profiles` row) and
+error handling already wired, leaving two `TODO`s: the real `inputSchema`
+parameters, and the API call plus its mapping. See
+[github server](github-server.md#adding-a-tool).
 
 ## Workspace wiring
 

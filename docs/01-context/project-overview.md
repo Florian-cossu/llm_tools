@@ -3,7 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-09-02
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: llm_tools is a personal collection of local, stdio-based MCP servers that give a local LLM custom tools.
 read_when:
   - you are new to this repository
@@ -61,9 +61,10 @@ description more carefully than it reads a JSON schema. So:
   the full GitHub payload would eat the window ([data schemas](../04-contracts/data-schemas.md));
 - list and detail are **separate tools**, so listing issues doesn't drag in
   every body;
-- defaults configured in `.env` are **restated in prose** inside tool
-  descriptions and server instructions, or the model asks the user for values
-  the server already holds ([agent contract](../04-contracts/agent-contract.md)).
+- configured defaults — whether from `.env` or from the active `github_profiles`
+  row in the database — are **restated in prose** inside tool descriptions and
+  server instructions, or the model asks the user for values the server
+  already holds ([agent contract](../04-contracts/agent-contract.md)).
 
 That last point is why [`@llm-tools/shared`](../02-architecture/components/shared-package.md)
 exists at all.

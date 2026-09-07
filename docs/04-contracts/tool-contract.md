@@ -94,7 +94,7 @@ That gate lives in the server's `index.ts` — see
 | T8 | Closed sets are `z.enum([...])`, never a free string |
 | T9 | A parameter with a configured fallback uses `optionalWhenConfigured(...)` — required in the schema exactly when it is required in prose |
 
-## Defaults from `.env`
+## Static vs. configured defaults
 
 Two mechanisms, not to be confused
 ([data flows](../02-architecture/data-flows.md#where-each-concern-is-applied)):
@@ -102,7 +102,7 @@ Two mechanisms, not to be confused
 | Kind | Applied by | Example |
 | --- | --- | --- |
 | Static | zod `.default()` at validation | `state`, `limit`, `sortBy` |
-| Configured | The handler, from `ServerConfig` | `owner`, `repository` |
+| Configured | The handler, from `ServerConfig` — itself sourced from `.env` (`defaultUsername`) or the active `github_profiles` row (`owner`, `repository`) | `owner`, `repository` |
 
 Configured defaults resolve with one idiom, and fail with one message:
 

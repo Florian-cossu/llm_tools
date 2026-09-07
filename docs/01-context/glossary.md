@@ -113,8 +113,9 @@ that keep a parameter's prose and its schema in agreement. See
 ### configured default
 A value a tool substitutes when the call omits it — `GITHUB_DEFAULT_USERNAME`
 from `.env`, or `owner`/`repository` from whichever `github_profiles` row is
-active in the permission table's database. Must be announced in **both** the
-schema and the prose, or the model asks the user for it anyway.
+active, read from the same local database as the permission table but a
+separate table within it. Must be announced in **both** the schema and the
+prose, or the model asks the user for it anyway.
 
 ### `@me` sentinel
 GitHub search syntax resolving to the authenticated account. The server maps

@@ -3,7 +3,7 @@ type: architecture
 status: active
 scope: repo
 last_reviewed: 2026-09-02
-last_updated: 2026-09-03
+last_updated: 2026-09-07
 summary: The path a request takes from user prompt to compact JSON, and where each transformation happens.
 read_when:
   - tracing why a tool returned what it did
@@ -64,8 +64,8 @@ a server with defaults configured advertises different tools than one without.
 | --- | --- | --- |
 | Parameter validation | 4 | `inputSchema` (zod) |
 | Parameter defaults (`state`, `limit`, …) | 4 | zod `.default()` |
-| Credential defaults (`owner`, `repository`) | 5 | handler, from `ServerConfig` |
-| Missing-credential error | 5 | handler `throw` |
+| Configured defaults (`owner`, `repository`) | 5 | handler, from `ServerConfig` |
+| Missing-default error | 5 | handler `throw` |
 | Query construction | 6 | `utils/github_search_query.ts` |
 | API error wrapping | 7 | `.catch()` on the Octokit call |
 | Field selection / shrinking | 8 | `mappers/` — **the only place** |
@@ -73,7 +73,8 @@ a server with defaults configured advertises different tools than one without.
 
 > [!note]
 > Steps 4 and 5 are two *different* default mechanisms. Zod defaults are static
-> and visible in the schema. Credential defaults come from `.env`, so they are
+> and visible in the schema. Configured defaults — `owner`/`repository` from
+> the active `github_profiles` row, `defaultUsername` from `.env` — are
 > resolved in the handler and merely *described* in the schema. See
 > [shared package](components/shared-package.md) for why the description matters.
 

@@ -33,8 +33,9 @@ tools/<name>/
         └── tools/              # one file per tool
 ```
 
-`index.ts` builds a `ServerConfig` (credentials, API client, defaults from `.env`) and
-passes it to every tool. A tool module exports a `ToolInstance` —
+`index.ts` builds a `ServerConfig` (credentials, API client, configured defaults from
+`.env` and/or a server-specific database table) and passes it to every tool. A tool
+module exports a `ToolInstance` —
 `(server, config) => void` — and adding a tool means writing its file and listing it in
 `toolbox/index.ts`.
 

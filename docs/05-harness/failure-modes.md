@@ -3,7 +3,7 @@ type: harness
 status: active
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_updated: 2026-09-07
 summary: Catalogue of how these servers fail - startup, protocol, model-behaviour and API errors - with symptom, cause and fix.
 read_when:
   - something is broken and you need to identify which layer
@@ -68,7 +68,7 @@ Thrown, surfaced to the model as an error result.
 
 | Message | Cause | Model should |
 | --- | --- | --- |
-| `No GitHub owner or repository was provided, and no default was configured.` | Both param and `.env` default unusable | Ask the user, or pass explicitly |
+| `No GitHub owner or repository was provided, and no default was configured.` | Both param and the active `github_profiles` default unusable | Ask the user, or pass explicitly |
 | `Unable to retrieve issue "N": Not Found` | Wrong number, wrong repo, or no token for a private repo | Verify via `list_github_issues` |
 | `GitHub rejected the search "…": Validation Failed` | Malformed qualifier | Simplify the query |
 | `… API rate limit exceeded` | ~30/min search budget spent | Wait; make fewer, narrower calls |
