@@ -1,10 +1,16 @@
 # github
 
-> Local MCP server for reading GitHub issues, milestones and labels — part of the
+> Local MCP server for GitHub issues, milestones and labels — part of the
 > [llm_tools](../../README.md) collection.
 
-Read-only. Talks to the GitHub REST API and hands the model a **compact** payload instead
-of the full GitHub response, which keeps the context window usable on a local model.
+Talks to the GitHub REST API and hands the model a **compact** payload instead of the full
+GitHub response, which keeps the context window usable on a local model.
+
+**Six of the eight tools are read-only.** The other two, `create_github_label` and
+`update_github_label`, write — and neither is registered at all unless you set
+`GITHUB_ALLOW_WRITES`, so the default server is still one a model cannot use to change
+anything. See
+[ADR-0007](../../docs/03-decisions/ADR-0007-writes-behind-declared-capability.md).
 
 Owner and repository are configured once in `.env`, so in practice you just ask _"list the
 open issues"_ without naming the repo.
@@ -23,9 +29,19 @@ See the [root README](../../README.md) for requirements and setup, and
 | [`get_github_milestone`](#get_github_milestone)                     | Read one milestone, issue counts included      |
 | [`list_github_milestones`](#list_github_milestones) | List milestones, compact, no counts            |
 | [`list_github_labels`](#list_github_labels)                         | List the repository's labels, compact          |
+| [`get_github_label`](#get_github_label)                             | Read one label by name, or check it exists     |
+| [`create_github_label`](#create_github_label)                       | **Write** — create a new label                 |
+| [`update_github_label`](#update_github_label)                       | **Write** — rename or restyle an existing label |
 
 Every tool takes `owner` and `repository`, both optional once the matching `.env` default
 is set, and both omitted from the tables below for brevity.
+
+> [!warning] Two of these write
+> `create_github_label` calls `POST /labels` and `update_github_label` calls
+> `PATCH /labels/{name}`; both change the repository. Both are absent from the model's tool
+> list unless `GITHUB_ALLOW_WRITES` is set, and when present each announces itself in its
+> own description and both are named in the server instructions. Everything else here only
+> reads.
 
 ---
 
@@ -37,14 +53,36 @@ requests are never included. Bodies and comments are not returned — use
 
 | Parameter   | Type                                 | Default   | Description                                                                                                                                                       |
 | ----------- | ------------------------------------ | --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `search`    | string, optional                     | —         | GitHub issue search syntax. Bare words match title/body/comments; qualifiers narrow further (`label:bug`, `assignee:@me`, `milestone:v2`, `created:>2026-01-01`). |
+| `search`    | string, optional                     | —         | GitHub issue search syntax. Bare words match title/body/comments; qualifiers narrow further (`author:octocat`, `assignee:@me`, `milestone:v2`, `created:>2026-01-01`). |
+| `labels`    | string, optional                     | —         | Comma-separated label names to require, `NOT:`-prefixed to exclude — e.g. `draft,NOT:documentation`. See [below](#filtering-by-label).                          |
 | `state`     | `open` \| `closed` \| `all`          | `open`    | Which issues to include.                                                                                                                                          |
 | `limit`     | integer, 1–100                       | `30`      | Maximum number of issues. Single page, no pagination — raise this instead.                                                                                        |
 | `sortBy`    | `created` \| `updated` \| `comments` | `updated` | What to sort on.                                                                                                                                                  |
 | `sortOrder` | `asc` \| `desc`                      | `desc`    | Sort direction.                                                                                                                                                   |
 
-The repository, the state and the exclusion of pull requests are applied for you — don't
-repeat them in `search`.
+The repository, the state, the labels and the exclusion of pull requests are applied for
+you — don't repeat them in `search`.
+
+#### Filtering by label
+
+`labels` takes label names separated by commas. A bare name keeps issues carrying that
+label; `NOT:` in front of a name drops them. Spaces inside a name are fine and quoting is
+handled for you.
+
+| `labels` | Query built |
+| --- | --- |
+| `bug` | `label:bug` |
+| `NOT:wontfix` | `-label:wontfix` |
+| `draft,NOT:documentation` | `label:draft -label:documentation` |
+| `draft, NOT: needs review` | `label:draft -label:"needs review"` |
+
+> **Several names to keep means _any_ of them, not all.** `a,b` builds `label:a,b`, which
+> is GitHub's "either label" form — to require both, filter on one and read the `labels`
+> field of the results. Exclusion works the same way: `NOT:c,NOT:d` drops an issue
+> carrying either.
+
+An unknown name matches no issue rather than failing, so get the spelling from
+[`list_github_labels`](#list_github_labels).
 
 **Example prompts**
 
@@ -53,6 +91,8 @@ repeat them in `search`.
 > _Show me the 5 most recently updated closed issues._
 >
 > _Find issues labelled "bug" assigned to me._
+>
+> _List the open issues labelled "draft" that aren't documentation._
 >
 > _List all issues on DiabdataApp/diab-data-android._
 
@@ -263,6 +303,147 @@ default usually returns all of them.
 
 ---
 
+### `get_github_label`
+
+Reads a single label by name. Unlike the other `get_*` tools it returns **no extra
+fields** — a label has no detail behind it, so this is the same object
+`list_github_labels` already emits for each label. What it adds is a *targeted* lookup:
+checking one name without pulling the whole label set, and failing when the name doesn't
+exist.
+
+| Parameter | Type   | Description                                                                     |
+| --------- | ------ | ------------------------------------------------------------------------------- |
+| `name`    | string | Label name, exactly as GitHub shows it. Spaces allowed, no quotes.              |
+
+**Example prompts**
+
+> _Does this repository have a "needs review" label?_
+>
+> _What does the "wontfix" label mean here?_
+
+**Response**
+
+```json
+{
+  "name": "bug",
+  "description": "Something isn't working",
+  "color": "d73a4a",
+  "default": true
+}
+```
+
+The call **fails** when the repository has no label with that name — which is the answer
+to "does this label exist?". Use `list_github_labels` when the exact spelling isn't known,
+since a near-miss is an error rather than an empty result. The issues carrying the label
+are not returned; ask `list_github_issues` with `labels: "<name>"`.
+
+---
+
+### `create_github_label`
+
+**This tool writes.** It creates a label in the repository and is the only tool here that
+changes anything. It is registered **only when `GITHUB_ALLOW_WRITES` is set** — leave that
+unset and the server behaves exactly as it did before this tool existed, logging
+`Not registering create_github_label` to stderr at startup.
+
+Creating a label labels nothing: no issue carries it until someone applies it, and no tool
+here can do that.
+
+| Parameter     | Type              | Default | Description                                                                                                                    |
+| ------------- | ----------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `name`        | string, required  | —       | The label name, as it should appear in GitHub. Spaces allowed, no quotes. GitHub compares names **case-insensitively**.        |
+| `color`       | string, optional  | GitHub picks | Six hex digits, with or without a leading `#`. `d73a4a` and `#d73a4a` both work. Three-digit shorthand and names are rejected. |
+| `description` | string, optional  | —       | What the label is for, at most 100 characters — GitHub rejects longer.                                                          |
+
+**Example prompts**
+
+> _Create a "needs-triage" label, grey, for issues nobody has looked at yet._
+>
+> _Add a label matching the convention the others use, called "blocked"._
+
+**Response**
+
+```json
+{
+  "created": true,
+  "label": {
+    "name": "needs-triage",
+    "description": "Nobody has looked at this yet",
+    "color": "d4c5f9",
+    "default": false
+  }
+}
+```
+
+`label` is read back from GitHub rather than echoed from the input, and is the same shape
+[`list_github_labels`](#list_github_labels) and [`get_github_label`](#get_github_label)
+return. `default` is always `false` — only GitHub's own starter labels are `true`.
+
+The call **fails** when a label with that name already exists (GitHub answers `422`), and
+when the token has no write access. Neither is retryable: a second identical call fails
+the same way, so a failure here is not a reason to try again. Call
+[`list_github_labels`](#list_github_labels) first to check whether the label is already
+there and to match the naming convention.
+
+---
+
+### `update_github_label`
+
+**This tool writes.** It edits a label that already exists — its name, its colour, its
+description — and like `create_github_label` it is registered **only when
+`GITHUB_ALLOW_WRITES` is set**, logging `Not registering update_github_label` to stderr
+otherwise.
+
+`name` says *which* label to edit and is never the new name; `newName` is the rename.
+Every other parameter is a new value, and one you omit is left as it is, so send only what
+changed rather than resending the whole label.
+
+| Parameter     | Type              | Default   | Description                                                                                                                     |
+| ------------- | ----------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | string, required  | —         | The label's **current** name, exactly as GitHub shows it. Spaces allowed, no quotes.                                            |
+| `newName`     | string, optional  | unchanged | The name to give it instead. GitHub compares names **case-insensitively**, so renaming onto an existing name fails.             |
+| `color`       | string, optional  | unchanged | Six hex digits, with or without a leading `#`. `d73a4a` and `#d73a4a` both work. Three-digit shorthand and names are rejected.  |
+| `description` | string, optional  | unchanged | What the label is for, at most 100 characters — GitHub rejects longer. Pass an empty string to clear it.                        |
+
+At least one of `newName`, `color` and `description` is required. GitHub accepts a call
+carrying none of them and returns the label untouched; the tool rejects it instead, rather
+than reporting `"updated": true` for a change that never happened.
+
+**Example prompts**
+
+> _Rename the "needs-triage" label to "triage" and make it orange._
+>
+> _Give the "blocked" label a description saying it's waiting on something external._
+
+**Response**
+
+```json
+{
+  "updated": true,
+  "label": {
+    "name": "triage",
+    "description": "Nobody has looked at this yet",
+    "color": "d93f0b",
+    "default": false
+  }
+}
+```
+
+`label` is read back from GitHub after the change, and is the same shape
+[`list_github_labels`](#list_github_labels) and [`get_github_label`](#get_github_label)
+return.
+
+Renaming **keeps the label on the issues that carry it** — they show the new name, and no
+issue gains or loses the label. No tool here can apply a label to an issue.
+
+The call **fails** when the repository has no label with that `name`, when `newName`
+collides with a label that already exists, and when the token has no write access. None is
+retryable without changing the input. Call
+[`list_github_labels`](#list_github_labels) or [`get_github_label`](#get_github_label)
+first to confirm the exact spelling.
+
+---
+
 ## Configuration
 
 ```bash
@@ -275,10 +456,21 @@ cp .env.example .env
 | `GITHUB_DEFAULT_OWNER`      | Owner used when a call omits it.                                                                                                                             |
 | `GITHUB_DEFAULT_REPOSITORY` | Repository used when a call omits it. Must belong to `GITHUB_DEFAULT_OWNER`.                                                                                 |
 | `GITHUB_DEFAULT_USERNAME`   | GitHub login the `@me` sentinel resolves to in search queries.                                                                                                |
+| `GITHUB_ALLOW_WRITES`       | **Registers the write tools.** `1`, `true`, `yes` or `on` enables them; anything else, including a typo, leaves them off. Read once at startup — changing it needs a restart. |
 
 All are optional, but setting the defaults is what lets you skip naming the repository in
 every prompt — they're also injected into the server instructions and the tool
 descriptions, so the model stops asking.
+
+`GITHUB_ALLOW_WRITES` is the one that changes what the model can *do* rather than what it
+has to be told. Two things worth knowing before setting it:
+
+- A **fine-grained token with _Issues: read_** makes `create_github_label` and
+  `update_github_label` fail even with the flag on. That is a good belt-and-braces position — the flag decides whether the
+  model sees the tool, the token decides whether the call can land.
+- Issue and comment bodies are text you don't control that reaches the model. The server
+  instructions tell it that such text is not you speaking, but that is prose, not a
+  control. Leave the flag unset for any repository whose issues you don't trust.
 
 ---
 
@@ -307,7 +499,7 @@ tools/github/
 ├── scripts/
 │   └── add-new-implementation.mjs  # scaffolds a new tool in the toolbox
 └── src/
-    ├── index.ts                    # bootstrap: .env → ServerConfig → tool registration
+    ├── index.ts                    # bootstrap: .env → ServerConfig → effect gate → registration
     ├── metadata.ts                 # name, version, API defaults
     ├── server_instructions.ts      # system prompt injected into the MCP session
     ├── models/                     # GitHub API shapes + the compact shapes sent to the LLM
@@ -319,13 +511,16 @@ tools/github/
     ├── utils/
     │   └── github_search_query.ts  # builds the GitHub search query string
     └── toolbox/
-        ├── index.ts                # TOOL_INSTANCES
+        ├── index.ts                # ToolRegistration + TOOL_REGISTRATIONS
         └── tools/
             ├── list_github_issues.ts
             ├── get_github_issue.ts
             ├── get_github_milestone.ts
             ├── list_github_milestones.ts
-            └── list_github_labels.ts
+            ├── list_github_labels.ts
+            ├── get_github_label.ts
+            ├── create_github_label.ts   # write — gated at registration
+            └── update_github_label.ts   # write — gated at registration
 ```
 
 ---

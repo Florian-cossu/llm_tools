@@ -3,7 +3,7 @@ type: architecture
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: How client, server, toolbox, mappers and the external API fit together, and where each concern lives.
 read_when:
   - you need the whole picture before changing anything
@@ -38,9 +38,9 @@ layer** that talks to an external API and shrinks its answers.
 │  .env ──► ServerConfig ──► buildServerInstructions()     │
 │              │                     └─► system prompt     │
 │              ▼                                           │
-│         TOOL_INSTANCES  ──► server.registerTool() × n    │
+│    TOOL_REGISTRATIONS ─(gate)─► registerTool() × n       │
 └───────────────────────┬─────────────────────────────────┘
-                        │  ToolInstance(server, config)
+                        │  registration.register(server, config)
 ┌───────────────────────▼─────────────────────────────────┐
 │  Toolbox               src/toolbox/tools/*.ts           │
 │    zod inputSchema  ·  default resolution  ·  handler    │
@@ -104,5 +104,5 @@ See [data flows](data-flows.md) and [data schemas](../04-contracts/data-schemas.
 | --- | --- |
 | Local process, stdio, no host | [ADR-0001](../03-decisions/ADR-0001-local-stdio-transport.md) |
 | Bun workspaces, no build step | [ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md) |
-| Read-only by default | [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md) |
+| Writes behind a declared effect class and a startup gate | [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md), superseding [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md) |
 | One server per integration | [ADR-0004](../03-decisions/ADR-0004-server-per-integration.md) |

@@ -2,8 +2,8 @@
 type: harness
 status: planned
 scope: github
-last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_reviewed: 2026-09-02
+last_updated: 2026-09-03
 summary: PLANNED - the reference evaluation scenario, checking a model lists open issues without asking which repository.
 read_when:
   - running an evaluation by hand
@@ -72,6 +72,7 @@ Verbatim. No repository named, no hints.
 | `get_github_issue` called per row | D5/D6 — the list already answers the question |
 | Bodies described | D4 — the list returns none |
 | `search: "is:issue state:open repo:…"` | D3 — those are applied automatically, and the description says so |
+| `search: "label:bug"` rather than `labels: "bug"` | D3 — labels have a dedicated parameter, and `search` says not to write the qualifier |
 | No tool call | Model lacks tool support, or the server is not enabled |
 
 ## Scoring

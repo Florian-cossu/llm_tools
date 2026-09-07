@@ -55,6 +55,8 @@ const toolDir = resolve(TOOLS_DIR, toolName);
 const description = flags.description || `MCP server for ${toolName}`;
 const serverName = toolName;
 const packageName = `@llm-tools/${toolName}`;
+/** `my-server` -> `MY_SERVER`, for the server's own `.env` variables. */
+const envPrefix = toolName.replace(/[^a-z0-9]+/gi, "_").toUpperCase();
 
 if (existsSync(toolDir)) {
   log(`Error: tools/${toolName} already exists.`);
@@ -140,6 +142,10 @@ write(
 
 # Add your environment variables here.
 # MY_API_TOKEN=your_token_here
+
+# Write tools are off unless this is set (1, true, yes or on). Leave it
+# empty and only read-only tools are registered - see ADR-0007.
+${envPrefix}_ALLOW_WRITES=
 `,
 );
 
@@ -173,14 +179,25 @@ write(
   `${toolDir}/src/toolbox/tools/example_tool.ts`,
   `import type { McpServer } from "@modelcontextprotocol/server";
 import * as z from "zod";
+import type { ToolEffect } from "@llm-tools/shared";
 import type { ServerConfig } from "../../index.ts";
+import type { ToolRegistration } from "../index.ts";
 
-export function registerExampleTool(
+export const TOOL_NAME = "example_tool";
+
+/**
+ * What calling this does upstream: "read", "write" or "destructive".
+ * Keep it honest - the server gates registration on it, and a "read"
+ * tool that mutates is a defect. See ADR-0007.
+ */
+export const TOOL_EFFECT: ToolEffect = "read";
+
+function register(
   server: McpServer,
   config: ServerConfig,
 ): void {
   server.registerTool(
-    "example_tool",
+    TOOL_NAME,
     {
       description: "An example tool. Replace this with your own implementation.",
       inputSchema: z.object({
@@ -199,6 +216,12 @@ export function registerExampleTool(
     },
   );
 }
+
+export const exampleTool: ToolRegistration = {
+  name: TOOL_NAME,
+  effect: TOOL_EFFECT,
+  register: register,
+};
 `,
 );
 
@@ -206,12 +229,25 @@ export function registerExampleTool(
 write(
   `${toolDir}/src/toolbox/index.ts`,
   `import type { McpServer } from "@modelcontextprotocol/server";
+import type { ToolEffect } from "@llm-tools/shared";
 import type { ServerConfig } from "../index.ts";
-import { registerExampleTool } from "./tools/example_tool.ts";
+import { exampleTool } from "./tools/example_tool.ts";
 
-export const TOOL_INSTANCES: Array<
-  (server: McpServer, config: ServerConfig) => void
-> = [registerExampleTool];
+export type ToolInstance = (server: McpServer, config: ServerConfig) => void;
+
+/**
+ * One tool, as the server sees it before deciding to register it. The
+ * name and effect sit outside the registrar so the gate in index.ts can
+ * read them without running anything (ADR-0007).
+ */
+export type ToolRegistration = {
+  name: string;
+  effect: ToolEffect;
+  register: ToolInstance;
+};
+
+/** Every tool this server can expose - listed is not the same as registered. */
+export const TOOL_REGISTRATIONS: ToolRegistration[] = [exampleTool];
 `,
 );
 
@@ -221,18 +257,36 @@ write(
   `import { McpServer } from "@modelcontextprotocol/server";
 import { StdioServerTransport } from "@modelcontextprotocol/server/stdio";
 import { APP_NAME, APP_VERSION } from "./metadata.ts";
+import { booleanFromEnv, registrationRefusal } from "@llm-tools/shared";
 import { buildServerInstructions } from "./server_instructions.ts";
-import { TOOL_INSTANCES } from "./toolbox/index.ts";
+import { TOOL_REGISTRATIONS } from "./toolbox/index.ts";
 
 export type ServerConfig = {
   serverName: string;
   serverVersion: string;
+  /** Whether mutating tools may be registered at all. Off by default. */
+  allowWrites: boolean;
 };
 
 const config: ServerConfig = {
   serverName: APP_NAME,
   serverVersion: APP_VERSION,
+  allowWrites: booleanFromEnv(process.env.${envPrefix}_ALLOW_WRITES),
 };
+
+// The gate is here, not in the handlers: a tool whose effect the config
+// does not allow is never registered, so the model never sees a
+// capability it must not use (ADR-0007).
+const allowed = TOOL_REGISTRATIONS.filter((registration) => {
+  const refusal = registrationRefusal(registration.effect, config.allowWrites);
+
+  if (refusal !== null) {
+    // stdout is the JSON-RPC channel - diagnostics go to stderr.
+    console.error(\`Not registering \${registration.name}: it \${refusal}.\`);
+  }
+
+  return refusal === null;
+});
 
 const server = new McpServer(
   {
@@ -244,8 +298,8 @@ const server = new McpServer(
   },
 );
 
-for (const registerTool of TOOL_INSTANCES) {
-  registerTool(server, config);
+for (const registration of allowed) {
+  registration.register(server, config);
 }
 
 const transport = new StdioServerTransport();
@@ -257,6 +311,6 @@ log("Done. Next steps:\n");
 log(`  1. cd tools/${toolName}`);
 log(`  2. Edit .env.example, then: cp .env.example .env`);
 log(`  3. Implement your tools in src/toolbox/tools/`);
-log(`  4. Register them in src/toolbox/index.ts`);
+log(`  4. Register them in src/toolbox/index.ts, declaring each TOOL_EFFECT`);
 log(`  5. From the repo root: node scripts/setup-tools.mjs --write`);
 log("");

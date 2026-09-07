@@ -3,7 +3,7 @@ type: contract
 status: active
 scope: mcp
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: What every MCP server in this repository must provide, guarantee and never do.
 read_when:
   - creating a new MCP server
@@ -41,7 +41,7 @@ Per-tool rules: [tool contract](tool-contract.md).
 | S8 | **Nothing but MCP protocol on `stdout`** | It is the wire. Anything else drops the server — [constraints](../01-context/constraints.md#transport) |
 | S9 | Starts successfully with **no `.env` present** | A missing credential is a per-call error, not a crash. Keeps the server inspectable |
 | S10 | No credential in any log line, error message or response | [security and secrets](security-and-secrets.md) |
-| S11 | Read-only, unless an ADR supersedes [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md) | The model is an untrusted caller |
+| S11 | Every tool declares an effect class, and a mutating tool is registered only when the configuration allows it ([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)) | The model is an untrusted caller, so an unauthorised capability must be absent rather than merely discouraged |
 | S12 | Config read **once** at startup; no reads of `process.env` per call | [execution lifecycle](../02-architecture/components/execution-lifecycle.md) |
 | S13 | Tool calls are stateless and independent | Restart is always safe |
 
@@ -57,8 +57,9 @@ Per-tool rules: [tool contract](tool-contract.md).
   ([ADR-0001](../03-decisions/ADR-0001-local-stdio-transport.md)).
 - Read secrets from `mcp.json`'s `env` — that file is not git-ignored. `.env`
   only.
-- Register tools conditionally on runtime state. `TOOL_INSTANCES` is static;
-  gating on config at *startup* is fine, gating per call is not.
+- Register tools conditionally on **runtime** state. `TOOL_REGISTRATIONS` is
+  static and the gate runs once at startup; gating on config at initialisation
+  is exactly how S11 is met, gating per call is not.
 - Cache API responses between calls.
 - Depend on another server, or on a second integration's credentials
   ([ADR-0004](../03-decisions/ADR-0004-server-per-integration.md)).

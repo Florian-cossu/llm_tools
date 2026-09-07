@@ -1,13 +1,13 @@
 ---
 type: decision
-status: accepted
+status: superseded
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
-summary: No registered tool calls a mutating endpoint; adding a write capability requires an ADR superseding this one.
+last_updated: 2026-09-03
+summary: "SUPERSEDED by ADR-0007: tools were read-only and no registered tool called a mutating endpoint. Kept for the threat model, which still holds."
 read_when:
-  - proposing any tool that creates, edits, closes or deletes
-  - reasoning about what an LLM can do with these tools
+  - you want the threat model a write tool has to answer to
+  - reading history; for the rule in force see ADR-0007
 code_refs:
   - tools/github/src/toolbox/tools/
   - tools/github/src/server_instructions.ts
@@ -18,6 +18,16 @@ tags:
 ---
 
 # ADR-0003: Read-only by default
+
+> [!warning] Superseded by [ADR-0007](ADR-0007-writes-behind-declared-capability.md)
+> **The decision below is no longer in force.** Mutating tools are allowed;
+> `create_github_label` and `update_github_label` are two. Do not cite "no registered tool calls a
+> mutating endpoint" as a current guarantee.
+>
+> What survives is the **Context** section — the reasoning about an
+> injection-prone model choosing its own calls is exactly why ADR-0007 declares
+> effect classes and gates writes at registration rather than trusting
+> validation. Read this for the threat model; read ADR-0007 for the rule.
 
 ## Context
 

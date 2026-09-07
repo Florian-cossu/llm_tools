@@ -3,7 +3,7 @@ type: component
 status: active
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: Anatomy of a tools/<name>/ server folder - the files, the tool.json manifest, and what each directory owns.
 read_when:
   - creating a new MCP server
@@ -43,7 +43,7 @@ tools/<name>/
     ├── mappers/                # Api shape → Compact shape, pure
     ├── utils/                  # pure helpers (query building, …)
     └── toolbox/
-        ├── index.ts            # ToolInstance type + TOOL_INSTANCES
+        ├── index.ts            # ToolRegistration + TOOL_REGISTRATIONS
         └── tools/              # one file per tool
 ```
 
@@ -107,11 +107,16 @@ for each tool.
 
 ## Adding a tool to an existing server
 
-1. Create `src/toolbox/tools/<tool_name>.ts` exporting a `ToolInstance`.
-2. Add it to `TOOL_INSTANCES` in `src/toolbox/index.ts` — **a tool absent from
-   this list does not exist.**
-3. Document it in the server's `README.md`.
+1. Create `src/toolbox/tools/<tool_name>.ts` exporting a `ToolRegistration` —
+   `TOOL_NAME`, `TOOL_EFFECT` and the registrar.
+2. Add it to `TOOL_REGISTRATIONS` in `src/toolbox/index.ts` — **a tool absent
+   from this list does not exist.**
+3. Document it in the server's `README.md`, saying so explicitly if it writes.
 4. Restart the server from the client.
+
+A tool declaring anything but `read` also needs the server's write flag set
+before it is registered at all — see
+[ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md).
 
 The github server scaffolds steps 1–2:
 

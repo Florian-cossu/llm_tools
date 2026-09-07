@@ -3,7 +3,7 @@ type: workflow
 status: planned
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: PLANNED - no on-call or production exists; what remains is credential compromise, which is real and urgent.
 read_when:
   - a token may have been exposed
@@ -65,7 +65,8 @@ means the worst case is that something was *read* and surfaced, not changed. So:
 2. Confirm the endpoint is a read:
    `grep -rn "octokit\.rest" tools/*/src/ | grep -Ev "\.(get|list|search)"`.
 3. If it is **not** a read, that is a contract violation — remove the tool from
-   `TOOL_INSTANCES`, restart, and treat the token as over-scoped.
+   `TOOL_REGISTRATIONS` (or unset `GITHUB_ALLOW_WRITES` if it writes),
+   restart, and treat the token as over-scoped.
 4. If it is a read, the exposure is informational: what did the model surface,
    and to where? Narrow the token's scope
    ([security model](../02-architecture/security-model.md#residual-risks)).

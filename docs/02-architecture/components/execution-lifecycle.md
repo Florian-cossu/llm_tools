@@ -3,7 +3,7 @@ type: component
 status: active
 scope: mcp
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: The lifecycle of a server process - spawn, initialise, serve calls, die with the client - and what is fixed at each stage.
 read_when:
   - a config change does not seem to take effect
@@ -49,7 +49,8 @@ most common confusion:
 | Server instructions | Built from config; a newly-set default won't appear until restart |
 | Tool descriptions | Composed with `describeConfiguredRepository(config…)` at registration |
 | Input schemas | `optionalWhenConfigured(config…)` decides required-vs-optional **once** |
-| Tool list | `TOOL_INSTANCES` — no dynamic registration |
+| Tool list | `TOOL_REGISTRATIONS`, minus whatever the effect gate refused — no dynamic registration |
+| Write capability | `GITHUB_ALLOW_WRITES` is read once. **Enabling writes needs a restart**, and so does turning them off — the tool is already registered ([ADR-0007](../../03-decisions/ADR-0007-writes-behind-declared-capability.md)) |
 
 So a server started before `GITHUB_DEFAULT_OWNER` was set advertises `owner` as
 **required**, and keeps advertising it as required for the life of the process.

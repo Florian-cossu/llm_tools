@@ -3,7 +3,7 @@ type: workflow
 status: active
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: Clone, install, configure, register and iterate - the day-to-day loop for working on a server.
 read_when:
   - setting the repository up for the first time
@@ -133,7 +133,8 @@ reinstall, and it covers every workspace at once.
   process.
 - **Descriptions are an interface**, not comments
   ([agent contract](../04-contracts/agent-contract.md)).
-- **A tool absent from `TOOL_INSTANCES` does not exist.**
+- **A tool absent from `TOOL_REGISTRATIONS` does not exist** — and one
+  whose effect the config disallows is dropped even though it is listed.
 - **Never commit `.env`.**
 
 ## When something is wrong

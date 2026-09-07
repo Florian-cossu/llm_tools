@@ -3,7 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: What llm_tools is trying to be, and the things it deliberately refuses to become.
 read_when:
   - proposing a feature, dependency or architectural change
@@ -36,7 +36,10 @@ about.
    how a server installs and launches, so a Python or Go server drops in
    without touching the scripts.
    See [setup and registration](../02-architecture/components/setup-and-registration.md).
-6. **Default to read-only.** See [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md).
+6. **Default to read-only, and make any exception declare itself.** A tool
+   states its effect class, and a mutating one is not registered unless the user
+   enabled writes.
+   See [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md).
 
 ## Non-goals
 
@@ -45,7 +48,7 @@ about.
 | Hosting servers, or an HTTP/SSE transport | Local stdio keeps credentials local and the setup trivial | [ADR-0001](../03-decisions/ADR-0001-local-stdio-transport.md) |
 | A build/bundle step | Bun runs TypeScript directly; a build is one more thing to break between edit and restart | [ADR-0002](../03-decisions/ADR-0002-bun-workspaces.md) |
 | One mega-server fronting every integration | Credentials, rate limits and failure blast radius stay separated per integration | [ADR-0004](../03-decisions/ADR-0004-server-per-integration.md) |
-| Write operations by default | An LLM calling a destructive tool unprompted is the failure this repo refuses | [ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md) |
+| Write operations **by default** | An LLM calling a destructive tool unprompted is the failure this repo refuses. Writes exist, off unless enabled, and irreversible ones not at all | [ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md) |
 | Being a general-purpose GitHub client | Only the endpoints a model actually needs, in the shape it can use | [github API](../04-contracts/github-api.md) |
 | Publishing to npm, or a plugin marketplace | Personal tooling, cloned and run in place | — |
 | Multi-user, auth, or tenancy | One machine, one user, one `.env` | [ADR-0001](../03-decisions/ADR-0001-local-stdio-transport.md) |

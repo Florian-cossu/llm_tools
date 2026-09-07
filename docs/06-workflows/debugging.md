@@ -3,7 +3,7 @@ type: workflow
 status: active
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: Ordered diagnosis - is the server running, is the transport intact, is the model calling, is the call correct.
 read_when:
   - a server does not appear in the client
@@ -70,7 +70,7 @@ defaults.
 
 | Observed | Fix |
 | --- | --- |
-| Tool missing | Not in `TOOL_INSTANCES` |
+| Tool missing | Not in `TOOL_REGISTRATIONS`, or its effect was refused by the startup gate — check **stderr** for `Not registering …` |
 | Wrong name | `TOOL_NAME` ≠ what you expected — the filename is irrelevant |
 | Instructions empty | `.env` defaults unset, or server not restarted |
 | Defaults absent from instructions | `stringOrNull` returned `null` — check for an empty `GITHUB_DEFAULT_OWNER=` |

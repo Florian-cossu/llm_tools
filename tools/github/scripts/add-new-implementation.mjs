@@ -34,6 +34,7 @@ const { values: flags, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     description: { type: "string", default: "" },
+    effect: { type: "string", default: "read" },
     help: { type: "boolean", short: "h", default: false },
   },
 });
@@ -46,11 +47,15 @@ Add a new tool implementation to the GitHub toolbox.
 
 Options
   --description "..."   First sentence of the tool description
+  --effect read|write   What the tool does upstream (default: read). A write
+                        tool is registered only when GITHUB_ALLOW_WRITES is
+                        set. "destructive" is rejected: see ADR-0007.
   -h, --help            Show this help
 
 Example
-  node tools/github/scripts/add-new-implementation.mjs close_github_issue \\
-    --description "Close a single issue of a GitHub repository by its number."
+  node tools/github/scripts/add-new-implementation.mjs create_github_comment \\
+    --effect write \\
+    --description "Add a comment to a single issue of a GitHub repository."
 `);
   process.exit(0);
 }
@@ -86,28 +91,53 @@ if (!existsSync(TOOLS_DIR)) {
   fail(`${relative(REPO_ROOT, TOOLS_DIR)} does not exist.`);
 }
 
+/**
+ * The effect class, declared up front because it decides the shape of the
+ * scaffold: a write tool opens its description with `describeMutation`.
+ * `destructive` is refused here rather than at startup, so the mistake is
+ * caught before a file exists (ADR-0007 D3).
+ */
+const effect = flags.effect.trim().toLowerCase();
+
+if (effect === "destructive") {
+  fail(
+    `no tool may declare the "destructive" effect yet - see ` +
+      `docs/03-decisions/ADR-0007-writes-behind-declared-capability.md.`,
+  );
+}
+if (effect !== "read" && effect !== "write") {
+  fail(`--effect must be "read" or "write", not "${flags.effect}".`);
+}
+
 const description =
   flags.description ||
   `TODO: describe what ${toolName} returns and when to call it.`;
 
 log(`\nAdding tool: ${toolName}`);
 log(`  Export:    ${exportName}`);
+log(`  Effect:    ${effect}`);
+if (effect === "write") {
+  log(`  Note:      registered only when GITHUB_ALLOW_WRITES is set`);
+}
 log("");
 
 write(
   toolFile,
   `import z from "zod";
-import { ToolInstance } from "../index.js";
+import { ToolInstance, ToolRegistration } from "../index.js";
 import {
   describeConfiguredRepository,
-  describeDefault,
+  describeDefault,${effect === "write" ? "\n  describeMutation," : ""}
   isStringUsable,
   optionalWhenConfigured,
+  ToolEffect,
 } from "@llm-tools/shared";
 
 export const TOOL_NAME = "${toolName}";
 
-export const ${exportName}: ToolInstance = (server, config) => {
+export const TOOL_EFFECT: ToolEffect = "${effect}";
+
+const register: ToolInstance = (server, config) => {
   server.registerTool(
     TOOL_NAME,
     {
@@ -115,7 +145,7 @@ export const ${exportName}: ToolInstance = (server, config) => {
         describeConfiguredRepository(
           config.defaultOwner,
           config.defaultRepository,
-        ) +
+        ) +${effect === "write" ? "\n        describeMutation(TOOL_EFFECT) +" : ""}
         \`${description.replace(/[\\`$]/g, "\\$&")}\`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
@@ -185,11 +215,17 @@ export const ${exportName}: ToolInstance = (server, config) => {
     },
   );
 };
+
+export const ${exportName}: ToolRegistration = {
+  name: TOOL_NAME,
+  effect: TOOL_EFFECT,
+  register: register,
+};
 `,
 );
 
 /**
- * Adds the import and the TOOL_INSTANCES entry to `toolbox/index.ts`.
+ * Adds the import and the TOOL_REGISTRATIONS entry to `toolbox/index.ts`.
  *
  * The list is a flat array of bare identifiers, so splitting it on commas
  * is enough; a comment inside the array would need this rewritten.
@@ -204,12 +240,12 @@ const registerInToolbox = () => {
   }
 
   const arrayPattern =
-    /(export const TOOL_INSTANCES: ToolInstance\[\] = \[)([\s\S]*?)(\n?\];)/;
+    /(export const TOOL_REGISTRATIONS: ToolRegistration\[\] = \[)([\s\S]*?)(\n?\];)/;
   const arrayMatch = source.match(arrayPattern);
 
   if (!arrayMatch) {
     log(
-      `  warning: could not find TOOL_INSTANCES in ` +
+      `  warning: could not find TOOL_REGISTRATIONS in ` +
         `${relative(REPO_ROOT, TOOLBOX_INDEX)}; register ${exportName} by hand.`,
     );
     return;

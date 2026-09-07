@@ -3,7 +3,7 @@ type: workflow
 status: draft
 scope: repo
 last_reviewed: 2026-09-01
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: The manual validation checklist that is the only real gate today, plus what an automated suite would need.
 read_when:
   - validating a change before committing
@@ -123,15 +123,30 @@ For each tool:
 
 ### 4. Read-only
 
-- [ ] Every Octokit call in the diff is a read
-- [ ] No `.create`, `.update`, `.delete`, `.add`, `.remove`, `.merge`
+- [ ] Every Octokit call in the diff matches its tool's declared `TOOL_EFFECT`
+- [ ] No `.delete`, `.remove`, `.merge` — those are `destructive`, and no tool
+      may declare that yet. `.create` and `.update` are `write`: they have a
+      compensating action, so [D3](../03-decisions/ADR-0007-writes-behind-declared-capability.md)
+      allows them
 
 ```bash
 grep -rn "octokit\.rest" tools/*/src/ | grep -Ev "\.(get|list|search)"
 ```
 
-Non-empty output needs an ADR superseding
-[ADR-0003](../03-decisions/ADR-0003-read-only-by-default.md).
+Every line of output must come from a file declaring `TOOL_EFFECT = "write"`.
+Today that is exactly two: `create_github_label` calling `issues.createLabel`,
+and `update_github_label` calling `issues.updateLabel`. A mutating call in a
+file declaring `read` is a contract violation
+([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md)) —
+and the likeliest one to reach review, since a tool scaffolded from a read keeps
+`read` until someone changes it.
+
+- [ ] With `GITHUB_ALLOW_WRITES` unset, the server logs
+      `Not registering create_github_label` and
+      `Not registering update_github_label` to **stderr** and the model's tool
+      list has six entries
+- [ ] With it set, the tool list has eight and the server instructions **name
+      both write tools** rather than promising read-only
 
 ### 5. Model behaviour
 
@@ -162,9 +177,11 @@ In value order — details in [harness overview](../05-harness/overview.md) and
    [fixtures](../05-harness/fixtures/github/README.md) — pure functions, no MCP, no network.
 2. **Description/schema tests**: a configured server makes `owner` optional and
    interpolates the value; an unconfigured one does neither.
-3. **A registration sanity test**: every entry in `TOOL_INSTANCES` has a
+3. **A registration sanity test**: every entry in `TOOL_REGISTRATIONS` has a
    substantial description and no `TODO` in its source. This alone would have
-   caught `list_github_milestones` shipping as scaffold.
+   caught `list_github_milestones` shipping as scaffold. Extend it to the
+   effect class — a tool declaring `read` whose source calls anything but
+   `.get`/`.list`/`.search` should fail the test.
 4. Handler tests with a stubbed `config.octokit`.
 
 `tsc --noEmit`, which used to head this list, is done — it is `bun run

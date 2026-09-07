@@ -3,7 +3,7 @@ type: context
 status: active
 scope: repo
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-03
 summary: Vocabulary used across this vault - MCP terms, repo-specific types, and GitHub concepts.
 read_when:
   - a term in another note is unfamiliar
@@ -63,14 +63,27 @@ file under `src/toolbox/tools/`. Governed by the
 [tool contract](../04-contracts/tool-contract.md).
 
 ### `ToolInstance`
-The single shape every tool module exports:
-`(server: McpServer, config: ServerConfig) => void`. Registering a tool means
-writing the file and adding it to `TOOL_INSTANCES`. Defined in
+The registrar function every tool module keeps:
+`(server: McpServer, config: ServerConfig) => void`. It is now wrapped rather
+than exported directly — see `ToolRegistration`. Defined in
 [`toolbox/index.ts`](../../tools/github/src/toolbox/index.ts).
 
-### `TOOL_INSTANCES`
-The array in `src/toolbox/index.ts` listing every tool the server exposes. The
-registration list — if a tool isn't here, it doesn't exist.
+### `ToolRegistration`
+The shape every tool module exports: `{ name, effect, register }`. The name and
+the effect sit outside the registrar so the server can decide whether to
+register the tool *before* running it, and so the future permission layer can
+enumerate tools without executing anything.
+
+### `TOOL_REGISTRATIONS`
+The array in `src/toolbox/index.ts` listing every tool the server *can* expose.
+If a tool isn't here it doesn't exist — but being here is not enough: the
+startup gate drops any whose effect the configuration disallows.
+
+### effect class
+What a tool does upstream: `read`, `write` or `destructive`. Declared per tool
+as `TOOL_EFFECT`, read by the registration gate and by `describeMutation`.
+`read` is the default and is binding. See
+[ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md).
 
 ### `ServerConfig`
 The per-server context object built once at startup from `.env` and passed to
