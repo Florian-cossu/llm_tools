@@ -3,7 +3,7 @@ type: component
 status: active
 scope: github
 last_reviewed: 2026-09-05
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 summary: The github MCP server - its fourteen tools (six reads and eight gated writes), their response shapes, and its configuration.
 read_when:
   - working on any github tool
@@ -381,14 +381,19 @@ Two things worth knowing about the shared parameters:
 
 | Variable | Effect when set |
 | --- | --- |
-| `GITHUB_TOKEN` | Authenticates. Without it: public repos only, 60 req/h |
+| *(whichever key is the active `auth` token)* | Authenticates. Without an active one: public repos only, 60 req/h |
 | `GITHUB_DEFAULT_USERNAME` | Resolves `@me`; enables the identity paragraph |
 
-Only two variables remain. The owner/repository fallback is no longer an env
-var: `defaultOwner`/`defaultRepository` come from whichever `github_profiles`
-row has `is_active = 1`, read via `tools/github/src/utils/get_repo_config.ts`'s
-`getActiveGithubProfile` — add and activate a profile in the control panel
-instead of setting `GITHUB_DEFAULT_OWNER`/`GITHUB_DEFAULT_REPOSITORY`.
+The token is no longer a fixed `GITHUB_TOKEN` lookup either: `data/access.ts`'s
+`getActiveTokenName("github", "auth")` reads which `env` row is active for
+github's `auth` type, and `index.ts` reads that row's `token_name` out of
+`process.env` — add the key to `.env` under any name, then register and
+activate it in the control panel. The owner/repository fallback works the
+same way it already did: `defaultOwner`/`defaultRepository` come from
+whichever `github_profiles` row has `is_active = 1`, read via
+`tools/github/src/utils/get_repo_config.ts`'s `getActiveGithubProfile` — add
+and activate a profile in the control panel instead of setting
+`GITHUB_DEFAULT_OWNER`/`GITHUB_DEFAULT_REPOSITORY`.
 `github_profiles` is github-specific, so its model and query live in the
 github tool rather than in `data/access.ts` alongside the cross-server
 `servers`/`permissions` tables — `data/access.ts` exports `getDb` and
@@ -402,8 +407,15 @@ There is no env var for write capability either: whether `create_github_label`,
 `delete_github_milestone` register is decided entirely by
 their permission-table rows, edited through the same control panel
 ([ADR-0009](../../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
-Both the active profile and every permission row are read once at
-registration, so changing either needs a **server restart**.
+Every permission row is still read once at registration, so changing one
+still needs a **server restart** — that is what decides the tool list itself.
+The active profile (and the active token) are different: `config`'s
+`defaultOwner`, `defaultRepository`, `token` and `octokit` are getters, not
+plain fields (see [MCP server](mcp-server.md#serverconfig)), so a tool call
+reads whichever row is active *at call time* — switching the active profile
+or token in the control panel takes effect on the very next call, no restart.
+What still needs a restart is the tool **descriptions and schemas** mentioning
+the repository, since those are strings built once when a tool registers.
 
 ## Adding a tool
 

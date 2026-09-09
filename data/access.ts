@@ -52,7 +52,7 @@ export function findServerBySlug(slug: string): ServerDescriptor | null {
   return row ? toServerDescriptor(row) : null;
 }
 
-const PERMISSIONS_ROWS = `id, server_id, slug, tool_effect, description, state, default_state`
+const PERMISSIONS_ROWS = `id, server_id, slug, tool_effect, description, state, default_state`;
 
 /** Every permissions. */
 export function listToolPermissions(): ToolPermission[] {
@@ -62,8 +62,11 @@ export function listToolPermissions(): ToolPermission[] {
 }
 
 /** One row by slug, or `null` if the tool has no row yet. */
-export function findToolPermission(slug: string, server_slug: string): ToolPermission | null {
-  let serverId = findServerBySlug(server_slug)?.id
+export function findToolPermission(
+  slug: string,
+  server_slug: string,
+): ToolPermission | null {
+  let serverId = findServerBySlug(server_slug)?.id;
 
   if (!serverId) return null;
 
@@ -76,8 +79,8 @@ export function findToolPermission(slug: string, server_slug: string): ToolPermi
 }
 
 /** One row by slug, or `null` if the tool has no row yet. */
-export function isToolAllowed(slug: string, server_slug: string):boolean {
-  let serverId = findServerBySlug(server_slug)?.id
+export function isToolAllowed(slug: string, server_slug: string): boolean {
+  let serverId = findServerBySlug(server_slug)?.id;
 
   if (!serverId) return false;
 
@@ -86,5 +89,28 @@ export function isToolAllowed(slug: string, server_slug: string):boolean {
       ToolPermission,
       [string, number]
     >(`SELECT ${PERMISSIONS_ROWS} FROM permissions WHERE slug = ? AND server_id = ?`)
-    .get(slug, serverId)?.state == "allow" ? true : false;
+    .get(slug, serverId)?.state == "allow"
+    ? true
+    : false;
+}
+
+/**
+ * The env var name of the active token for a server + type, or `null` if
+ * none is active (or the server doesn't exist). Only the name is ever read
+ * here - the secret value lives in `.env` and is the caller's job to read
+ * via `process.env[name]`.
+ */
+export function getActiveTokenName(server_slug: string, type: string): string | null {
+  let serverId = findServerBySlug(server_slug)?.id;
+
+  if (!serverId) return null;
+
+  return (
+    getDb()
+      .query<
+        { token_name: string },
+        [number, string]
+      >(`SELECT token_name FROM env WHERE server_id = ? AND type = ? COLLATE NOCASE AND is_active = 1`)
+      .get(serverId, type)?.token_name ?? null
+  );
 }

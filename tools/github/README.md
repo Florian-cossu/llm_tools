@@ -803,15 +803,17 @@ cp .env.example .env
 
 | Variable                    | Purpose                                                                                                                                                      |
 | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GITHUB_TOKEN`              | Personal access token. Without it you're limited to public repos and 60 requests/hour. A classic token with `repo` (or fine-grained _Issues: read_) is enough. |
+| *(your choice)*             | Personal access token value. There is no fixed name like `GITHUB_TOKEN` anymore — add the key under whatever name you like, then register and activate it as the `auth`-type token for `github` in the control panel; the active row's name is what gets read from `.env`. Without an active token you're limited to public repos and 60 requests/hour. A classic token with `repo` (or fine-grained _Issues: read_) is enough. |
 | `GITHUB_DEFAULT_USERNAME`   | GitHub login the `@me` sentinel resolves to in search queries.                                                                                                |
 
-Both optional. There is no env var for owner/repository anymore: add a profile in the
+Both optional. There is no env var for owner/repository anymore either: add a profile in the
 control panel (`bun run dev:panel`) and toggle it active — `defaultOwner`/`defaultRepository`
 come from whichever `github_profiles` row has `is_active = 1`. Activating one is what lets
 you skip naming the repository in every prompt — the value is injected into the server
-instructions and the tool descriptions, so the model stops asking. Switching the active
-profile needs a server restart, same as any other configuration here.
+instructions and the tool descriptions, so the model stops asking on the *next* restart.
+Switching the active profile or the active token, though, takes effect on a tool's very
+next call with no restart needed — both are read fresh per call, not cached at startup.
+A restart is only still required to refresh the instructions/description text itself.
 
 There is no `.env` variable for write capability. What changes what the model can *do*
 rather than what it has to be told is the **permission table**, edited through the

@@ -3,7 +3,7 @@ type: contract
 status: active
 scope: github
 last_reviewed: 2026-09-02
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 summary: The GitHub REST endpoints this server calls, their quirks, and the rate limits that shape tool design.
 read_when:
   - adding a tool that calls the GitHub API
@@ -22,8 +22,9 @@ tags:
 # GitHub API contract
 
 Base URL `https://api.github.com`, accessed through **Octokit**, one instance
-per server on `config.octokit`. Authenticated with `GITHUB_TOKEN`, or
-unauthenticated when it is absent.
+per server on `config.octokit`. Authenticated with whichever `.env` key is the
+active `auth`-type token for `github` (`getActiveTokenName("github", "auth")`
+in `data/access.ts`), or unauthenticated when none is active.
 
 ## Endpoints in use
 
@@ -221,7 +222,8 @@ and across every client using that token
 ## Authentication
 
 ```ts
-const token = stringOrNull(process.env.GITHUB_TOKEN);
+const activeTokenName = getActiveTokenName("github", "auth");
+const token = activeTokenName ? stringOrNull(process.env[activeTokenName]) : null;
 const octokit = new Octokit({ auth: token });
 ```
 

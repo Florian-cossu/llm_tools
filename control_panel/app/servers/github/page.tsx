@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { AddProfileForm } from "./components/add-profile-form";
 import { listGithubProfiles } from "./lib/github_profiles";
 import GithubProfilesTable from "./components/github_profiles_table";
+import TokensManager from "@/components/tokens_manager";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +78,12 @@ export default async function GithubServerPage() {
         <Card className="p-4">
           <AddProfileForm />
           <GithubProfilesTable profiles={githubProfiles} />
+        </Card>
+      </div>
+
+      <div className="flex flex-col gap-4">
+        <Card className="p-4">
+          <TokensManager serverSlug="github" />
         </Card>
       </div>
 
