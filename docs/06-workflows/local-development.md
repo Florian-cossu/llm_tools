@@ -3,7 +3,7 @@ type: workflow
 status: active
 scope: repo
 last_reviewed: 2026-09-05
-last_updated: 2026-09-06
+last_updated: 2026-09-09
 summary: Clone, install, configure, register and iterate - the day-to-day loop for working on a server.
 read_when:
   - setting the repository up for the first time
@@ -110,10 +110,15 @@ bun run migrate          # data/harness.db must exist first
 bun run dev:panel        # starts the Next.js app
 ```
 
-Reads and edits `github_mcp` — see
-[control panel](../02-architecture/components/control-panel.md). It does not
-gate anything: editing a tool's `state` here has no effect on what the github
-server registers. If a `shadcn` command touched `control_panel/`, run
+Reads and edits `servers`, `permissions`, `github_profiles` and `env` — see
+[control panel](../02-architecture/components/control-panel.md). Editing a
+tool's `state` here **is** the registration gate
+([ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md),
+[ADR-0009](../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)):
+it takes a github server restart to matter, since the table is read once at
+startup. Activating a `github_profiles` row or an `env` token is different —
+both are read per tool call, so they take effect on the next call with no
+restart. If a `shadcn` command touched `control_panel/`, run
 `bun run rehome:panel` before committing
 ([ADR-0005](../03-decisions/ADR-0005-root-dependencies.md#control_panel-and-shadcn)).
 
