@@ -15,8 +15,7 @@ import {
 } from "@/components/ui/card";
 import { GithubIcon } from "@/components/icons/github-icon";
 import { getGithubTools } from "@/lib/github/tools";
-import permissionCards from "./components/tool_cards_by_slug";
-import { Separator } from "@/components/ui/separator";
+import permissionCards from "../../../components/tool_cards_by_slug";
 import { AddProfileForm } from "./components/add-profile-form";
 import { listGithubProfiles } from "./lib/github_profiles";
 import GithubProfilesTable from "./components/github_profiles_table";
