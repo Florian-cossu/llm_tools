@@ -32,9 +32,12 @@ export function getDb(): Database {
   return db;
 }
 
+const SERVER_ROWS =
+  "id, slug, server_name, description, icon_name, icon_source";
+
 export function listServers(): ServerDescriptor[] {
   const rows = getDb()
-    .prepare("SELECT id, slug, server_name, description FROM servers")
+    .prepare(`SELECT ${SERVER_ROWS} FROM servers`)
     .all() as ServerRow[];
 
   return rows.map(toServerDescriptor);
@@ -43,9 +46,7 @@ export function listServers(): ServerDescriptor[] {
 /** One server row by slug, or `null` if it doesn't exist. */
 export function findServerBySlug(slug: string): ServerDescriptor | null {
   const row = getDb()
-    .prepare(
-      "SELECT id, slug, server_name, description FROM servers WHERE slug = ?",
-    )
+    .prepare(`SELECT ${SERVER_ROWS} FROM servers WHERE slug = ?`)
     .get(slug) as ServerRow | undefined;
 
   return row ? toServerDescriptor(row) : null;

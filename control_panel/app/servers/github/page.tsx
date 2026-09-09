@@ -13,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { GithubIcon } from "@/components/icons/github-icon";
 import { getGithubTools } from "@/lib/github/tools";
 import permissionCards from "./components/tool_cards_by_slug";
 import { Separator } from "@/components/ui/separator";
@@ -40,8 +41,9 @@ export default async function GithubServerPage() {
 
   return (
     <div className="mx-auto flex w-[80%] flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">GitHub</h1>
+      <div className="flex flex-row gap-2 items-center">
+        <GithubIcon className="size-11.5" />
+        <h1 className="text-4xl font-semibold tracking-tight m-0">GitHub</h1>
       </div>
 
       <Card>
