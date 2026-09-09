@@ -12,17 +12,18 @@ tags:
 
 # The behaviour under test, in one line.
 asserts: >
-  With an active github_profiles row (owner/repository) and
-  GITHUB_DEFAULT_USERNAME configured, the model calls list_github_issues once,
-  omits both parameters, and asks the user nothing.
+  With an active github_profiles row (owner/repository), an active env token
+  for github's auth type, and GITHUB_DEFAULT_USERNAME configured, the model
+  calls list_github_issues once, omits both parameters, and asks the user
+  nothing.
 
 # Must all be set for the scenario to be valid.
 preconditions:
   env:
-    - GITHUB_TOKEN
     - GITHUB_DEFAULT_USERNAME
   db:
     - one github_profiles row for the github server with is_active = 1
+    - one env row for the github server, type "auth", with is_active = 1
   model_requires_tool_calling: true
   fresh_conversation: true
   server_restarted_after_config_change: true

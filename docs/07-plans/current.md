@@ -3,7 +3,7 @@ type: plan
 status: draft
 scope: repo
 last_reviewed: 2026-09-06
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 summary: NOT AUTHORITATIVE - what is half-finished right now and what is worth doing next.
 read_when:
   - picking up work
@@ -99,6 +99,52 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
 
 ## Done
 
+- **The active auth token is read from the `env` table, and `ServerConfig`'s
+  DB-backed fields are now getters, read per tool call, not once at startup.**
+  `data/access.ts` gained `getActiveTokenName(server_slug, type)`, querying a
+  new `env` table (`data/migrations/0007_init_tokens_by_server.sql`) that maps
+  each server to the `.env` key names it can use, scoped by `type` (e.g.
+  `"auth"`) — a partial unique index (`WHERE is_active = 1`) enforces at most
+  one active token per `(server_id, type)`. `tools/github/src/index.ts` no
+  longer reads a hardcoded `GITHUB_TOKEN`: it resolves the active token's env
+  var name, then reads its value from `process.env`. Bigger than the token
+  itself: `config.token`, `config.octokit`, `config.defaultOwner` and
+  `config.defaultRepository` were converted from plain fields to getters, so
+  every tool handler (which reads `config.foo` inside its `async` body, at
+  call time) now sees whichever token/profile is currently active — switching
+  either in the control panel takes effect on the next tool call, no restart.
+  Still restart-gated: the permission table (unchanged, still gates
+  registration) and the tool **descriptions/schemas**, which read `config` once,
+  synchronously, while `registration.register(server, config)` builds their
+  strings — so the *text* shown to the model still reflects whatever was
+  active at the last restart even though the behavior is already current. See
+  [MCP server](../02-architecture/components/mcp-server.md#serverconfig).
+  A control-panel-side gap surfaced while building this: `env` rows read
+  through `node:sqlite` aren't plain objects, and a Server Component handing
+  one straight to a Client Component (`TokenActiveToggle`) crashed with
+  React's "Only plain objects... can be passed to Client Components" — fixed
+  by mapping rows through a `toTokenRow` function, the same pattern
+  `servers.ts`/`github_profiles.tsx` already used and the fix this entry's
+  code review should have caught before it shipped.
+  **A second real bug shipped in the same batch and was only caught by a
+  live "Requires authentication" failure on `update_github_issue`**: `type`
+  is deliberately unconstrained free text (no `CHECK`, per the design
+  discussion), and the add-token form's suggested type comes straight from
+  the `.env` key's `__SUFFIX`, which is naturally uppercase (`__AUTH`) — but
+  `getActiveTokenName("github", "auth")`'s call site, and
+  `setTokenActive`'s sibling-deactivation query, both compared `type` with a
+  hardcoded lowercase literal / case-sensitive `=`. SQLite's default
+  collation is case-sensitive, so an active row stored as `type = "AUTH"`
+  matched neither, the lookup silently returned `null`, and Octokit built an
+  unauthenticated client despite a genuinely valid, genuinely active token.
+  Fixed by adding `COLLATE NOCASE` to both comparisons rather than forcing a
+  casing convention on stored values. **Not yet fixed**: the partial unique
+  index itself (`idx_env_active_per_type`) still uses the default
+  case-sensitive collation, so it would not stop `"auth"` and `"AUTH"` rows
+  from both being `is_active = 1` at once if a row were written outside
+  `setTokenActive` (e.g. directly in SQL) — closing that needs a migration
+  recreating the index with `type COLLATE NOCASE`, not just a query change.
+
 - **`github_profiles`'s active row now sets `defaultOwner`/`defaultRepository`,
   closing the gap the previous entry (below) used to describe** — and
   `GITHUB_DEFAULT_OWNER`/`GITHUB_DEFAULT_REPOSITORY` are gone from `.env.example`,
@@ -123,9 +169,11 @@ but still runs no tests. See [testing](../06-workflows/testing.md).
     the github tool. `data/access.ts` exports `getDb` and `findServerBySlug`
     as the generic primitives that query is built on, and owns nothing
     github-specific anymore.
-  `tools/github/src/index.ts` calls `getActiveGithubProfile()` once at startup
-  and feeds the result into `ServerConfig`, same as `.env` values used to be.
-  Restart still required to pick up a newly activated profile.
+  `tools/github/src/index.ts` originally called `getActiveGithubProfile()`
+  once at startup and fed the result into `ServerConfig`, same as `.env`
+  values used to be, needing a restart to pick up a newly activated profile —
+  **superseded by the entry above this one**: `defaultOwner`/`defaultRepository`
+  are now getters, read per tool call.
 
 - **`GITHUB_ALLOW_WRITES` removed; the permission table is the only registration
   gate** ([ADR-0009](../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).

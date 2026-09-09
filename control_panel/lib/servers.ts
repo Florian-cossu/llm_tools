@@ -9,14 +9,25 @@ const DB_PATH = resolve(
 
 let db: DatabaseSync | undefined;
 
+type ServerIconSource = "lucide" | "local";
+
 export type ServerDescriptor = {
   id: number;
   slug: string;
   server_name: string;
   description: string;
+  icon_name?: string;
+  icon_source?: ServerIconSource;
 }
 
-type ServerRow = { id: number; slug: string; server_name: string; description: string };
+type ServerRow = {
+  id: number;
+  slug: string;
+  server_name: string;
+  description: string;
+  icon_name: string | null;
+  icon_source: ServerIconSource | null;
+};
 
 function toServerDescriptor(row: ServerRow): ServerDescriptor {
   return {
@@ -24,6 +35,8 @@ function toServerDescriptor(row: ServerRow): ServerDescriptor {
     slug: row.slug,
     server_name: row.server_name,
     description: row.description,
+    icon_name: row.icon_name ?? undefined,
+    icon_source: row.icon_source ?? undefined,
   };
 }
 
@@ -47,7 +60,7 @@ function getDb(): DatabaseSync {
  */
 export function listServers(): ServerDescriptor[] {
   const rows = getDb()
-    .prepare("SELECT id, slug, server_name, description FROM servers")
+    .prepare("SELECT * FROM servers")
     .all() as ServerRow[];
 
   return rows.map(toServerDescriptor);
@@ -56,7 +69,7 @@ export function listServers(): ServerDescriptor[] {
 /** One server row by slug, or `null` if it doesn't exist. */
 export function findServerBySlug(slug: string): ServerDescriptor | null {
   const row = getDb()
-    .prepare("SELECT id, slug, server_name, description FROM servers WHERE slug = ?")
+    .prepare("SELECT * FROM servers WHERE slug = ?")
     .get(slug) as ServerRow | undefined;
 
   return row ? toServerDescriptor(row) : null;

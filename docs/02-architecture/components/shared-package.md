@@ -3,7 +3,7 @@ type: component
 status: active
 scope: shared
 last_reviewed: 2026-08-30
-last_updated: 2026-09-01
+last_updated: 2026-09-09
 summary: "@llm-tools/shared: string guards plus the helpers that keep a parameter's prose and its schema in agreement."
 read_when:
   - writing tool or parameter descriptions
@@ -36,7 +36,7 @@ Imported as `@llm-tools/shared`, mapped to source by the root
 
 `stringOrNull` is the standard way to read `.env`. It exists because
 `process.env.FOO ?? null` is wrong here: an unset variable and an empty one
-(`GITHUB_TOKEN=` — exactly what `.env.example` produces on copy) must behave
+(`SOME_VAR=` — exactly what `.env.example` produces on copy) must behave
 identically, and `??` only catches the first.
 
 ## `tool_description.ts`

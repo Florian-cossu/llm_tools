@@ -6,6 +6,7 @@ import {
   isStringUsable,
   optionalWhenConfigured,
   ToolEffect,
+  withTracking,
 } from "@llm-tools/shared";
 import { DEFAULT_LABEL_LIMIT } from "../../metadata.js";
 import { GithubApiLabel, GithubCompactLabel } from "../../models/github_labels.js";
@@ -70,7 +71,7 @@ const register: ToolInstance = (server, config) => {
           ),
       }),
     },
-    async ({ owner, repository, limit }) => {
+    async ({ owner, repository, limit }) => withTracking("github", TOOL_NAME, async () => {
       const effectiveOwner = owner?.trim() || config.defaultOwner;
       const effectiveRepository =
         repository?.trim() || config.defaultRepository;
@@ -112,7 +113,7 @@ const register: ToolInstance = (server, config) => {
           },
         ],
       };
-    },
+    }),
   );
 };
 

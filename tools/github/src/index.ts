@@ -10,7 +10,7 @@ import { stringOrNull } from "@llm-tools/shared";
 import { TOOL_REGISTRATIONS } from "./toolbox/index.js";
 import { buildServerInstructions } from "./server_instructions.js";
 import { fileURLToPath } from "node:url";
-import { isToolAllowed } from "@llm-tools/data"
+import { getActiveTokenName, isToolAllowed } from "@llm-tools/data"
 import { getActiveGithubProfile } from "./utils/get_repo_config.js";
 
 export type ServerConfig = {
@@ -37,19 +37,56 @@ dotenv.config({
   quiet: true,
 });
 
-const token = stringOrNull(process.env.GITHUB_TOKEN);
-const octokit = new Octokit({ auth: token });
+// The permission table's `env` rows name the active token per server + type
+// (ADR-0008's pattern extended to credentials) - this reads which env var is
+// active for github's "auth" type, then the value out of process.env. Never
+// a hardcoded `GITHUB_TOKEN` lookup: the active row can point at any key.
+//
+// `token`, `octokit`, `defaultOwner` and `defaultRepository` below are
+// getters, not plain fields: every tool handler closes over the same
+// `config` object, so re-reading the DB/env on each access means switching
+// the active token or profile in the control panel takes effect on a tool's
+// very next call - no restart needed. What a restart is still needed for is
+// tool descriptions and input schemas (e.g. `describeConfiguredRepository`
+// in each tool file), since those are strings baked in once at
+// `registration.register(server, config)` below, not re-evaluated per call.
+function resolveActiveToken(): string | null {
+  const activeTokenName = getActiveTokenName("github", "auth");
 
-const activeProfile = getActiveGithubProfile();
+  if (!activeTokenName) {
+    console.error(
+      "No active auth token configured for github - set one active in the control panel.",
+    );
+    return null;
+  }
+
+  const value = stringOrNull(process.env[activeTokenName]);
+
+  if (!value) {
+    console.error(
+      `Active auth token "${activeTokenName}" has no value in tools/github/.env.`,
+    );
+  }
+
+  return value;
+}
 
 const config: ServerConfig = {
   serverName: APP_NAME,
   serverVersion: APP_VERSION,
-  token: token,
-  octokit: octokit,
+  get token() {
+    return resolveActiveToken();
+  },
+  get octokit() {
+    return new Octokit({ auth: this.token });
+  },
   defaultUsername: stringOrNull(process.env.GITHUB_DEFAULT_USERNAME),
-  defaultOwner: stringOrNull(activeProfile?.repository_owner),
-  defaultRepository: stringOrNull(activeProfile?.repository_name),
+  get defaultOwner() {
+    return stringOrNull(getActiveGithubProfile()?.repository_owner);
+  },
+  get defaultRepository() {
+    return stringOrNull(getActiveGithubProfile()?.repository_name);
+  },
 }
 
 // The gate is here rather than inside the handlers: a tool the

@@ -6,6 +6,7 @@ import {
   isStringUsable,
   optionalWhenConfigured,
   ToolEffect,
+  withTracking,
 } from "@llm-tools/shared";
 import { mapGithubMilestone } from "../../mappers/github_compact_mappers.js";
 
@@ -68,7 +69,7 @@ const register: ToolInstance = (server, config) => {
           ),
       }),
     },
-    async ({ owner, repository, number }) => {
+    async ({ owner, repository, number }) => withTracking("github", TOOL_NAME, async () => {
       const effectiveOwner = owner?.trim() || config.defaultOwner;
       const effectiveRepository = repository?.trim() || config.defaultRepository;
 
@@ -112,7 +113,7 @@ const register: ToolInstance = (server, config) => {
           },
         ],
       };
-    },
+    }),
   );
 };
 

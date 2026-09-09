@@ -7,6 +7,7 @@ import {
   isStringUsable,
   optionalWhenConfigured,
   ToolEffect,
+  withTracking,
 } from "@llm-tools/shared";
 
 export const TOOL_NAME = "delete_github_label";
@@ -81,7 +82,7 @@ const register: ToolInstance = (server, config) => {
           ),
       }),
     },
-    async ({ owner, repository, name }) => {
+    async ({ owner, repository, name }) => withTracking("github", TOOL_NAME, async () => {
       const effectiveOwner = owner?.trim() || config.defaultOwner;
       const effectiveRepository = repository?.trim() || config.defaultRepository;
 
@@ -120,7 +121,7 @@ const register: ToolInstance = (server, config) => {
           },
         ],
       };
-    },
+    }),
   );
 };
 

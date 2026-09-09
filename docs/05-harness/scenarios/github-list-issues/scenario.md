@@ -3,7 +3,7 @@ type: harness
 status: planned
 scope: github
 last_reviewed: 2026-09-02
-last_updated: 2026-09-07
+last_updated: 2026-09-09
 summary: PLANNED - the reference evaluation scenario, checking a model lists open issues without asking which repository.
 read_when:
   - running an evaluation by hand
@@ -35,11 +35,13 @@ configured default announced in
 **Fully configured**, server restarted, fresh chat, tool-capable model:
 
 ```
-GITHUB_TOKEN=<valid>
 GITHUB_DEFAULT_USERNAME=<login>
 ```
 
-plus one `github_profiles` row for the github server with `is_active = 1`,
+plus one `env` row registered and activated as github's `auth`-type token
+(any `.env` key name — activated through the control panel, not a fixed
+`GITHUB_TOKEN`), and one `github_profiles` row for the github server with
+`is_active = 1`,
 its `repository_owner`/`repository_name` set to `<owner>`/`<repo>` — activated
 through the control panel, not `.env`.
 
