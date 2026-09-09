@@ -7,6 +7,7 @@ import {
   isStringUsable,
   optionalWhenConfigured,
   ToolEffect,
+  withTracking,
 } from "@llm-tools/shared";
 import { mapGithubIssue } from "../../mappers/github_compact_mappers.js";
 import { GithubApiIssue } from "../../models/github_issues.js";
@@ -107,7 +108,7 @@ const register: ToolInstance = (server, config) => {
           ),
       }),
     },
-    async ({ owner, repository, title, body, milestone_number, assignees }) => {
+    async ({ owner, repository, title, body, milestone_number, assignees }) => withTracking("github", TOOL_NAME, async () => {
       const effectiveOwner = owner?.trim() || config.defaultOwner;
       const effectiveRepository =
         repository?.trim() || config.defaultRepository;
@@ -157,7 +158,7 @@ const register: ToolInstance = (server, config) => {
           },
         ],
       };
-    },
+    }),
   );
 };
 

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Server } from "lucide-react";
+import { ChartColumnBig, LayoutDashboard, Server } from "lucide-react";
 
 import {
   Sidebar,
@@ -50,6 +50,20 @@ export function AppSidebar({ servers }: { servers: ServerDescriptor[] }) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              <SidebarMenuItem>
+                <SidebarMenuButton asChild isActive={pathname === "/metrics"}>
+                  <Link href="/metrics" className="flex flex-row gap-2 items-center">
+                    <ChartColumnBig />
+                    <span>Metrics</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
         <SidebarGroup>
           <SidebarGroupLabel>Servers</SidebarGroupLabel>
           <SidebarGroupContent>

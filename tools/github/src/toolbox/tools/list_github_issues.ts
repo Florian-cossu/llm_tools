@@ -13,6 +13,7 @@ import {
   isStringUsable,
   optionalWhenConfigured,
   ToolEffect,
+  withTracking,
 } from "@llm-tools/shared";
 
 export const TOOL_NAME = "list_github_issues";
@@ -159,7 +160,7 @@ const register: ToolInstance = (server, config) => {
       limit,
       sortBy,
       sortOrder,
-    }) => {
+    }) => withTracking("github", TOOL_NAME, async () => {
       const effectiveOwner = owner?.trim() || config.defaultOwner;
       const effectiveRepository =
         repository?.trim() || config.defaultRepository;
@@ -219,7 +220,7 @@ const register: ToolInstance = (server, config) => {
           },
         ],
       };
-    },
+    }),
   );
 };
 

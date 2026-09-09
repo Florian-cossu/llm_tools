@@ -7,6 +7,7 @@ import {
   toServerDescriptor,
 } from "./models/ServerDescriptor";
 import { ToolPermission } from "./models/PermissionType";
+import { RecordEvent, RecordEventInput } from "./models/RecordedEventsType";
 
 /**
  * Bun-only: `bun:sqlite` is a runtime built-in, not resolvable under Node.
@@ -113,4 +114,52 @@ export function getActiveTokenName(server_slug: string, type: string): string | 
       >(`SELECT token_name FROM env WHERE server_id = ? AND type = ? COLLATE NOCASE AND is_active = 1`)
       .get(serverId, type)?.token_name ?? null
   );
+}
+
+let writableDb: Database | undefined;
+
+/** Opens `harness.db` read-write on first use. Only for code that inserts events. */
+function getWritableDb(): Database {
+  if (!writableDb) writableDb = new Database(DB_PATH, { strict: true });
+  return writableDb;
+}
+
+const EVENT_ROWS = `id, server_id, session_id, tool_id, status, error_message, duration_ms, created_at`;
+
+/**
+ * Inserts one row into `events`. Only `server_slug` is required - every other
+ * field is optional so the same insert covers a bare "this happened" ping and
+ * a full tool-call outcome, letting callers adapt it to their own use case.
+ * `tool_slug`, if given, is resolved to `permissions.id` scoped by
+ * `server_slug` - the FK stores that id rather than the slug because a slug
+ * alone is only unique per server, not globally. An unresolvable slug is
+ * stored as a `null` `tool_id` rather than failing the insert.
+ * Returns `null` if `server_slug` doesn't match a row in `servers`.
+ */
+export function recordEvent(input: RecordEventInput): RecordEvent | null {
+  const serverId = findServerBySlug(input.server_slug)?.id;
+
+  if (!serverId) return null;
+
+  const toolId = input.tool_slug
+    ? (findToolPermission(input.tool_slug, input.server_slug)?.id ?? null)
+    : null;
+
+  return getWritableDb()
+    .query<
+      RecordEvent,
+      [number, string | null, number | null, string, string | null, number | null]
+    >(
+      `INSERT INTO events (server_id, session_id, tool_id, status, error_message, duration_ms)
+       VALUES (?, ?, ?, ?, ?, ?)
+       RETURNING ${EVENT_ROWS}`,
+    )
+    .get(
+      serverId,
+      input.session_id ?? null,
+      toolId,
+      input.status ?? "success",
+      input.error_message ?? null,
+      input.duration_ms ?? null,
+    );
 }
