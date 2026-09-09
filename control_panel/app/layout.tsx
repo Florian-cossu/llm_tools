@@ -6,6 +6,8 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ThemeProvider } from "@/components/theme-provider";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { listServers } from "@/lib/servers";
 
 const roboto = Roboto({ subsets: ["latin"], variable: "--font-sans" });
@@ -23,23 +25,28 @@ export default function RootLayout({
   const servers = listServers();
 
   return (
-    <html lang="en" className={cn("font-sans", roboto.variable)}>
+    <html lang="en" className={cn("font-sans", roboto.variable)} suppressHydrationWarning>
       <body>
-        <TooltipProvider>
-          <SidebarProvider>
-            <AppSidebar servers={servers} />
-            <SidebarInset>
-              <header className="flex h-14 shrink-0 items-center gap-2 border-b px-4">
-                <SidebarTrigger />
-                <Separator orientation="vertical" className="h-4" />
-                <span className="text-sm font-medium text-muted-foreground">
-                  llm_tools control panel
-                </span>
-              </header>
-              <main className="flex-1 p-6">{children}</main>
-            </SidebarInset>
-          </SidebarProvider>
-        </TooltipProvider>
+        <ThemeProvider>
+          <TooltipProvider>
+            <SidebarProvider>
+              <AppSidebar servers={servers} />
+              <SidebarInset>
+                <header className="sticky top-0 z-10 flex h-14 shrink-0 items-center gap-2 border-b bg-background/80 px-4 backdrop-blur-sm">
+                  <SidebarTrigger />
+                  <Separator orientation="vertical" className="h-4" />
+                  <span className="text-sm font-medium text-muted-foreground">
+                    llm_tools control panel
+                  </span>
+                  <div className="ml-auto flex items-center gap-1">
+                    <ThemeToggle />
+                  </div>
+                </header>
+                <main className="flex-1 p-6">{children}</main>
+              </SidebarInset>
+            </SidebarProvider>
+          </TooltipProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
