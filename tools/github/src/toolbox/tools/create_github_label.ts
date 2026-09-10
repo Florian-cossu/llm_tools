@@ -25,25 +25,11 @@ const register: ToolInstance = (server, config) => {
           config.defaultRepository,
         ) +
         describeMutation(TOOL_EFFECT) +
-        `Create one new label in a GitHub repository. A second call with ` +
-        `the same name fails rather than doing nothing, so a failure here ` +
-        `is not a reason to retry. Call list_github_labels with a ` +
-        `"limit" of 10 first, both to check that no existing label ` +
-        `already covers the need and to follow the naming and wording ` +
-        `conventions the repository already uses. Returns ` +
-        `{"created": true, "label": {"name", "description", "color", ` +
-        `"default"}}, the same label shape list_github_labels and ` +
-        `get_github_label return, read back from GitHub - "description" ` +
-        `is null when none was given, "color" is a six-digit hex code ` +
-        `without the leading "#", and "default" is false for every label ` +
-        `created this way. The new label carries no issues: nothing is ` +
-        `labelled by creating it - say so rather than implying the issues ` +
-        `were updated. Use update_github_issue's "labels" parameter to ` +
-        `apply a label to an issue. The call fails when the repository ` +
-        `already has a label ` +
-        `with this name, and when the configured token has no write ` +
-        `access to the repository; neither is retryable without changing ` +
-        `the input.`,
+        `Create one label. Duplicate name fails — not a reason to retry. ` +
+        `Call list_github_labels first to check for duplicates and match naming conventions. ` +
+        `Creating a label applies it to no issues — use update_github_issue's "labels" param to apply it. ` +
+        `Returns {created: true, label: {name, description, color, default}}. ` +
+        `Fails when the name already exists or the token has no write access; not retryable.`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -67,14 +53,9 @@ const register: ToolInstance = (server, config) => {
           .string()
           .min(1)
           .describe(
-            `The name identifying the new label within its repository, ` +
-              `exactly as it should appear in the GitHub interface. A ` +
-              `label name may contain spaces; pass it as it is, without ` +
-              `quotes. Required, and never invented: use the name the ` +
-              `user asked for, matched to the prefix, case and separator ` +
-              `of the names list_github_labels returns. GitHub compares ` +
-              `names case-insensitively, so "Bug" collides with an ` +
-              `existing "bug" and the call fails.`,
+            `Label name, exactly as it should appear in GitHub. ` +
+              `May contain spaces — pass as-is. Never invented: use what the user asked for. ` +
+              `GitHub compares case-insensitively — "Bug" collides with "bug".`,
           ),
 
         color: z
@@ -82,13 +63,9 @@ const register: ToolInstance = (server, config) => {
           .regex(/^#?[0-9a-fA-F]{6}$/)
           .optional()
           .describe(
-            `The colour of the label as a six-digit hexadecimal code, ` +
-              `with or without a leading "#": "d73a4a" and "#d73a4a" are ` +
-              `both accepted and both stored as "d73a4a", the form ` +
-              `list_github_labels returns. Three-digit shorthand and ` +
-              `colour names such as "red" are rejected. Omit it to let ` +
-              `GitHub pick a colour rather than guessing one, and ask the ` +
-              `user when the colour matters.`,
+            `Six-digit hex code, with or without leading "#". ` +
+              `Three-digit shorthand and colour names are rejected. ` +
+              `Omit to let GitHub pick; ask the user when colour matters.`,
           ),
 
         description: z
@@ -96,53 +73,53 @@ const register: ToolInstance = (server, config) => {
           .max(100)
           .optional()
           .describe(
-            `A short sentence saying what the label is for, shown beside ` +
-              `it in GitHub, at most 100 characters - GitHub rejects ` +
-              `longer ones. Omit it rather than restating the name. Call ` +
-              `list_github_labels with a "limit" of 10 to match the ` +
-              `phrasing of the descriptions the repository already uses.`,
+            `Short sentence describing the label, max 100 characters. ` +
+              `Omit rather than restating the name.`,
           ),
       }),
     },
-    async ({ owner, repository, name, color, description }) => withTracking("github", TOOL_NAME, async () => {
-      const effectiveOwner = owner?.trim() || config.defaultOwner;
-      const effectiveRepository = repository?.trim() || config.defaultRepository;
+    async ({ owner, repository, name, color, description }) =>
+      withTracking("github", TOOL_NAME, async () => {
+        const effectiveOwner = owner?.trim() || config.defaultOwner;
+        const effectiveRepository =
+          repository?.trim() || config.defaultRepository;
 
-      if (
-        !isStringUsable(effectiveOwner) ||
-        !isStringUsable(effectiveRepository)
-      ) {
-        throw new Error(
-          "No GitHub owner or repository was provided, and no default was configured.",
-        );
-      }
-
-      const response = await config.octokit.rest.issues
-        .createLabel({
-          owner: effectiveOwner,
-          repo: effectiveRepository,
-          name: name,
-          color: color?.replace("#", ""),
-          description: description,
-        })
-        .catch((error: unknown) => {
-          const reason = error instanceof Error ? error.message : String(error);
+        if (
+          !isStringUsable(effectiveOwner) ||
+          !isStringUsable(effectiveRepository)
+        ) {
           throw new Error(
-            `${TOOL_NAME} failed to create the label "${name}": ${reason}`,
+            "No GitHub owner or repository was provided, and no default was configured.",
           );
-        });
+        }
 
-      const payload = mapGithubLabel(response.data);
+        const response = await config.octokit.rest.issues
+          .createLabel({
+            owner: effectiveOwner,
+            repo: effectiveRepository,
+            name: name,
+            color: color?.replace("#", ""),
+            description: description,
+          })
+          .catch((error: unknown) => {
+            const reason =
+              error instanceof Error ? error.message : String(error);
+            throw new Error(
+              `${TOOL_NAME} failed to create the label "${name}": ${reason}`,
+            );
+          });
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ created: true, label: payload }),
-          },
-        ],
-      };
-    }),
+        const payload = mapGithubLabel(response.data);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ created: true, label: payload }),
+            },
+          ],
+        };
+      }),
   );
 };
 
