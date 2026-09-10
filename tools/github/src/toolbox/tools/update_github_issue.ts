@@ -26,27 +26,13 @@ const register: ToolInstance = (server, config) => {
           config.defaultRepository,
         ) +
         describeMutation(TOOL_EFFECT) +
-        `Change the title, body, state, milestone, assignees or labels of ` +
-        `one issue that already exists in the repository. The issue is ` +
-        `identified by "number"; every other parameter is a new value, and ` +
-        `one left out is left unchanged - so pass only the fields the user ` +
-        `asked to change rather than resending the whole issue. At least ` +
-        `one of "title", "body", "state", "milestone_number", "assignees" ` +
-        `or "labels" is required: a call carrying none of them is rejected ` +
-        `rather than treated as a no-op. "assignees" replaces the issue's ` +
-        `whole assignee list rather than adding to it - pass every login ` +
-        `who should remain assigned, not only the new one. "labels" ` +
-        `replaces the issue's whole label list the same way - pass every ` +
-        `label that should remain, not only the new ones; use exact names ` +
-        `from list_github_labels. Call get_github_issue first to confirm ` +
-        `the issue exists and to match ` +
-        `the phrasing and structure of the bodies the repository already ` +
-        `uses. Returns {"updated": true, "issue": {"number", "title", ` +
-        `"state", "body", "labels", "assignees", "milestone"}}, the same ` +
-        `shape get_github_issue returns, read back from GitHub after the ` +
-        `change. The call fails when the repository has no issue numbered ` +
-        `"number", and when the configured token has no write access to ` +
-        `the repository; neither is retryable without changing the input.`,
+        `Change title, body, state, milestone, assignees or labels of an existing issue by number. ` +
+        `Omitted fields are left unchanged — pass only what the user asked to change. ` +
+        `"assignees" and "labels" both replace the full list, not append — include everyone/everything that should remain. ` +
+        `At least one field required. ` +
+        `Call get_github_issue first to confirm the issue exists. ` +
+        `Returns {updated: true, issue: {...}} — same shape as get_github_issue. ` +
+        `Fails when the issue number doesn't exist or the token has no write access; not retryable without changing the input.`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
