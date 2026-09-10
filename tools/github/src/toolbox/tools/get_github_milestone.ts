@@ -23,20 +23,9 @@ const register: ToolInstance = (server, config) => {
           config.defaultOwner,
           config.defaultRepository,
         ) +
-        `Read a single milestone of a GitHub repository by its number, ` +
-        `including the issue counts that list_github_milestones ` +
-        `leaves out. Milestones are numbered independently of issues, so ` +
-        `milestone 1 has nothing to do with issue 1; call ` +
-        `list_github_milestones first when the number is not ` +
-        `already known. The issues belonging to the milestone are not ` +
-        `returned - list them with list_github_issues and a "search" of ` +
-        `milestone:"<title>". Returns {"number", "title", "state", ` +
-        `"description", "dueOn", "openIssues", "closedIssues"}, where ` +
-        `"description" and "dueOn" are null when unset, "dueOn" is an ISO ` +
-        `8601 timestamp, and "openIssues" and "closedIssues" count the ` +
-        `issues assigned to the milestone and so give its progress. The ` +
-        `call fails when the repository has no milestone with this ` +
-        `number.`,
+        `Read one milestone by its number. Use list_github_milestones ` +
+        `first when the number is unknown. Returns {"number", "title", ` +
+        `"state", "description", "dueOn", "openIssues", "closedIssues"}.`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
