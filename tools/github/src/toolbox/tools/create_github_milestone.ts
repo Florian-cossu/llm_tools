@@ -10,7 +10,7 @@ import {
   withTracking,
 } from "@llm-tools/shared";
 import { mapGithubMilestone } from "../../mappers/github_compact_mappers.js";
-import { DEFAULT_LABEL_LIMIT } from "../../metadata.js";
+import { DEFAULT_MILESTONE_LIMIT } from "../../metadata.js";
 
 export const TOOL_NAME = "create_github_milestone";
 
@@ -74,7 +74,7 @@ const register: ToolInstance = (server, config) => {
           .describe(
             `A short sentence saying what the milestone is for, shown ` +
               `beside it in GitHub. Omit it rather than restating the ` +
-              `title. Call list_github_milestones with a "limit" of ${DEFAULT_LABEL_LIMIT} to ` +
+              `title. Call list_github_milestones with a "limit" of ${DEFAULT_MILESTONE_LIMIT} to ` +
               `match the phrasing of the descriptions the repository ` +
               `already uses.`,
           ),
