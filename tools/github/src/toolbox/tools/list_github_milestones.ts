@@ -28,21 +28,10 @@ const register: ToolInstance = (server, config) => {
           config.defaultOwner,
           config.defaultRepository,
         ) +
-        `List the milestones of a GitHub repository and return one page of ` +
-        `them in a compact form: number, title, state, description and due ` +
-        `date. This is a plain listing rather than a search - there is no ` +
-        `keyword filter, so narrow it with "state" and read the titles. ` +
-        `Milestones group issues, but the issues themselves are not ` +
-        `returned; to see what a milestone contains, call ` +
-        `list_github_issues with a "search" of milestone:"<title>", using ` +
-        `the "title" returned here. Returns {"returned": number, ` +
-        `"truncated": boolean, "milestones": [{"number", "title", ` +
-        `"state", "description", "dueOn"}]}, where "description" and ` +
-        `"dueOn" are null when unset and "dueOn" is an ISO 8601 ` +
-        `timestamp. Unlike list_github_issues there is no total count: ` +
-        `this endpoint does not report one. "truncated" is true when the ` +
-        `page filled up and milestones were left out - raise "limit", as ` +
-        `there is no way to fetch a next page.`,
+        `List milestones in a GitHub repository; returns one page of results ` +
+        `(number, title, state, description, dueOn). ` +
+        `Plain listing — no keyword filter. ` +
+        `To see a milestone's issues, call list_github_issues with "search" of milestone:"<title>".`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -80,12 +69,8 @@ const register: ToolInstance = (server, config) => {
           .max(100)
           .default(DEFAULT_MILESTONE_LIMIT)
           .describe(
-            `Maximum number of milestones to return, between 1 and 100. ` +
-              `Defaults to ${DEFAULT_MILESTONE_LIMIT}. This is a single ` +
-              `page and there is no way to fetch the next one, so raise ` +
-              `this rather than expecting to paginate. Most repositories ` +
-              `have few milestones, so the default usually returns all of ` +
-              `them.`,
+            `Max milestones to return, 1–100. Defaults to ${DEFAULT_MILESTONE_LIMIT}. ` +
+              `No pagination — raise this if truncated. Most repos have few milestones.`,
           ),
 
         sortBy: z
@@ -101,60 +86,61 @@ const register: ToolInstance = (server, config) => {
           .enum(["asc", "desc"])
           .default("desc")
           .describe(
-            `Sort direction: "desc" for the latest or highest first, ` +
-              `"asc" for the earliest or lowest first. Defaults to ` +
-              `"desc", which sorted by "due_on" puts the milestones due ` +
-              `furthest in the future first; use "asc" to see what is due ` +
-              `next.`,
+            `Sort direction. Defaults to "desc" — with "due_on" puts furthest-future milestones first. ` +
+              `Use "asc" to see what's due next.`,
           ),
       }),
     },
-    async ({ owner, repository, state, limit, sortBy, sortOrder }) => withTracking("github", TOOL_NAME, async () => {
-      const effectiveOwner = owner?.trim() || config.defaultOwner;
-      const effectiveRepository =
-        repository?.trim() || config.defaultRepository;
+    async ({ owner, repository, state, limit, sortBy, sortOrder }) =>
+      withTracking("github", TOOL_NAME, async () => {
+        const effectiveOwner = owner?.trim() || config.defaultOwner;
+        const effectiveRepository =
+          repository?.trim() || config.defaultRepository;
 
-      if (
-        !isStringUsable(effectiveOwner) ||
-        !isStringUsable(effectiveRepository)
-      ) {
-        throw new Error(
-          "No GitHub owner or repository was provided, and no default was configured.",
-        );
-      }
+        if (
+          !isStringUsable(effectiveOwner) ||
+          !isStringUsable(effectiveRepository)
+        ) {
+          throw new Error(
+            "No GitHub owner or repository was provided, and no default was configured.",
+          );
+        }
 
-      const response = await config.octokit.rest.issues
-        .listMilestones({
-          owner: effectiveOwner,
-          repo: effectiveRepository,
-          state: state,
-          per_page: limit,
-          sort: sortBy,
-          direction: sortOrder,
-        })
-        .catch((error: unknown) => {
-          const reason = error instanceof Error ? error.message : String(error);
-          throw new Error(`${TOOL_NAME} failed for listMilestones: ${reason}`);
-        });
+        const response = await config.octokit.rest.issues
+          .listMilestones({
+            owner: effectiveOwner,
+            repo: effectiveRepository,
+            state: state,
+            per_page: limit,
+            sort: sortBy,
+            direction: sortOrder,
+          })
+          .catch((error: unknown) => {
+            const reason =
+              error instanceof Error ? error.message : String(error);
+            throw new Error(
+              `${TOOL_NAME} failed for listMilestones: ${reason}`,
+            );
+          });
 
-      const compactMilestones: GithubCompactMilestone[] =
-        response.data.map(mapGithubMilestone);
+        const compactMilestones: GithubCompactMilestone[] =
+          response.data.map(mapGithubMilestone);
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              returned: compactMilestones.length,
-              // This endpoint reports no total, unlike search, so a full
-              // page is the only signal that milestones were left out.
-              truncated: compactMilestones.length === limit,
-              milestones: compactMilestones,
-            }),
-          },
-        ],
-      };
-    }),
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({
+                returned: compactMilestones.length,
+                // This endpoint reports no total, unlike search, so a full
+                // page is the only signal that milestones were left out.
+                truncated: compactMilestones.length === limit,
+                milestones: compactMilestones,
+              }),
+            },
+          ],
+        };
+      }),
   );
 };
 
