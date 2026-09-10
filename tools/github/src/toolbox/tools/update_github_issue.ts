@@ -26,18 +26,20 @@ const register: ToolInstance = (server, config) => {
           config.defaultRepository,
         ) +
         describeMutation(TOOL_EFFECT) +
-        `Change the title, body, state, milestone or assignees of one issue ` +
-        `that already exists in the repository. The issue is identified by ` +
-        `"number"; every other parameter is a new value, and one left out ` +
-        `is left unchanged - so pass only the fields the user asked to ` +
-        `change rather than resending the whole issue. At least one of ` +
-        `"title", "body", "state", "milestone_number" or "assignees" is ` +
-        `required: a call carrying none of them is rejected rather than ` +
-        `treated as a no-op. "assignees" replaces the issue's whole ` +
-        `assignee list rather than adding to it - pass every login who ` +
-        `should remain assigned, not only the new one. This tool cannot ` +
-        `change an issue's labels - no tool on this server can. Call ` +
-        `get_github_issue first to confirm the issue exists and to match ` +
+        `Change the title, body, state, milestone, assignees or labels of ` +
+        `one issue that already exists in the repository. The issue is ` +
+        `identified by "number"; every other parameter is a new value, and ` +
+        `one left out is left unchanged - so pass only the fields the user ` +
+        `asked to change rather than resending the whole issue. At least ` +
+        `one of "title", "body", "state", "milestone_number", "assignees" ` +
+        `or "labels" is required: a call carrying none of them is rejected ` +
+        `rather than treated as a no-op. "assignees" replaces the issue's ` +
+        `whole assignee list rather than adding to it - pass every login ` +
+        `who should remain assigned, not only the new one. "labels" ` +
+        `replaces the issue's whole label list the same way - pass every ` +
+        `label that should remain, not only the new ones; use exact names ` +
+        `from list_github_labels. Call get_github_issue first to confirm ` +
+        `the issue exists and to match ` +
         `the phrasing and structure of the bodies the repository already ` +
         `uses. Returns {"updated": true, "issue": {"number", "title", ` +
         `"state", "body", "labels", "assignees", "milestone"}}, the same ` +
@@ -134,6 +136,16 @@ const register: ToolInstance = (server, config) => {
               `assignees as they are; pass an empty array to unassign ` +
               `everyone.`,
           ),
+
+        labels: z
+          .array(z.string())
+          .optional()
+          .describe(
+            `Full list of label names to set on the issue, replacing current labels — ` +
+              `include every label that should remain, not only the new ones. ` +
+              `Pass [] to clear all labels. Omit to leave labels unchanged. ` +
+              `Use exact names from list_github_labels.`,
+          ),
       }),
     },
     async ({
@@ -145,71 +157,76 @@ const register: ToolInstance = (server, config) => {
       state,
       milestone_number,
       assignees,
-    }) => withTracking("github", TOOL_NAME, async () => {
-      const effectiveOwner = owner?.trim() || config.defaultOwner;
-      const effectiveRepository =
-        repository?.trim() || config.defaultRepository;
+      labels,
+    }) =>
+      withTracking("github", TOOL_NAME, async () => {
+        const effectiveOwner = owner?.trim() || config.defaultOwner;
+        const effectiveRepository =
+          repository?.trim() || config.defaultRepository;
 
-      if (
-        !isStringUsable(effectiveOwner) ||
-        !isStringUsable(effectiveRepository)
-      ) {
-        throw new Error(
-          "No GitHub owner or repository was provided, and no default was configured.",
-        );
-      }
-
-      if (
-        title === undefined &&
-        body === undefined &&
-        state === undefined &&
-        milestone_number === undefined &&
-        assignees === undefined
-      ) {
-        throw new Error(
-          `${TOOL_NAME} was called with nothing to change: pass at least one of "title", "body", "state", "milestone_number" or "assignees".`,
-        );
-      }
-
-      const response = await config.octokit.rest.issues
-        .update({
-          owner: effectiveOwner,
-          repo: effectiveRepository,
-          issue_number: number,
-          title: title,
-          body: body,
-          state: state,
-          milestone: milestone_number,
-          assignees: assignees,
-        })
-        .catch((error: unknown) => {
-          const reason = error instanceof Error ? error.message : String(error);
+        if (
+          !isStringUsable(effectiveOwner) ||
+          !isStringUsable(effectiveRepository)
+        ) {
           throw new Error(
-            `${TOOL_NAME} failed to update issue "${number}": ${reason}`,
+            "No GitHub owner or repository was provided, and no default was configured.",
           );
-        });
+        }
 
-      const githubIssue = response.data as GithubApiIssue & {
-        body?: string | null;
-      };
+        if (
+          title === undefined &&
+          body === undefined &&
+          state === undefined &&
+          milestone_number === undefined &&
+          assignees === undefined &&
+          labels === undefined
+        ) {
+          throw new Error(
+            `${TOOL_NAME} was called with nothing to change: pass at least one of "title", "body", "state", "milestone_number", "assignees" or "labels".`,
+          );
+        }
 
-      const payload = {
-        updated: true,
-        issue: {
-          ...mapGithubIssue(githubIssue),
-          body: githubIssue.body ? githubIssue.body : null,
-        },
-      };
+        const response = await config.octokit.rest.issues
+          .update({
+            owner: effectiveOwner,
+            repo: effectiveRepository,
+            issue_number: number,
+            title: title,
+            body: body,
+            state: state,
+            milestone: milestone_number,
+            assignees: assignees,
+            labels: labels,
+          })
+          .catch((error: unknown) => {
+            const reason =
+              error instanceof Error ? error.message : String(error);
+            throw new Error(
+              `${TOOL_NAME} failed to update issue "${number}": ${reason}`,
+            );
+          });
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(payload),
+        const githubIssue = response.data as GithubApiIssue & {
+          body?: string | null;
+        };
+
+        const payload = {
+          updated: true,
+          issue: {
+            ...mapGithubIssue(githubIssue),
+            body: githubIssue.body ? githubIssue.body : null,
           },
-        ],
-      };
-    }),
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(payload),
+            },
+          ],
+        };
+      }),
   );
 };
 

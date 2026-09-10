@@ -44,8 +44,7 @@ const register: ToolInstance = (server, config) => {
         `leading "#". Renaming a label keeps it on the issues that ` +
         `carry it: those issues now show the new name, and no issue ` +
         `gains or loses the label. Nothing else about the issues ` +
-        `changes, and no tool on this server can apply a label to an ` +
-        `issue - say so rather than implying the issues were edited. ` +
+        `changes - say so rather than implying the issues were edited. ` +
         `The call fails when the repository has no label called "name", ` +
         `when "newName" collides with a label that already exists, and ` +
         `when the configured token has no write access to the ` +

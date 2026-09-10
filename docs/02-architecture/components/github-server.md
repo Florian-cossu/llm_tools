@@ -3,7 +3,7 @@ type: component
 status: active
 scope: github
 last_reviewed: 2026-09-05
-last_updated: 2026-09-09
+last_updated: 2026-09-10
 summary: The github MCP server - its fourteen tools (six reads and eight gated writes), their response shapes, and its configuration.
 read_when:
   - working on any github tool
@@ -22,7 +22,7 @@ tags:
 
 # github server
 
-`@llm-tools/github` v2.9.0 — read access to GitHub issues, milestones and
+`@llm-tools/github` v3.0.0 — read access to GitHub issues, milestones and
 labels, plus six **writes** (`create_github_label`, `update_github_label`,
 `update_github_milestone`, `create_github_milestone`, `update_github_issue`,
 `create_github_issue`) and two **destructive** tools (`delete_github_label`,
@@ -278,9 +278,10 @@ Two things the shapes do not show:
   either write tool checks anything at call time, and it is about honesty of the
   response, not about permission.
 - **Neither touches an issue.** Creating a label labels nothing, and renaming
-  one keeps it on exactly the issues that already carried it. No tool on this
-  server can apply a label to an issue, and both descriptions say so, because
-  the plausible-but-wrong reading is that the issues were edited.
+  one keeps it on exactly the issues that already carried it — both
+  descriptions say so, because the plausible-but-wrong reading is that the
+  issues were edited. Applying a label to an issue is `update_github_issue`'s
+  job, not either label tool's.
 
 `update_github_label` declares `write` rather than `destructive` because the
 compensating action exists: a rename is undone by another rename, a colour by
@@ -339,22 +340,23 @@ time, or `update_github_issue`'s afterwards — not any milestone tool's.
 ## The issue writes
 
 `update_github_issue` and `create_github_issue` are the only tools here that
-touch an issue's own fields — title, body, milestone, assignees — and the
-only ones that can put a milestone on an issue or take it off the assignee
-list; no other tool does. Neither can change an issue's labels — no tool on
-this server can, and both descriptions say so explicitly, since a model
-reading several other mutable-looking fields might otherwise assume labels
-are one of them.
+touch an issue's own fields — title, body, milestone, assignees, labels —
+and the only ones that can put a milestone on an issue or take it off the
+assignee list; no other tool does. Only `update_github_issue` can change an
+issue's labels: `create_github_issue` always opens with an empty label list,
+since `issues.create`'s own `labels` field is not exposed on this tool, and
+neither label tool (`create_github_label`, `update_github_label`) touches an
+issue.
 
 `update_github_issue` identifies the issue by `number`; every other
-parameter (`title`, `body`, `state`, `milestone_number`, `assignees`) is a
-new value left unchanged when omitted, and a call carrying none of them is
-rejected before the request, the same guard the label and milestone update
-tools use. It calls `issues.update` and returns `{ updated: true, issue }`,
-`issue` built the same way `get_github_issue` builds its response:
-`mapGithubIssue` spread with `body` added, since the detail shape (not the
-list shape) is the useful one to read back after an edit that can change
-the body.
+parameter (`title`, `body`, `state`, `milestone_number`, `assignees`,
+`labels`) is a new value left unchanged when omitted, and a call carrying
+none of them is rejected before the request, the same guard the label and
+milestone update tools use. It calls `issues.update` and returns
+`{ updated: true, issue }`, `issue` built the same way `get_github_issue`
+builds its response: `mapGithubIssue` spread with `body` added, since the
+detail shape (not the list shape) is the useful one to read back after an
+edit that can change the body.
 
 `create_github_issue` mirrors it one layer up: only `title` is required,
 the new issue is always `open` (GitHub's endpoint has no way to create one
@@ -366,11 +368,12 @@ with the user rather than retry. It calls `issues.create` and returns
 
 Two things worth knowing about the shared parameters:
 
-- **`assignees` replaces the whole list** on `update_github_issue`, matching
-  `issues.update`'s own semantics — it is not additive, so the description
-  tells the model to pass every login that should remain assigned, not just
-  the new one. `create_github_issue` has no "current list" to replace, so
-  this only applies to the update tool.
+- **`assignees` and `labels` both replace the whole list** on
+  `update_github_issue`, matching `issues.update`'s own semantics — neither
+  is additive, so the description tells the model to pass every login or
+  label that should remain, not just the new ones. `create_github_issue` has
+  no "current list" to replace and no `labels` parameter at all, so this
+  only applies to the update tool.
 - **Neither tool has a milestone-clearing path.** GitHub's `issues.update`
   endpoint accepts `null` to remove a milestone from an issue; this
   server's schema only accepts a positive integer or omission, so there is

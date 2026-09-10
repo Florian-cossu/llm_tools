@@ -32,8 +32,9 @@ const register: ToolInstance = (server, config) => {
         `duplicate title: calling this twice with the same title creates ` +
         `two separate issues, so confirm with the user before calling ` +
         `rather than retrying a call whose result is uncertain. This ` +
-        `tool cannot set the issue's labels - no tool on this server ` +
-        `can. Call list_github_issues first to check whether a similar ` +
+        `tool cannot set the issue's labels on creation - call ` +
+        `update_github_issue with its "labels" parameter afterwards. ` +
+        `Call list_github_issues first to check whether a similar ` +
         `issue already exists and to match the naming convention the ` +
         `repository already uses, and get_github_issue on a similar ` +
         `issue to match the phrasing and structure of the bodies it ` +
@@ -41,7 +42,8 @@ const register: ToolInstance = (server, config) => {
         `"state", "body", "labels", "assignees", "milestone"}}, the ` +
         `same shape get_github_issue returns, read back from GitHub - ` +
         `"labels" is always empty on a new issue, since this tool ` +
-        `cannot set them. The call fails when the configured token has ` +
+        `cannot set them at creation time. The call fails when the ` +
+        `configured token has ` +
         `no write access to the repository, or when "milestone_number" ` +
         `or an "assignees" login does not exist; none of those is ` +
         `retryable without changing the input.`,

@@ -37,9 +37,10 @@ const register: ToolInstance = (server, config) => {
         `is null when none was given, "color" is a six-digit hex code ` +
         `without the leading "#", and "default" is false for every label ` +
         `created this way. The new label carries no issues: nothing is ` +
-        `labelled by creating it, and no tool on this server can apply a ` +
-        `label to an issue - say so rather than implying the issues were ` +
-        `updated. The call fails when the repository already has a label ` +
+        `labelled by creating it - say so rather than implying the issues ` +
+        `were updated. Use update_github_issue's "labels" parameter to ` +
+        `apply a label to an issue. The call fails when the repository ` +
+        `already has a label ` +
         `with this name, and when the configured token has no write ` +
         `access to the repository; neither is retryable without changing ` +
         `the input.`,
