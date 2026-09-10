@@ -26,25 +26,12 @@ const register: ToolInstance = (server, config) => {
           config.defaultRepository,
         ) +
         describeMutation(TOOL_EFFECT) +
-        `Create one new issue in a GitHub repository, always opened as ` +
-        `"open" - there is no way to create an issue already closed. ` +
-        `Unlike a label or a milestone, GitHub does not reject a ` +
-        `duplicate title: calling this twice with the same title creates ` +
-        `two separate issues, so confirm with the user before calling ` +
-        `rather than retrying a call whose result is uncertain. This ` +
-        `tool cannot set the issue's labels - no tool on this server ` +
-        `can. Call list_github_issues first to check whether a similar ` +
-        `issue already exists and to match the naming convention the ` +
-        `repository already uses, and get_github_issue on a similar ` +
-        `issue to match the phrasing and structure of the bodies it ` +
-        `uses. Returns {"created": true, "issue": {"number", "title", ` +
-        `"state", "body", "labels", "assignees", "milestone"}}, the ` +
-        `same shape get_github_issue returns, read back from GitHub - ` +
-        `"labels" is always empty on a new issue, since this tool ` +
-        `cannot set them. The call fails when the configured token has ` +
-        `no write access to the repository, or when "milestone_number" ` +
-        `or an "assignees" login does not exist; none of those is ` +
-        `retryable without changing the input.`,
+        `Create one issue, always opened as "open". ` +
+        `Duplicate titles are allowed — confirm before calling; don't retry on uncertain outcome. ` +
+        `Labels can't be set at creation time — use update_github_issue's "labels" param afterwards. ` +
+        `Call list_github_issues first to check for duplicates and match naming conventions. ` +
+        `Returns {created: true, issue: {...}} — same shape as get_github_issue. ` +
+        `Fails when the token has no write access or "milestone_number"/"assignees" don't exist; not retryable.`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -68,24 +55,18 @@ const register: ToolInstance = (server, config) => {
           .string()
           .min(1)
           .describe(
-            `The title identifying the new issue, exactly as it should ` +
-              `appear in the GitHub interface. An issue title may contain ` +
-              `spaces; pass it as it is, without quotes. Required, and ` +
-              `never invented: use the title the user asked for. Unlike ` +
-              `a label or a milestone title, GitHub does not check this ` +
-              `for uniqueness - two issues in the same repository may ` +
-              `share a title.`,
+            `Title of the new issue, exactly as it should appear in GitHub. ` +
+              `May contain spaces — pass as-is without quotes. ` +
+              `Never invent: use the title the user asked for. ` +
+              `Duplicates are allowed — GitHub doesn't enforce uniqueness on issue titles.`,
           ),
 
         body: z
           .string()
           .optional()
           .describe(
-            `The body to give the issue: its description in Markdown, ` +
-              `shown beneath its title in GitHub. Omit it to create the ` +
-              `issue without a body. Call get_github_issue on a similar ` +
-              `issue first to match the phrasing and structure of the ` +
-              `bodies the repository already uses.`,
+            `Issue description in Markdown. Omit to create issue without a body. ` +
+              `Call get_github_issue on a similar issue first to match the repository's style.`,
           ),
 
         milestone_number: z
@@ -108,57 +89,59 @@ const register: ToolInstance = (server, config) => {
           ),
       }),
     },
-    async ({ owner, repository, title, body, milestone_number, assignees }) => withTracking("github", TOOL_NAME, async () => {
-      const effectiveOwner = owner?.trim() || config.defaultOwner;
-      const effectiveRepository =
-        repository?.trim() || config.defaultRepository;
+    async ({ owner, repository, title, body, milestone_number, assignees }) =>
+      withTracking("github", TOOL_NAME, async () => {
+        const effectiveOwner = owner?.trim() || config.defaultOwner;
+        const effectiveRepository =
+          repository?.trim() || config.defaultRepository;
 
-      if (
-        !isStringUsable(effectiveOwner) ||
-        !isStringUsable(effectiveRepository)
-      ) {
-        throw new Error(
-          "No GitHub owner or repository was provided, and no default was configured.",
-        );
-      }
-
-      const response = await config.octokit.rest.issues
-        .create({
-          owner: effectiveOwner,
-          repo: effectiveRepository,
-          title: title,
-          body: body,
-          milestone: milestone_number,
-          assignees: assignees,
-        })
-        .catch((error: unknown) => {
-          const reason = error instanceof Error ? error.message : String(error);
+        if (
+          !isStringUsable(effectiveOwner) ||
+          !isStringUsable(effectiveRepository)
+        ) {
           throw new Error(
-            `${TOOL_NAME} failed to create the issue "${title}": ${reason}`,
+            "No GitHub owner or repository was provided, and no default was configured.",
           );
-        });
+        }
 
-      const githubIssue = response.data as GithubApiIssue & {
-        body?: string | null;
-      };
+        const response = await config.octokit.rest.issues
+          .create({
+            owner: effectiveOwner,
+            repo: effectiveRepository,
+            title: title,
+            body: body,
+            milestone: milestone_number,
+            assignees: assignees,
+          })
+          .catch((error: unknown) => {
+            const reason =
+              error instanceof Error ? error.message : String(error);
+            throw new Error(
+              `${TOOL_NAME} failed to create the issue "${title}": ${reason}`,
+            );
+          });
 
-      const payload = {
-        created: true,
-        issue: {
-          ...mapGithubIssue(githubIssue),
-          body: githubIssue.body ? githubIssue.body : null,
-        },
-      };
+        const githubIssue = response.data as GithubApiIssue & {
+          body?: string | null;
+        };
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(payload),
+        const payload = {
+          created: true,
+          issue: {
+            ...mapGithubIssue(githubIssue),
+            body: githubIssue.body ? githubIssue.body : null,
           },
-        ],
-      };
-    }),
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(payload),
+            },
+          ],
+        };
+      }),
   );
 };
 

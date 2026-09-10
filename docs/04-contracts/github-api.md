@@ -2,8 +2,8 @@
 type: contract
 status: active
 scope: github
-last_reviewed: 2026-09-02
-last_updated: 2026-09-09
+last_reviewed: 2026-09-10
+last_updated: 2026-09-10
 summary: The GitHub REST endpoints this server calls, their quirks, and the rate limits that shape tool design.
 read_when:
   - adding a tool that calls the GitHub API
@@ -16,7 +16,7 @@ code_refs:
 tags:
   - mcp
   - github
-  - read-only
+  - writes
 ---
 
 # GitHub API contract
@@ -38,11 +38,22 @@ in `data/access.ts`), or unauthenticated when none is active.
 | `issues.getLabel` | `GET /repos/{owner}/{repo}/labels/{name}` | `get_github_label` | ✅ |
 | `issues.createLabel` | `POST /repos/{owner}/{repo}/labels` | `create_github_label` | ❌ **write** |
 | `issues.updateLabel` | `PATCH /repos/{owner}/{repo}/labels/{name}` | `update_github_label` | ❌ **write** |
+| `issues.deleteLabel` | `DELETE /repos/{owner}/{repo}/labels/{name}` | `delete_github_label` | ❌ **destructive** |
+| `issues.createMilestone` | `POST /repos/{owner}/{repo}/milestones` | `create_github_milestone` | ❌ **write** |
+| `issues.updateMilestone` | `PATCH /repos/{owner}/{repo}/milestones/{n}` | `update_github_milestone` | ❌ **write** |
+| `issues.deleteMilestone` | `DELETE /repos/{owner}/{repo}/milestones/{n}` | `delete_github_milestone` | ❌ **destructive** |
+| `issues.create` | `POST /repos/{owner}/{repo}/issues` | `create_github_issue` | ❌ **write** |
+| `issues.update` | `PATCH /repos/{owner}/{repo}/issues/{n}` | `update_github_issue` | ❌ **write** |
 
-Those two are the only mutating endpoints called here, and both tools declare
-`effect: "write"` and are registered only when their permission-table row is
-`allow` ([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md),
+These eight are the only mutating endpoints called here. Each tool declares
+`effect: "write"` or `"destructive"` and is registered only when its
+permission-table row is `allow` ([ADR-0007](../03-decisions/ADR-0007-writes-behind-declared-capability.md),
+[ADR-0008](../03-decisions/ADR-0008-permission-table-gates-registration.md),
 [ADR-0009](../03-decisions/ADR-0009-permission-table-is-the-only-write-gate.md)).
+The two delete endpoints answer `204` with no body, so there is nothing to
+read back — behaviour and response shape for all eight are documented per-tool
+in [github server](../02-architecture/components/github-server.md#the-label-writes)
+rather than repeated here.
 
 `issues.createLabel` returns `201` with the created label, and **`422` when the
 name already exists** — which is the expected failure, not a transport problem,

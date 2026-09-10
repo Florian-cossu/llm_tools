@@ -3,7 +3,7 @@ type: index
 status: active
 scope: repo
 last_reviewed: 2026-09-05
-last_updated: 2026-09-07
+last_updated: 2026-09-10
 summary: Entry point for the llm_tools documentation vault - routes a task to the notes that answer it.
 read_when:
   - starting any task in this repository
@@ -85,7 +85,7 @@ authoritative about its source, but is never edited by hand.
 ## Current state, briefly
 
 - One server ships: [github](02-architecture/components/github-server.md),
-  version 2.9.0 — six read tools, six registrations declaring `write`, two
+  version 3.0.0 — six read tools, six registrations declaring `write`, two
   declaring `destructive`. All eight register only when their permission-table
   row says `allow` — there is no separate env-var flag anymore
   ([ADR-0007](03-decisions/ADR-0007-writes-behind-declared-capability.md),

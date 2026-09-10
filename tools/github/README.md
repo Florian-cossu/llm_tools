@@ -371,8 +371,8 @@ are not returned; ask `list_github_issues` with `labels: "<name>"`.
 `deny` and the server behaves exactly as it did before this tool existed,
 logging `Not registering create_github_label` to stderr at startup.
 
-Creating a label labels nothing: no issue carries it until someone applies it, and no tool
-here can do that.
+Creating a label labels nothing: no issue carries it until someone applies it with
+[`update_github_issue`](#update_github_issue)'s `labels` parameter.
 
 | Parameter     | Type              | Default | Description                                                                                                                    |
 | ------------- | ----------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -459,7 +459,7 @@ than reporting `"updated": true` for a change that never happened.
 return.
 
 Renaming **keeps the label on the issues that carry it** — they show the new name, and no
-issue gains or loses the label. No tool here can apply a label to an issue.
+issue gains or loses the label from a rename.
 
 The call **fails** when the repository has no label with that `name`, when `newName`
 collides with a label that already exists, and when the token has no write access. None is
@@ -679,13 +679,12 @@ token has no write access. Neither is retryable without changing the input. Call
 ### `update_github_issue`
 
 **This tool writes.** It edits an issue that already exists — its title, body, state,
-milestone or assignees — and like the other writes it is registered **only when its
-permission-table row says `allow`**, logging `Not registering update_github_issue` to
+milestone, assignees or labels — and like the other writes it is registered **only when
+its permission-table row says `allow`**, logging `Not registering update_github_issue` to
 stderr otherwise.
 
 `number` says *which* issue to edit. Every other parameter is a new value, and one you
 omit is left as it is, so send only what changed rather than resending the whole issue.
-This tool cannot change an issue's labels — no tool on this server can.
 
 | Parameter          | Type              | Default   | Description                                                                                     |
 | ------------------ | ----------------- | --------- | ------------------------------------------------------------------------------------------------- |
@@ -695,9 +694,10 @@ This tool cannot change an issue's labels — no tool on this server can.
 | `state`             | `open` \| `closed`, optional | unchanged | A closed issue may have been completed or dismissed as not planned; this tool does not distinguish the two. |
 | `milestone_number`  | integer, optional | unchanged | A milestone number from [`list_github_milestones`](#list_github_milestones) to attach the issue to. There is no way to clear an already-set milestone with this tool. |
 | `assignees`         | string[], optional | unchanged | The **full** list of logins that should be assigned, replacing the current list rather than adding to it. Pass an empty array to unassign everyone. |
+| `labels`            | string[], optional | unchanged | The **full** list of label names the issue should carry, replacing the current list rather than adding to it. Pass an empty array to clear all labels. Use exact names from [`list_github_labels`](#list_github_labels). |
 
-At least one of `title`, `body`, `state`, `milestone_number` and `assignees` is required;
-a call carrying none of them is rejected rather than treated as a no-op.
+At least one of `title`, `body`, `state`, `milestone_number`, `assignees` and `labels` is
+required; a call carrying none of them is rejected rather than treated as a no-op.
 
 **Example prompts**
 
@@ -730,7 +730,7 @@ a call carrying none of them is rejected rather than treated as a no-op.
 
 `issue` is read back from GitHub after the change, and is the same shape
 [`get_github_issue`](#get_github_issue) returns — `labels` reflects the issue's current
-labels but this tool cannot change them; no tool on this server can.
+labels, which this call may just have changed.
 
 The call **fails** when the repository has no issue numbered `number`, and when the
 token has no write access. Neither is retryable without changing the input. Call
@@ -750,7 +750,8 @@ startup.
 Unlike a label or a milestone, **GitHub does not reject a duplicate title**: calling this
 twice with the same title creates two separate issues rather than failing the second
 time, so confirm with the user before calling rather than retrying a call whose result is
-uncertain. This tool cannot set the issue's labels — no tool on this server can.
+uncertain. This tool cannot set the issue's labels on creation — call
+[`update_github_issue`](#update_github_issue) with its `labels` parameter afterwards.
 
 | Parameter          | Type              | Default    | Description                                                                                     |
 | ------------------ | ----------------- | ---------- | ------------------------------------------------------------------------------------------------- |
@@ -784,7 +785,8 @@ uncertain. This tool cannot set the issue's labels — no tool on this server ca
 
 `issue` is read back from GitHub rather than echoed from the input, and is the same shape
 [`get_github_issue`](#get_github_issue) returns. `labels` is always empty on a new issue,
-since this tool cannot set them.
+since this tool cannot set them at creation time — use
+[`update_github_issue`](#update_github_issue) afterwards.
 
 The call **fails** when the configured token has no write access to the repository, or
 when `milestone_number` or an `assignees` login does not exist. None of those is

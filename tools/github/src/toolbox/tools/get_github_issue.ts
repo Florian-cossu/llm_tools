@@ -24,15 +24,9 @@ const register: ToolInstance = (server, config) => {
           config.defaultOwner,
           config.defaultRepository,
         ) +
-        `Read a single issue of a GitHub repository by its number, ` +
-        `including the body that list_github_issues leaves out. Use ` +
-        `list_github_issues first when the number is not already known. ` +
-        `Comments are not returned, only the issue itself. Returns ` +
-        `{"number": number, "title", "state", "body", "labels", ` +
-        `"assignees", "milestone"}, where "body" is the issue's ` +
-        `description in Markdown and is null when it has none, and ` +
-        `"milestone" is null or an object shaped as in ` +
-        `list_github_issues.`,
+        `Read one issue by number, including the body omitted by list_github_issues. ` +
+        `Comments not included. Use list_github_issues first if the number is unknown. ` +
+        `Returns {number, title, state, body, labels, assignees, milestone}.`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -57,54 +51,56 @@ const register: ToolInstance = (server, config) => {
           .int()
           .positive()
           .describe(
-            `The number identifying the issue within its repository, as ` +
-              `shown in the GitHub interface and returned in the ` +
-              `"number" field of list_github_issues results.`,
+            `Issue number as shown in GitHub and returned by list_github_issues. ` +
+              `Never invented — take it from list_github_issues or get_github_issue; the call fails if it doesn't exist.`,
           ),
       }),
     },
-    async ({ owner, repository, number }) => withTracking("github", TOOL_NAME, async () => {
-      const effectiveOwner = owner?.trim() || config.defaultOwner;
-      const effectiveRepository = repository?.trim() || config.defaultRepository;
+    async ({ owner, repository, number }) =>
+      withTracking("github", TOOL_NAME, async () => {
+        const effectiveOwner = owner?.trim() || config.defaultOwner;
+        const effectiveRepository =
+          repository?.trim() || config.defaultRepository;
 
-      if (
-        !isStringUsable(effectiveOwner) ||
-        !isStringUsable(effectiveRepository)
-      ) {
-        throw new Error(
-          "No GitHub owner or repository was provided, and no default was configured.",
-        );
-      }
-
-      const response = await config.octokit.rest.issues
-        .get({
-          owner: effectiveOwner,
-          repo: effectiveRepository,
-          issue_number: number,
-        })
-        .catch((error: unknown) => {
-          const reason = error instanceof Error ? error.message : String(error);
+        if (
+          !isStringUsable(effectiveOwner) ||
+          !isStringUsable(effectiveRepository)
+        ) {
           throw new Error(
-            `Unable to retrieve issue "${number}": ${reason}`,
+            "No GitHub owner or repository was provided, and no default was configured.",
           );
-        });
+        }
 
-      const githubIssue = response.data as GithubApiIssue & { body?: string | null };
+        const response = await config.octokit.rest.issues
+          .get({
+            owner: effectiveOwner,
+            repo: effectiveRepository,
+            issue_number: number,
+          })
+          .catch((error: unknown) => {
+            const reason =
+              error instanceof Error ? error.message : String(error);
+            throw new Error(`Unable to retrieve issue "${number}": ${reason}`);
+          });
 
-      const compactIssue = {
-        ...mapGithubIssue(githubIssue),
-        body: githubIssue.body ? githubIssue.body : null,
-      };
+        const githubIssue = response.data as GithubApiIssue & {
+          body?: string | null;
+        };
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(compactIssue),
-          },
-        ],
-      };
-    }),
+        const compactIssue = {
+          ...mapGithubIssue(githubIssue),
+          body: githubIssue.body ? githubIssue.body : null,
+        };
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(compactIssue),
+            },
+          ],
+        };
+      }),
   );
 };
 

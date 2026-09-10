@@ -10,6 +10,7 @@ import {
   withTracking,
 } from "@llm-tools/shared";
 import { mapGithubMilestone } from "../../mappers/github_compact_mappers.js";
+import { DEFAULT_MILESTONE_LIMIT } from "../../metadata.js";
 
 export const TOOL_NAME = "create_github_milestone";
 
@@ -25,28 +26,11 @@ const register: ToolInstance = (server, config) => {
           config.defaultRepository,
         ) +
         describeMutation(TOOL_EFFECT) +
-        `Create one new milestone in a GitHub repository. A second call with ` +
-        `the same name fails rather than doing nothing, so a failure here ` +
-        `is not a reason to retry. Call list_github_milestones with a ` +
-        `"limit" of 60 first, both to check that no existing milestone ` +
-        `already covers the need and to follow the naming and wording ` +
-        `conventions the repository already uses. Returns ` +
-        `{"created": true, "milestone": {"number", "title", "state", ` +
-        `"description", "dueOn"}}, the same milestone shape ` +
-        `list_github_milestones returns, read back from GitHub - ` +
-        `"description" is null when none was given, "state" is set to ` +
-        `"open" if none is provided, and "dueOn" is null when no due date ` +
-        `was given. Issue counts are not returned - call ` +
-        `get_github_milestone with the "number" from this response for ` +
-        `those. The new milestone carries no issues: nothing is ` +
-        `linked by creating it - say so rather than implying the issues ` +
-        `were updated. Assigning it to an issue is create_github_issue's ` +
-        `job at creation time, or update_github_issue's afterwards - not ` +
-        `this tool's. The call fails when ` +
-        `the repository already has a milestone ` +
-        `with this name, and when the configured token has no write ` +
-        `access to the repository; neither is retryable without changing ` +
-        `the input.`,
+        `Create one milestone. Duplicate title fails — not a reason to retry. ` +
+        `Call list_github_milestones first to check for duplicates and match naming conventions. ` +
+        `Creating a milestone links no issues — assign via create_github_issue or update_github_issue. ` +
+        `Returns {created: true, milestone: {number, title, state, description, dueOn}}. ` +
+        `Fails when the title already exists or the token has no write access; not retryable.`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -70,13 +54,9 @@ const register: ToolInstance = (server, config) => {
           .string()
           .min(1)
           .describe(
-            `The title identifying the new milestone within its repository, exactly ` +
-              `as it should appear in the GitHub interface. A milestone name may ` +
-              `contain spaces; pass it as it is, without quotes. Required, and never ` +
-              `invented: use the title the user asked for, matched to the prefix, ` +
-              `case and separator of the titles list_github_milestones returns. GitHub ` +
-              `compares titles case-insensitively, so "Milestone 1" collides with an ` +
-              `existing "milestone 1" and the call fails.`,
+            `Milestone title, exactly as it should appear in GitHub. ` +
+              `May contain spaces — pass as-is. Never invented: use what the user asked for. ` +
+              `GitHub compares case-insensitively — "v1.0" collides with "V1.0".`,
           ),
 
         state: z
@@ -94,7 +74,7 @@ const register: ToolInstance = (server, config) => {
           .describe(
             `A short sentence saying what the milestone is for, shown ` +
               `beside it in GitHub. Omit it rather than restating the ` +
-              `title. Call list_github_milestones with a "limit" of 60 to ` +
+              `title. Call list_github_milestones with a "limit" of ${DEFAULT_MILESTONE_LIMIT} to ` +
               `match the phrasing of the descriptions the repository ` +
               `already uses.`,
           ),
@@ -103,53 +83,54 @@ const register: ToolInstance = (server, config) => {
           .string()
           .optional()
           .describe(
-            `The due date to give the milestone instead. Omit it to leave the ` +
-              `due date as it is. The due date must be a string in ISO 8601 with ` +
-              `time + timezone as required by Github. For example: "2026-12-31T00:00:00Z"`,
+            `Due date as ISO 8601 with time and timezone. Example: "2026-12-31T00:00:00Z". ` +
+              `Omit to create without a due date.`,
           ),
       }),
     },
-    async ({ owner, repository, title, state, description, due_on }) => withTracking("github", TOOL_NAME, async () => {
-      const effectiveOwner = owner?.trim() || config.defaultOwner;
-      const effectiveRepository =
-        repository?.trim() || config.defaultRepository;
+    async ({ owner, repository, title, state, description, due_on }) =>
+      withTracking("github", TOOL_NAME, async () => {
+        const effectiveOwner = owner?.trim() || config.defaultOwner;
+        const effectiveRepository =
+          repository?.trim() || config.defaultRepository;
 
-      if (
-        !isStringUsable(effectiveOwner) ||
-        !isStringUsable(effectiveRepository)
-      ) {
-        throw new Error(
-          "No GitHub owner or repository was provided, and no default was configured.",
-        );
-      }
-
-      const response = await config.octokit.rest.issues
-        .createMilestone({
-          owner: effectiveOwner,
-          repo: effectiveRepository,
-          title: title,
-          state: state,
-          description: description,
-          due_on: due_on,
-        })
-        .catch((error: unknown) => {
-          const reason = error instanceof Error ? error.message : String(error);
+        if (
+          !isStringUsable(effectiveOwner) ||
+          !isStringUsable(effectiveRepository)
+        ) {
           throw new Error(
-            `${TOOL_NAME} failed to create the milestone "${title}": ${reason}`,
+            "No GitHub owner or repository was provided, and no default was configured.",
           );
-        });
+        }
 
-      const payload = mapGithubMilestone(response.data);
+        const response = await config.octokit.rest.issues
+          .createMilestone({
+            owner: effectiveOwner,
+            repo: effectiveRepository,
+            title: title,
+            state: state,
+            description: description,
+            due_on: due_on,
+          })
+          .catch((error: unknown) => {
+            const reason =
+              error instanceof Error ? error.message : String(error);
+            throw new Error(
+              `${TOOL_NAME} failed to create the milestone "${title}": ${reason}`,
+            );
+          });
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({ created: true, milestone: payload }),
-          },
-        ],
-      };
-    }),
+        const payload = mapGithubMilestone(response.data);
+
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify({ created: true, milestone: payload }),
+            },
+          ],
+        };
+      }),
   );
 };
 

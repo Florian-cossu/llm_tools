@@ -23,23 +23,9 @@ const register: ToolInstance = (server, config) => {
           config.defaultOwner,
           config.defaultRepository,
         ) +
-        `Read a single label of a GitHub repository by its name, and ` +
-        `confirm that the name exists. Call list_github_labels first ` +
-        `when the name is not already known, or when the user's wording ` +
-        `may not match a label exactly; this tool is the cheap ` +
-        `follow-up once a name is certain, not a way to browse. ` +
-        `Returns {"name", "description", "color", "default"}, where ` +
-        `"description" is null when the label has none, "color" is a ` +
-        `six-digit hex code without the leading "#", and "default" is ` +
-        `true for the labels GitHub creates with every repository. ` +
-        `That is the same shape list_github_labels returns for each ` +
-        `label: there is no further detail behind a label, so call this ` +
-        `to check one name rather than to learn more about a label ` +
-        `already listed. The issues carrying the label are not ` +
-        `returned - list them with list_github_issues and a "labels" of ` +
-        `"<name>". The call fails when the repository has no label with ` +
-        `this name, which is itself the answer to "does this label ` +
-        `exist?".`,
+        `Read one label by its exact name. Use list_github_labels first ` +
+        `if the name is unknown or the user's wording may not match exactly. ` +
+        `Returns {"name", "description", "color", "default"}.`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -70,41 +56,44 @@ const register: ToolInstance = (server, config) => {
           ),
       }),
     },
-    async ({ owner, repository, name }) => withTracking("github", TOOL_NAME, async () => {
-      const effectiveOwner = owner?.trim() || config.defaultOwner;
-      const effectiveRepository = repository?.trim() || config.defaultRepository;
+    async ({ owner, repository, name }) =>
+      withTracking("github", TOOL_NAME, async () => {
+        const effectiveOwner = owner?.trim() || config.defaultOwner;
+        const effectiveRepository =
+          repository?.trim() || config.defaultRepository;
 
-      if (
-        !isStringUsable(effectiveOwner) ||
-        !isStringUsable(effectiveRepository)
-      ) {
-        throw new Error(
-          "No GitHub owner or repository was provided, and no default was configured.",
-        );
-      }
+        if (
+          !isStringUsable(effectiveOwner) ||
+          !isStringUsable(effectiveRepository)
+        ) {
+          throw new Error(
+            "No GitHub owner or repository was provided, and no default was configured.",
+          );
+        }
 
-      const response = await config.octokit.rest.issues
-        .getLabel({
-          owner: effectiveOwner,
-          repo: effectiveRepository,
-          name: name,
-        })
-        .catch((error: unknown) => {
-          const reason = error instanceof Error ? error.message : String(error);
-          throw new Error(`Unable to retrieve label "${name}": ${reason}`);
-        });
+        const response = await config.octokit.rest.issues
+          .getLabel({
+            owner: effectiveOwner,
+            repo: effectiveRepository,
+            name: name,
+          })
+          .catch((error: unknown) => {
+            const reason =
+              error instanceof Error ? error.message : String(error);
+            throw new Error(`Unable to retrieve label "${name}": ${reason}`);
+          });
 
-      const payload = mapGithubLabel(response.data);
+        const payload = mapGithubLabel(response.data);
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(payload),
-          },
-        ],
-      };
-    }),
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(payload),
+            },
+          ],
+        };
+      }),
   );
 };
 
