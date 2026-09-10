@@ -24,29 +24,14 @@ const register: ToolInstance = (server, config) => {
           config.defaultRepository,
         ) +
         describeMutation(TOOL_EFFECT) +
-        `Delete one label from a GitHub repository, by its name. This ` +
-        `cannot be undone: no endpoint restores a deleted label, and ` +
-        `recreating one with the same name does not put it back on the ` +
-        `issues it was removed from, because GitHub keeps no record of ` +
-        `which issues those were. Ask the user to confirm this exact ` +
-        `label by name before calling, and prefer update_github_label ` +
-        `when the user wants the label renamed, recoloured or ` +
-        `redescribed rather than gone. Call list_github_labels or ` +
-        `get_github_label first to confirm the label exists under the ` +
-        `exact name being passed, and to check the name is the one the ` +
-        `user meant. Returns {"deleted": true, "name"}, echoing the ` +
-        `name that was deleted - GitHub answers with an empty body, so ` +
-        `unlike create_github_label and update_github_label there is no ` +
-        `label object to read back, and the label it described no ` +
-        `longer exists. Deleting a label removes it from every issue ` +
-        `that carried it; those issues are not otherwise changed and ` +
-        `none of them is closed or deleted. Report how many issues were ` +
-        `affected only if list_github_issues with a "labels" of ` +
-        `"<name>" was called beforehand - this tool does not say, and ` +
-        `afterwards nothing can. The call fails when the repository has ` +
-        `no label with this name, and when the configured token has no ` +
-        `write access to the repository; neither is retryable without ` +
-        `changing the input.`,
+        `Delete one label from a GitHub repository — cannot be undone. ` +
+`Recreating a label with the same name does not restore it to former issues. ` +
+`Confirm the exact name with the user before calling; prefer update_github_label for renames. ` +
+`Call list_github_labels first to confirm the label exists. ` +
+`Removes the label from every issue that carried it — report affected count only if ` +
+`list_github_issues with "labels" of "<name>" was called beforehand. ` +
+`Returns {deleted: true, name}. ` +
+`Fails when the label doesn't exist or the token has no write access; not retryable.`,
       inputSchema: z.object({
         owner: optionalWhenConfigured(config.defaultOwner).describe(
           "GitHub repository owner (user or organisation). " +
@@ -70,15 +55,9 @@ const register: ToolInstance = (server, config) => {
           .string()
           .min(1)
           .describe(
-            `The name of the label to delete, exactly as shown in the ` +
-              `GitHub interface and returned in the "name" field of ` +
-              `list_github_labels results. A label name may contain ` +
-              `spaces; pass it as it is, without quotes. Required, and ` +
-              `never invented or guessed at: take it from ` +
-              `list_github_labels rather than from the user's wording, ` +
-              `since a name that nearly matches either fails or deletes ` +
-              `the wrong label. GitHub compares names ` +
-              `case-insensitively, so "Bug" deletes an existing "bug".`,
+            `Exact name of the label to delete, as returned by list_github_labels. ` +
+`Never invented or guessed — a near match fails or deletes the wrong label. ` +
+`GitHub compares case-insensitively — "Bug" deletes an existing "bug".`,
           ),
       }),
     },
