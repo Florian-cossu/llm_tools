@@ -1,17 +1,10 @@
-import { DatabaseSync } from "node:sqlite";
-import { dirname, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { getDb } from "@llm-tools/data";
 
 /**
- * Node-native mirror of `data/access.ts`'s `events` reads - see
- * `lib/db.ts` for why this can't just import that file directly.
- * Keep the SELECT in sync with it if the schema changes.
+ * Analytics reads over `events`, joined out for display. Control-panel-only
+ * - no MCP server needs this shape, so it lives next to the metrics page
+ * rather than in `@llm-tools/data`, on the shared connection `getDb` opens.
  */
-
-const DB_PATH = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../data/harness.db",
-);
 
 export type EventStatus = "success" | "error";
 
@@ -32,14 +25,6 @@ export type EventLogRow = {
   duration_ms: number | null;
   created_at: string;
 };
-
-let db: DatabaseSync | undefined;
-
-/** Opens `harness.db` read-only on first use. Run `bun run migrate` first. */
-function getDb(): DatabaseSync {
-  if (!db) db = new DatabaseSync(DB_PATH, { readOnly: true });
-  return db;
-}
 
 const SELECT_EVENTS = `
   SELECT
@@ -87,9 +72,9 @@ function dateRangeWhere(range: EventDateRange): { clause: string; params: string
  * `created_at` column, rather than fetching the whole table and filtering it
  * in the browser.
  *
- * Mapped into plain object literals - `node:sqlite`'s result rows aren't
+ * Mapped into plain object literals - `bun:sqlite`'s result rows aren't
  * plain objects, and React rejects them when a Server Component passes them
- * as props into a Client Component (see `lib/servers.ts`).
+ * as props into a Client Component.
  */
 export function listEvents(range: EventDateRange = {}): EventLogRow[] {
   const { clause, params } = dateRangeWhere(range);

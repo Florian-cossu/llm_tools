@@ -1,3 +1,4 @@
+/// <reference types="bun-types" />
 import { Database } from "bun:sqlite";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -6,15 +7,16 @@ import {
   ServerRow,
   toServerDescriptor,
 } from "./models/ServerDescriptor";
-import { ToolPermission } from "./models/PermissionType";
+import { PermissionState, ToolEffect, ToolPermission } from "./models/PermissionType";
 import { RecordEvent, RecordEventInput } from "./models/RecordedEventsType";
+
+export type { PermissionState, ToolEffect, ToolPermission, ServerDescriptor };
 
 /**
  * Bun-only: `bun:sqlite` is a runtime built-in, not resolvable under Node.
  * Only import this from code that Bun itself executes - migration scripts,
- * MCP servers. control_panel runs under Node, so it has its own equivalent
- * in `control_panel/lib/db.ts` (using `node:sqlite`) rather than importing
- * this file - keep the two in sync if the schema changes.
+ * MCP servers, and control_panel (run via `bun --bun next`) through the
+ * `@llm-tools/data` workspace package.
  */
 const DB_PATH = resolve(dirname(fileURLToPath(import.meta.url)), "harness.db");
 
@@ -79,6 +81,29 @@ export function findToolPermission(
     .get(slug, serverId);
 }
 
+/** Every `permissions` row for one server, by numeric `server_id` rather than slug. */
+export function listPermissions(serverId: number): ToolPermission[] {
+  return getDb()
+    .query<
+      ToolPermission,
+      [number]
+    >(`SELECT ${PERMISSIONS_ROWS} FROM permissions WHERE server_id = ?`)
+    .all(serverId);
+}
+
+/** One row by slug, scoped by numeric `server_id` rather than `server_slug`. */
+export function findToolPermissionByServerId(
+  slug: string,
+  serverId: number,
+): ToolPermission | null {
+  return getDb()
+    .query<
+      ToolPermission,
+      [string, number]
+    >(`SELECT ${PERMISSIONS_ROWS} FROM permissions WHERE slug = ? AND server_id = ?`)
+    .get(slug, serverId);
+}
+
 /** One row by slug, or `null` if the tool has no row yet. */
 export function isToolAllowed(slug: string, server_slug: string): boolean {
   let serverId = findServerBySlug(server_slug)?.id;
@@ -118,10 +143,39 @@ export function getActiveTokenName(server_slug: string, type: string): string | 
 
 let writableDb: Database | undefined;
 
-/** Opens `harness.db` read-write on first use. Only for code that inserts events. */
-function getWritableDb(): Database {
+/**
+ * Opens `harness.db` read-write on first use. Exported for the same reason
+ * as `getDb` - control_panel's `env`/`github_profiles` CRUD lives next to
+ * its own routes rather than here, but still needs the one writable
+ * connection rather than opening a second handle to the same file.
+ */
+export function getWritableDb(): Database {
   if (!writableDb) writableDb = new Database(DB_PATH, { strict: true });
   return writableDb;
+}
+
+/**
+ * Sets a tool's `state`. Returns `false` if `slug`/`serverId` has no row -
+ * the CHECK constraint rejects anything outside `PermissionState` before
+ * this runs.
+ */
+export function updateToolState(
+  serverId: number,
+  slug: string,
+  state: PermissionState,
+): boolean {
+  const result = getWritableDb()
+    .query("UPDATE permissions SET state = ? WHERE slug = ? AND server_id = ?")
+    .run(state, slug, serverId);
+  return result.changes > 0;
+}
+
+/** Sets a tool's `state` back to its seeded `default_state`. */
+export function resetToolState(slug: string, serverId: number): boolean {
+  const result = getWritableDb()
+    .query("UPDATE permissions SET state = default_state WHERE slug = ? AND server_id = ?")
+    .run(slug, serverId);
+  return result.changes > 0;
 }
 
 const EVENT_ROWS = `id, server_id, session_id, tool_id, status, error_message, duration_ms, created_at`;

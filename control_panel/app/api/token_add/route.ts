@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { findServerBySlug } from "@/lib/servers";
+import { findServerBySlug } from "@llm-tools/data";
 import { addToken } from "@/lib/tokens";
 
 const PostBody = z.object({

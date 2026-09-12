@@ -1,16 +1,6 @@
-import { findServerBySlug } from "@/lib/servers";
-import { dirname, resolve } from "node:path";
-import { DatabaseSync } from "node:sqlite";
-import { fileURLToPath } from "node:url";
+import { findServerBySlug, getDb, getWritableDb } from "@llm-tools/data";
 
 const GITHUB_SERVER_SLUG = "github";
-
-const DB_PATH = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../../../../data/harness.db",
-);
-
-let db: DatabaseSync | undefined;
 
 export type GithubProfile = {
     id: number;
@@ -24,9 +14,9 @@ export type GithubProfile = {
 type GithubProfileRow = NonNullable<GithubProfile>;
 
 /**
- * Maps into a plain object literal - `node:sqlite`'s result rows aren't
+ * Maps into a plain object literal - `bun:sqlite`'s result rows aren't
  * plain objects, and React rejects them when a Server Component passes them
- * as props into a Client Component (see `lib/servers.ts`).
+ * as props into a Client Component.
  */
 function toGithubProfile(row: GithubProfileRow): GithubProfile {
   return {
@@ -37,19 +27,6 @@ function toGithubProfile(row: GithubProfileRow): GithubProfile {
     repository_name: row.repository_name,
     is_active: row.is_active,
   };
-}
-
-function getDb(): DatabaseSync {
-  if (!db) db = new DatabaseSync(DB_PATH, { readOnly: true });
-  return db;
-}
-
-let writableDb: DatabaseSync | undefined;
-
-/** Opens `harness.db` read-write on first use. Only for code that mutates rows. */
-function getWritableDb(): DatabaseSync {
-  if (!writableDb) writableDb = new DatabaseSync(DB_PATH);
-  return writableDb;
 }
 
 export function listGithubProfiles(): GithubProfile[] {

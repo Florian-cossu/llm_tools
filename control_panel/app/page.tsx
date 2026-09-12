@@ -3,15 +3,14 @@ import { LayoutDashboard, Server as ServerIcon, ShieldCheck, ShieldOff, ShieldQu
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { listAllPermissions } from "@/lib/db";
-import { listServers } from "@/lib/servers";
+import { listServers, listToolPermissions } from "@llm-tools/data";
 import HarnessCard from "@/components/harness-card";
 
 export const dynamic = "force-dynamic";
 
 export default function Home() {
   const servers = listServers();
-  const tools = listAllPermissions();
+  const tools = listToolPermissions();
   const byServerEffect = {
     read: tools.filter((t) => t.tool_effect === "read").length,
     write: tools.filter((t) => t.tool_effect === "write").length,

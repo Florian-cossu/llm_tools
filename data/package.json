@@ -1,0 +1,8 @@
+{
+  "name": "@llm-tools/data",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./access.ts",
+  "types": "./access.ts"
+}

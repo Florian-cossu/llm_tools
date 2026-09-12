@@ -1,6 +1,5 @@
-import { findServerBySlug } from "@/lib/servers";
-import { listPermissions } from "@/lib/db";
-import type { PermissionState, ToolEffect } from "@/lib/db";
+import { findServerBySlug, listPermissions } from "@llm-tools/data";
+import type { PermissionState, ToolEffect } from "@llm-tools/data";
 
 export type { PermissionState, ToolEffect };
 

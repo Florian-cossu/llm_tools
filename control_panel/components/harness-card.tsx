@@ -1,15 +1,14 @@
 import type { ReactNode } from "react";
 import { ShieldBan, ShieldCheck, ShieldQuestion, Wrench } from "lucide-react";
 
-import { listAllPermissions } from "@/lib/db";
-import { listServers } from "@/lib/servers";
 import { McpIcon } from "@/components/icons/mcp-icon";
 import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { listServers, listToolPermissions } from "@llm-tools/data";
 
 export default function HarnessCard() {
   const servers = listServers();
-  const tools = listAllPermissions();
+  const tools = listToolPermissions();
   const byState = {
     allow: tools.filter((t) => t.state === "allow").length,
     deny: tools.filter((t) => t.state === "deny").length,

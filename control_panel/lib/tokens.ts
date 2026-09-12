@@ -1,19 +1,13 @@
-import { dirname, resolve } from "node:path";
-import { DatabaseSync } from "node:sqlite";
-import { fileURLToPath } from "node:url";
+import { findServerBySlug, getDb, getWritableDb } from "@llm-tools/data";
 import { type EnvKeyEntry, listEnvKeys } from "./env_file";
-import { findServerBySlug } from "./servers";
 
 /**
- * Node-native mirror of `env`, the table mapping each server to the env var
- * names (never values - see `data/migrations/0007_init_tokens_by_server.sql`)
- * it can use, scoped by `type` (e.g. `"auth"`).
+ * `env`, the table mapping each server to the env var names (never values -
+ * see `data/migrations/0007_init_tokens_by_server.sql`) it can use, scoped
+ * by `type` (e.g. `"auth"`). Control-panel-only - no MCP server needs this
+ * CRUD, so it lives next to the routes that use it rather than in
+ * `@llm-tools/data`, on the shared connection `getDb`/`getWritableDb` open.
  */
-
-const DB_PATH = resolve(
-  dirname(fileURLToPath(import.meta.url)),
-  "../../data/harness.db",
-);
 
 export type TokenRow = {
   id: number;
@@ -23,28 +17,12 @@ export type TokenRow = {
   is_active: number;
 };
 
-let db: DatabaseSync | undefined;
-
-/** Opens `harness.db` read-only on first use. Run `bun run migrate` first. */
-function getDb(): DatabaseSync {
-  if (!db) db = new DatabaseSync(DB_PATH, { readOnly: true });
-  return db;
-}
-
-let writableDb: DatabaseSync | undefined;
-
-/** Opens `harness.db` read-write on first use. Only for code that mutates `env`. */
-function getWritableDb(): DatabaseSync {
-  if (!writableDb) writableDb = new DatabaseSync(DB_PATH);
-  return writableDb;
-}
-
 const SELECT_COLUMNS = "id, server_id, token_name, type, is_active";
 
 /**
- * Maps into a plain object literal - `node:sqlite`'s result rows aren't
+ * Maps into a plain object literal - `bun:sqlite`'s result rows aren't
  * plain objects, and React rejects them when a Server Component passes them
- * as props into a Client Component (see `lib/servers.ts`).
+ * as props into a Client Component.
  */
 function toTokenRow(row: TokenRow): TokenRow {
   return {

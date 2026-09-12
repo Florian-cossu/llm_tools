@@ -16,18 +16,13 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { GithubIcon } from "@/components/icons/github-icon";
-import type { ServerDescriptor } from "@/lib/servers";
+import type { ServerDescriptor } from "@llm-tools/data";
 import type { LucideIcon } from "lucide-react";
 
 export const LUCIDE_ICON_MAP: Record<string, LucideIcon> = {
   Server,
 };
 
-/**
- * Local (non-lucide) icons, inlined as components rather than loaded via
- * `<img src>` - an externally-referenced SVG can't inherit `currentColor`
- * from the page, so it can never pick up the active/hover text color here.
- */
 export const LOCAL_ICON_MAP: Record<string, React.ComponentType<React.SVGProps<SVGSVGElement>>> = {
   github: GithubIcon,
 };
@@ -36,13 +31,13 @@ export function AppSidebar({ servers }: { servers: ServerDescriptor[] }) {
   const pathname = usePathname();
 
   return (
-    <Sidebar>
+    <Sidebar variant="floating">
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname === "/"} size="lg">
               <Link href="/" className="flex flex-row items-center gap-2">
-                <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+                <span className="flex size-7 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
                   <LayoutDashboard className="size-4" />
                 </span>
                 <span className="flex flex-col leading-tight">

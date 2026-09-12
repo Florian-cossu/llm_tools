@@ -128,7 +128,9 @@ function parseCreatedAt(createdAt: string): number {
 
 function formatTimestamp(createdAt: string): string {
   const ms = parseCreatedAt(createdAt);
-  return Number.isNaN(ms) ? createdAt : new Date(ms).toLocaleString();
+  return Number.isNaN(ms)
+    ? createdAt
+    : new Date(ms).toLocaleString(undefined, { timeZone: "UTC" });
 }
 
 const columns = columnHelper.columns([
