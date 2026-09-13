@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -65,6 +65,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { useLocale } from "@/hooks/use-locale";
 import { cn } from "@/lib/utils";
 import type { EventLogRow, EventStatus } from "@/lib/events";
 
@@ -126,68 +127,68 @@ function parseCreatedAt(createdAt: string): number {
   return new Date(`${createdAt.replace(" ", "T")}Z`).getTime();
 }
 
-function formatTimestamp(createdAt: string): string {
+function formatTimestamp(createdAt: string, locale: string): string {
   const ms = parseCreatedAt(createdAt);
-  return Number.isNaN(ms)
-    ? createdAt
-    : new Date(ms).toLocaleString(undefined, { timeZone: "UTC" });
+  return Number.isNaN(ms) ? createdAt : new Date(ms).toLocaleString(locale, { timeZone: "UTC" });
 }
 
-const columns = columnHelper.columns([
-  columnHelper.accessor("created_at", {
-    header: "Time",
-    cell: (info) => formatTimestamp(info.getValue()),
-    meta: { icon: CalendarClock },
-    size: 190,
-    minSize: 120,
-  }),
-  columnHelper.accessor("server_name", {
-    header: "Server",
-    meta: { icon: Server },
-    size: 130,
-    minSize: 80,
-  }),
-  columnHelper.accessor("tool_slug", {
-    header: "Tool",
-    cell: (info) => info.getValue() ?? "—",
-    meta: { icon: Wrench },
-    size: 190,
-    minSize: 100,
-  }),
-  columnHelper.accessor("status", {
-    header: "Status",
-    cell: (info) => (
-      <Badge variant={info.getValue() === "error" ? "destructive" : "outline"}>
-        {info.getValue()}
-      </Badge>
-    ),
-    meta: { icon: CircleCheck },
-    size: 100,
-    minSize: 80,
-    filterFn: "equalsString",
-  }),
-  columnHelper.accessor("duration_ms", {
-    header: "Duration",
-    cell: (info) => (info.getValue() !== null ? `${info.getValue()} ms` : "—"),
-    meta: { icon: Timer },
-    size: 100,
-    minSize: 80,
-  }),
-  columnHelper.accessor("session_id", {
-    header: "Session",
-    cell: (info) => info.getValue() || "—",
-    meta: { icon: Fingerprint },
-    size: 160,
-    minSize: 80,
-  }),
-  columnHelper.accessor("error_message", {
-    header: "Error",
-    cell: (info) => info.getValue() || "—",
-    meta: { icon: AlertTriangle },
-    size: 240,
-    minSize: 100,
-  }),
-]);
+function buildColumns(locale: string) {
+  return columnHelper.columns([
+    columnHelper.accessor("created_at", {
+      header: "Time",
+      cell: (info) => formatTimestamp(info.getValue(), locale),
+      meta: { icon: CalendarClock },
+      size: 190,
+      minSize: 120,
+    }),
+    columnHelper.accessor("server_name", {
+      header: "Server",
+      meta: { icon: Server },
+      size: 130,
+      minSize: 80,
+    }),
+    columnHelper.accessor("tool_slug", {
+      header: "Tool",
+      cell: (info) => info.getValue() ?? "—",
+      meta: { icon: Wrench },
+      size: 190,
+      minSize: 100,
+    }),
+    columnHelper.accessor("status", {
+      header: "Status",
+      cell: (info) => (
+        <Badge variant={info.getValue() === "error" ? "destructive" : "outline"}>
+          {info.getValue()}
+        </Badge>
+      ),
+      meta: { icon: CircleCheck },
+      size: 100,
+      minSize: 80,
+      filterFn: "equalsString",
+    }),
+    columnHelper.accessor("duration_ms", {
+      header: "Duration",
+      cell: (info) => (info.getValue() !== null ? `${info.getValue()} ms` : "—"),
+      meta: { icon: Timer },
+      size: 100,
+      minSize: 80,
+    }),
+    columnHelper.accessor("session_id", {
+      header: "Session",
+      cell: (info) => info.getValue() || "—",
+      meta: { icon: Fingerprint },
+      size: 160,
+      minSize: 80,
+    }),
+    columnHelper.accessor("error_message", {
+      header: "Error",
+      cell: (info) => info.getValue() || "—",
+      meta: { icon: AlertTriangle },
+      size: 240,
+      minSize: 100,
+    }),
+  ]);
+}
 
 type DateRange = { from?: string; to?: string };
 
@@ -201,6 +202,8 @@ export default function EventsTable({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const locale = useLocale();
+  const columns = useMemo(() => buildColumns(locale), [locale]);
 
   const [sorting, setSorting] = useState<SortingState>([{ id: "created_at", desc: true }]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -425,7 +428,7 @@ export default function EventsTable({
           {selectedEvent && (
             <div className="flex flex-col gap-4 overflow-y-auto px-4 pb-4">
               <DetailField label="Time" icon={CalendarClock}>
-                {formatTimestamp(selectedEvent.created_at)}
+                {formatTimestamp(selectedEvent.created_at, locale)}
               </DetailField>
               <DetailField label="Server" icon={Server}>
                 {selectedEvent.server_name}

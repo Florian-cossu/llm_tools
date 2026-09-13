@@ -124,7 +124,7 @@
   }
   body {
     @apply text-foreground;
-    background: var(--bg-img);
+    background: var(--bg-img) no-repeat fixed;
   }
   button:not(:disabled), [role="button"]:not(:disabled) {
     cursor: pointer;

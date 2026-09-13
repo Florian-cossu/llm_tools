@@ -6,6 +6,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis 
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { useLocale } from "@/hooks/use-locale";
 import type { DailyVolume, OverviewStats, ServerCount, ToolCount, ToolLatency } from "@/lib/events";
 
 /**
@@ -20,11 +21,11 @@ const ORANGE = { light: "#eb6834", dark: "#d95926" };
 const STATUS_GOOD = "#0ca30c";
 const STATUS_CRITICAL = "#d03b3b";
 
-function formatDay(day: string): string {
+function formatDay(day: string, locale: string): string {
   const date = new Date(`${day}T00:00:00Z`);
   return Number.isNaN(date.getTime())
     ? day
-    : date.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+    : date.toLocaleDateString(locale, { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 function ChartCard({
@@ -114,6 +115,8 @@ function MagnitudeBarChart({
 
 /** A single-series area chart for event volume over time. */
 function VolumeChart({ data }: { data: DailyVolume[] }) {
+  const locale = useLocale();
+
   if (data.length === 0) return <EmptyState message="No data for this range." />;
 
   const config: ChartConfig = { count: { label: "Events", theme: BLUE } };
@@ -127,7 +130,7 @@ function VolumeChart({ data }: { data: DailyVolume[] }) {
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          tickFormatter={formatDay}
+          tickFormatter={(day) => formatDay(day, locale)}
           tick={{ fontSize: 11 }}
           className="fill-muted-foreground"
         />
@@ -141,7 +144,7 @@ function VolumeChart({ data }: { data: DailyVolume[] }) {
         />
         <ChartTooltip
           cursor={{ stroke: "var(--border)" }}
-          content={<ChartTooltipContent labelFormatter={(label) => formatDay(String(label))} />}
+          content={<ChartTooltipContent labelFormatter={(label) => formatDay(String(label), locale)} />}
         />
         <Area
           dataKey="count"
