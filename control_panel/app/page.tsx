@@ -23,7 +23,7 @@ export default function Home() {
   };
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
+    <div className="mx-auto p-6 flex max-w-4xl flex-col gap-6">
       <div>
         <div className="flex flex-row gap-2 items-center">
           <LayoutDashboard />

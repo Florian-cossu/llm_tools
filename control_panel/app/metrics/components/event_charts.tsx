@@ -40,7 +40,7 @@ function ChartCard({
   return (
     <Card size="sm" className={className}>
       <CardHeader>
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
@@ -51,7 +51,7 @@ function StatTile({ label, value, icon: Icon }: { label: string; value: string; 
   return (
     <Card size="sm">
       <CardContent className="gap-1">
-        <span className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <span className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-foreground uppercase">
           <Icon className="size-3.5" />
           {label}
         </span>
@@ -62,7 +62,7 @@ function StatTile({ label, value, icon: Icon }: { label: string; value: string; 
 }
 
 function EmptyState({ message }: { message: string }) {
-  return <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">{message}</div>;
+  return <div className="flex h-32 items-center justify-center text-sm text-foreground">{message}</div>;
 }
 
 type MagnitudeDatum = { label: string; value: number };
@@ -236,7 +236,11 @@ export default function EventCharts({
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile label="Total events" value={overview.total.toLocaleString()} icon={Activity} />
+        <StatTile
+          label="Total events"
+          value={overview.total.toLocaleString()}
+          icon={Activity}
+        />
         <StatTile
           label="Success rate"
           value={successRate !== null ? `${successRate}%` : "—"}
