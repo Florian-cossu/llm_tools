@@ -128,9 +128,11 @@ plaintext `.sql` files in filename order and records each in a `meta` table.
 - **Never edit an applied migration** — it will not run again. Add the next one.
 - `harness.db` and its `-wal`/`-shm` siblings are gitignored. Never commit them.
 - Adding a tool does not add its permission row; that needs a migration.
-- `data/access.ts` is the read API Bun code uses; `control_panel/lib/db.ts` is
-  a hand-kept Node mirror of it, since `bun:sqlite` and `node:sqlite` are each
-  only available in their own runtime. Keep the two in sync by hand.
+- `data/access.ts` is the read API, published as the `@llm-tools/data`
+  workspace package. `control_panel` runs via `bun --bun next` and imports it
+  directly — there is no separate Node mirror anymore. `github_profiles` and
+  `env` still have their own hand-written CRUD under `control_panel/lib/`
+  (control-panel-only concerns with no reader in `@llm-tools/data`).
 
 See `docs/02-architecture/components/data-store.md`.
 

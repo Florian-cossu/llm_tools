@@ -1,0 +1,17 @@
+{
+  "name": "@llm-tools/research",
+  "version": "1.0.0",
+  "description": "Perform an online research",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/index.ts"
+  },
+  "keywords": [
+    "internet",
+    "research",
+    "browse"
+  ],
+  "dependencies": {
+    "@llm-tools/shared": "workspace:*"
+  }
+}

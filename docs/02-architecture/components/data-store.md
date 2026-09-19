@@ -3,7 +3,7 @@ type: component
 status: active
 scope: repo
 last_reviewed: 2026-09-06
-last_updated: 2026-09-09
+last_updated: 2026-09-19
 summary: The local SQLite database, its plaintext SQL migrations and the runner that applies them - now consulted by the github server at registration for allow/deny (ADR-0008).
 read_when:
   - changing the database schema
@@ -150,8 +150,8 @@ adds the icon columns and backfills them for that row:
 Both readers below expose `icon_name`/`icon_source` as optional — `undefined`
 when a server has no icon set — since the columns are nullable and only
 `github` is seeded.
-[`control_panel/lib/servers.ts`](../../../control_panel/lib/servers.ts) is the
-control panel's reader: `listServers()` for nav, `findServerBySlug(slug)`
+[`data/access.ts`](../../../data/access.ts) (via `@llm-tools/data`) is the
+control panel's reader too: `listServers()` for nav, `findServerBySlug(slug)`
 everywhere a per-server lib (like `github_profiles.tsx` below) needs its own
 `id` to scope a write by.
 
@@ -253,7 +253,8 @@ call site with `process.env[token_name]`.
 Unlike `github_profiles`'s single-active invariant, this one **is** enforced
 in the schema: `idx_env_active_per_type`, a unique index on
 `(server_id, type) WHERE is_active = 1`. Because `type` has no `CHECK`, and
-`data/access.ts`'s `getActiveTokenName` / `control_panel/lib/tokens.ts`'s
+`data/access.ts`'s `getActiveTokenName` and
+[`control_panel/lib/tokens.ts`](../../../control_panel/lib/tokens.ts)'s
 `setTokenActive` both compare it with `COLLATE NOCASE` (a stored `"AUTH"`
 must still match a lookup for `"auth"`), the index itself is **not**
 case-insensitive — a row inserted outside `setTokenActive` with different
@@ -290,41 +291,38 @@ go through one of these.
 `data/access.ts` matches the current schema and is what
 `tools/github/src/index.ts` imports for `isToolAllowed` at registration —
 `listServers()` / `findServerBySlug()` against `servers`,
-`listToolPermissions()` / `findToolPermission()` / `isToolAllowed()` against
-`permissions`, `getActiveTokenName(server_slug, type)` against `env`, and
-`recordEvent(input)` against `events`, on a **second, read-write** connection
-opened only on first insert — every read above stays on the module's single
-`readonly: true` connection. It is Bun-only (`bun:sqlite`), so nothing under
-`control_panel/` (Node) can import it.
+`listToolPermissions()` / `findToolPermission()` / `isToolAllowed()` /
+`findToolPermissionByServerId()` / `updateToolState()` / `resetToolState()`
+against `permissions`, `getActiveTokenName(server_slug, type)` against `env`,
+and `recordEvent(input)` against `events`, on a **second, read-write**
+connection (also exported as `getWritableDb()`) opened only on first write —
+every read above stays on the module's single `readonly: true` connection
+(also exported as `getDb()`).
 
-[`control_panel/lib/db.ts`](../../../control_panel/lib/db.ts) is the Node
-mirror of `data/access.ts`'s `permissions` reads — `bun:sqlite` /
-`node:sqlite` are each available only in their own runtime, so it cannot just
-import `data/access.ts`. It opens `harness.db` **read-only** for
-`listAllPermissions()` / `listPermissions(serverId)` /
-`findToolPermission(slug, serverId)`, and a **second, read-write** connection
-for `updateToolState` / `resetToolState`, so the read path every page uses
-stays on the read-only connection.
-[`control_panel/lib/servers.ts`](../../../control_panel/lib/servers.ts) is the
-same kind of mirror for `data/access.ts`'s `servers` reads;
-[`control_panel/lib/tokens.ts`](../../../control_panel/lib/tokens.ts) mirrors
-`env` (plus the writes `data/access.ts` has no reason to carry —
-`setTokenActive`, `deactivateToken`, `addToken`); and
-[`control_panel/lib/events.ts`](../../../control_panel/lib/events.ts) mirrors
-`events`, read-only — nothing in the control panel writes an event, only the
-github tool does, through `data/access.ts`.
+It is Bun-only (`bun:sqlite`), but `control_panel` is no longer excluded from
+that: `data/access.ts` is a real workspace package, `@llm-tools/data`, and the
+panel runs via `bun --bun next` (`bun run dev:panel`) so its server code
+executes under Bun and imports it directly — no Node mirror to keep in sync.
+`servers` and `permissions` go straight through `@llm-tools/data`;
+[`control_panel/lib/events.ts`](../../../control_panel/lib/events.ts) reads
+`events` (read-only — nothing in the control panel writes an event, only the
+github tool does, through `data/access.ts`) on top of the shared `getDb()`.
+`github_profiles` and `env` have no equivalent in `@llm-tools/data` at all — a
+per-server concern, control-panel-only — so
 [`control_panel/app/servers/github/lib/github_profiles.tsx`](../../../control_panel/app/servers/github/lib/github_profiles.tsx)
-follows the same read-only/read-write split for `github_profiles`, which has
-no Bun-side reader at all yet. See [control panel](control-panel.md), which is
-what calls the writers.
+and [`control_panel/lib/tokens.ts`](../../../control_panel/lib/tokens.ts)
+carry their own `SELECT`s and writes (`setGithubProfileActive`;
+`setTokenActive`, `deactivateToken`, `addToken`) against `getDb()` /
+`getWritableDb()`. See [control panel](control-panel.md), which is what calls
+the writers.
 
 > [!note] Nothing is generated from anything else here
-> A schema change to `permissions`, `servers`, `github_profiles`, `env` or
-> `events` means editing the `SELECT` columns and the row type in whichever of
-> `data/access.ts` and the `control_panel/lib/` files touch that table by
-> hand. Nothing checks that they still agree — `0005_add_icon_columns_for_servers.sql`
-> needed the same two columns added in both `data/models/ServerDescriptor.ts`
-> (Bun) and `control_panel/lib/servers.ts` (Node).
+> A schema change to `servers` or `permissions` means editing the `SELECT`
+> columns and row type in `data/access.ts` alone now. `github_profiles` and
+> `env` have no reader in `@llm-tools/data` to update instead — a schema
+> change to either means editing `github_profiles.tsx` or `lib/tokens.ts` by
+> hand, and nothing checks that they still agree with the migration that
+> shaped them.
 
 ## Why SQLite
 

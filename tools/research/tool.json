@@ -1,0 +1,17 @@
+{
+  "mcpServerName": "research",
+  "setup": "bun install",
+  "build": null,
+  "command": "bun",
+  "args": [
+    "run",
+    "src/index.ts"
+  ],
+  "dev": {
+    "command": "bun",
+    "args": [
+      "run",
+      "src/index.ts"
+    ]
+  }
+}

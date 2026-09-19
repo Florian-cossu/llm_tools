@@ -3,7 +3,7 @@ type: component
 status: active
 scope: repo
 last_reviewed: 2026-09-06
-last_updated: 2026-09-09
+last_updated: 2026-09-19
 summary: A Next.js app that reads and edits data/harness.db's servers, permissions, github_profiles, env and events tables - all but events read by the github server at registration or per call.
 read_when:
   - working on control_panel
@@ -12,8 +12,6 @@ read_when:
   - working on github profiles, the active-profile toggle, or the active-token toggle
   - working on the metrics dashboard
 code_refs:
-  - control_panel/lib/db.ts
-  - control_panel/lib/servers.ts
   - control_panel/lib/tokens.ts
   - control_panel/lib/events.ts
   - control_panel/lib/github/tools.ts
@@ -69,7 +67,7 @@ bun run dev:panel
 
 | Route | Shows |
 | --- | --- |
-| `/` | [`HarnessCard`](../../../control_panel/components/harness-card.tsx) — server/tool counts and permission-state badges across `permissions` ([`lib/servers.ts`](../../../control_panel/lib/servers.ts)'s `listServers()` + `lib/db.ts`'s `listAllPermissions()`) |
+| `/` | [`HarnessCard`](../../../control_panel/components/harness-card.tsx) — server/tool counts and permission-state badges across `permissions`, via [`@llm-tools/data`](../../../data/access.ts)'s `listServers()` + `listToolPermissions()` |
 | `/servers/github` | The github server's tools, each with a [`PermissionControl`](../../../control_panel/components/permission-control.tsx), plus the [github profiles](#github-profiles) and [tokens](#tokens) managers |
 | `/metrics` | The [event log dashboard](#metrics) — charts and a filterable table over `events` |
 
@@ -87,8 +85,7 @@ note per server rather than a generated one.
 
 - [`lib/github/tools.ts`](../../../control_panel/lib/github/tools.ts) exposes
   `getGithubTools()`, a function (not a constant) over
-  [`lib/servers.ts`](../../../control_panel/lib/servers.ts)'s
-  `findServerBySlug()` and [`lib/db.ts`](../../../control_panel/lib/db.ts)'s
+  [`@llm-tools/data`](../../../data/access.ts)'s `findServerBySlug()` and
   `listPermissions(serverId)` — a constant would freeze at whatever the rows
   looked like when the module first loaded, not the rows as they are now.
 - A tool that exists in `TOOL_REGISTRATIONS` but has no migrated row simply
@@ -114,9 +111,10 @@ below the tool list, both reading and writing through
 [`app/servers/github/lib/github_profiles.tsx`](../../../control_panel/app/servers/github/lib/github_profiles.tsx):
 
 - `listGithubProfiles()` maps rows into plain object literals before they
-  reach a page — `node:sqlite`'s result rows aren't plain objects, and React
+  reach a page — `bun:sqlite`'s result rows aren't plain objects, and React
   rejects them when a Server Component passes them as props into a Client
-  Component, the same rule `lib/servers.ts` follows for `servers`.
+  Component, the same rule [`lib/tokens.ts`](../../../control_panel/lib/tokens.ts)
+  follows for `env`.
 - `addGithubProfile(profileName, owner, repo)` inserts a row via
   [`/api/github_add_profile`](../../../control_panel/app/api/github_add_profile/route.ts)
   (`POST`), called from `AddProfileForm`, a client component holding the three
@@ -208,26 +206,29 @@ SQL rather than filtered in the browser:
 Nothing in the control panel writes to `events` — it is the one table here
 that only the github server, not a human through this app, ever changes.
 
-## `lib/db.ts` mirrors `data/access.ts` — sort of
+## The control panel imports `data/access.ts` directly, via `@llm-tools/data`
 
-Next's server code runs under **Node**, not Bun, and `bun:sqlite` /
-`node:sqlite` are each available only in their own runtime — so
-`control_panel/lib/db.ts` cannot import
-[`data/access.ts`](../../../data/access.ts) directly. It restates the same
-`SELECT_COLUMNS` and a `ToolPermission` shape by hand, plus two writers
-`data/access.ts` has no reason to carry: `updateToolState` and
-`resetToolState`, opened on a **separate, read-write** connection so the read
-path used by every page stays `readonly: true`. `lib/servers.ts`, `lib/tokens.ts`
-and `lib/events.ts` are the same kind of by-hand mirror for `servers`, `env`
-and `events` respectively — see [data store](data-store.md#reading-and-writing-it),
-which is where `data/access.ts` itself is described.
+`data/access.ts` is now a real workspace package, `@llm-tools/data`, and
+`control_panel` runs via `bun --bun next` (`bun run dev:panel`) so its server
+code executes under **Bun**, not Node — `bun:sqlite` is available and there is
+no separate `node:sqlite` mirror to keep in sync by hand. `servers` and
+`permissions` reads/writes (`listServers`, `findServerBySlug`,
+`listToolPermissions`, `listPermissions`, `findToolPermission`,
+`findToolPermissionByServerId`, `updateToolState`, `resetToolState`) come
+straight from `@llm-tools/data`; only `github_profiles` (control-panel-only,
+no MCP server needs it) and `env` (`control_panel/lib/tokens.ts`, plus
+`env_file.ts` for reading `.env` key names) still have their own CRUD, next to
+the routes that use them, on the shared `getDb()`/`getWritableDb()` connection
+`@llm-tools/data` exports — see
+[data store](data-store.md#reading-and-writing-it), which is where
+`data/access.ts` itself is described.
 
-> [!note] Keep every `lib/` mirror in sync with the schema by hand
-> A schema change to `permissions`, `servers`, `env` or `events` means editing
-> the `SELECT` columns and the row type in both `data/access.ts` and whichever
-> `control_panel/lib/` file mirrors that table. Nothing checks that they
-> agree — `github_profiles` has no Bun-side reader at all, so it only has one
-> copy to keep in sync.
+> [!note] `github_profiles` and `env` still need hand-written `SELECT`s
+> A schema change to `servers` or `permissions` means editing `data/access.ts`
+> alone. `github_profiles` and `env` have no equivalent in `@llm-tools/data`,
+> so a schema change to either means editing the `SELECT` columns and row
+> type in `github_profiles.tsx` or `lib/tokens.ts` by hand — nothing checks
+> that those still agree with the migration that shaped them.
 
 ## Dependencies live at the root too
 

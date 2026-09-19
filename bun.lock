@@ -48,6 +48,13 @@
         "@llm-tools/shared": "workspace:*",
       },
     },
+    "tools/research": {
+      "name": "@llm-tools/research",
+      "version": "1.0.0",
+      "dependencies": {
+        "@llm-tools/shared": "workspace:*",
+      },
+    },
     "tools/shared": {
       "name": "@llm-tools/shared",
       "version": "1.0.0",
@@ -197,6 +204,8 @@
     "@llm-tools/data": ["@llm-tools/data@workspace:data"],
 
     "@llm-tools/github": ["@llm-tools/github@workspace:tools/github"],
+
+    "@llm-tools/research": ["@llm-tools/research@workspace:tools/research"],
 
     "@llm-tools/shared": ["@llm-tools/shared@workspace:tools/shared"],
 
