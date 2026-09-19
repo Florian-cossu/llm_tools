@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { findToolPermission, resetToolState, updateToolState } from "@/lib/db";
+import { findToolPermissionByServerId, resetToolState, updateToolState } from "@llm-tools/data";
 
 const PatchBody = z.object({
   serverId: z.number().int(),
@@ -65,6 +65,6 @@ export async function DELETE(request: Request) {
     );
   }
 
-  const row = findToolPermission(slug, serverId);
+  const row = findToolPermissionByServerId(slug, serverId);
   return NextResponse.json({ slug, state: row?.state });
 }

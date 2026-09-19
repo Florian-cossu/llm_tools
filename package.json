@@ -5,7 +5,8 @@
   "workspaces": [
     "tools/*",
     "tools/shared/*",
-    "control_panel"
+    "control_panel",
+    "data"
   ],
   "keywords": [
     "harness",
@@ -24,6 +25,7 @@
     "rehome:panel": "node scripts/rehome-panel-deps.mjs"
   },
   "dependencies": {
+    "@llm-tools/data": "workspace:*",
     "@modelcontextprotocol/server": "^2.0.0",
     "@tanstack/react-table": "^9.2.4",
     "class-variance-authority": "^0.7.1",

@@ -1,15 +1,14 @@
 import type { ReactNode } from "react";
 import { ShieldBan, ShieldCheck, ShieldQuestion, Wrench } from "lucide-react";
 
-import { listAllPermissions } from "@/lib/db";
-import { listServers } from "@/lib/servers";
 import { McpIcon } from "@/components/icons/mcp-icon";
 import { Card, CardContent, CardFooter, CardHeader } from "./ui/card";
 import { Badge } from "./ui/badge";
+import { listServers, listToolPermissions } from "@llm-tools/data";
 
 export default function HarnessCard() {
   const servers = listServers();
-  const tools = listAllPermissions();
+  const tools = listToolPermissions();
   const byState = {
     allow: tools.filter((t) => t.state === "allow").length,
     deny: tools.filter((t) => t.state === "deny").length,
@@ -17,7 +16,7 @@ export default function HarnessCard() {
   };
 
   return (
-    <div className="flex flex-row gap-4 justify-between">
+    <div className="flex flex-row flex-wrap gap-4 justify-between">
       <ItemCard count={servers.length} type="mcp" />
       <ItemCard count={tools.length} type="tool" />
       <PermissionBadgesCard
@@ -85,13 +84,13 @@ export function ItemCard({
       : ITEM_TYPE_PROPS[type];
 
   return (
-    <Card className={`${CARD_BASE_STYLE} min-w-fit py-4 px-15 ${glowClass}`}>
+    <Card className={`${CARD_BASE_STYLE} max-w-fit px-9 md:min-w-fit py-4 md:px-15 ${glowClass}`}>
       <CardHeader className="flex flex-col items-center">
         <div className={`max-w-fit max-h-fit p-2 rounded-full ${badgeClass}`}>
           {icon}
         </div>
       </CardHeader>
-      <CardContent className="flex flex-col items-center justify-center grow">
+      <CardContent className="flex flex-col items-center justify-center">
         <p className={`text-4xl font-extrabold ${numberClass}`}>{count}</p>
       </CardContent>
       <CardFooter>
@@ -115,7 +114,7 @@ export function PermissionBadgesCard({
   total,
 }: PermissionsCardProps) {
   return (
-    <Card className={`${CARD_BASE_STYLE} py-4 px-6 max-w-[16rem] ring-purple-400/50 shadow-purple-400/40`}>
+    <Card className={`${CARD_BASE_STYLE} py-4 px-6 w-full md:max-w-[16rem] ring-purple-400/50 shadow-purple-400/40`}>
       <CardHeader className="flex flex-col items-center">
         <div className="max-h-fit p-2 rounded-full bg-purple-400/10 text-purple-400">
           <ShieldCheck className="size-5.5" />

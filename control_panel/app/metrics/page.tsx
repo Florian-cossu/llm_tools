@@ -30,7 +30,7 @@ export default async function StatsPage({
   const latencyByTool = getLatencyByTool(range);
 
   return (
-    <div className="mx-auto flex w-[80%] flex-col gap-6">
+    <div className="mx-auto flex md:w-[80%] flex-col gap-6">
       <div className="flex flex-row gap-2 items-center">
         <ChartColumnBig className="size-9" />
         <h1 className="text-4xl font-semibold tracking-tight m-0">Metrics</h1>

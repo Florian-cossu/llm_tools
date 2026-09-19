@@ -40,7 +40,7 @@ export default async function GithubServerPage() {
   };
 
   return (
-    <div className="mx-auto flex w-[80%] flex-col gap-6">
+    <div className="mx-auto flex md:w-[80%] flex-col gap-6">
       <div className="flex flex-row gap-2 items-center">
         <GithubIcon className="size-11.5" />
         <h1 className="text-4xl font-semibold tracking-tight m-0">GitHub</h1>

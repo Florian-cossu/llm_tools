@@ -6,6 +6,7 @@ import { Area, AreaChart, Bar, BarChart, CartesianGrid, LabelList, XAxis, YAxis 
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { useLocale } from "@/hooks/use-locale";
 import type { DailyVolume, OverviewStats, ServerCount, ToolCount, ToolLatency } from "@/lib/events";
 
 /**
@@ -20,11 +21,11 @@ const ORANGE = { light: "#eb6834", dark: "#d95926" };
 const STATUS_GOOD = "#0ca30c";
 const STATUS_CRITICAL = "#d03b3b";
 
-function formatDay(day: string): string {
+function formatDay(day: string, locale: string): string {
   const date = new Date(`${day}T00:00:00Z`);
   return Number.isNaN(date.getTime())
     ? day
-    : date.toLocaleDateString(undefined, { month: "short", day: "numeric", timeZone: "UTC" });
+    : date.toLocaleDateString(locale, { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 function ChartCard({
@@ -39,7 +40,7 @@ function ChartCard({
   return (
     <Card size="sm" className={className}>
       <CardHeader>
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
+        <CardTitle className="text-sm font-medium text-foreground">{title}</CardTitle>
       </CardHeader>
       <CardContent>{children}</CardContent>
     </Card>
@@ -50,7 +51,7 @@ function StatTile({ label, value, icon: Icon }: { label: string; value: string; 
   return (
     <Card size="sm">
       <CardContent className="gap-1">
-        <span className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <span className="flex items-center gap-1.5 text-xs font-medium tracking-wide text-foreground uppercase">
           <Icon className="size-3.5" />
           {label}
         </span>
@@ -61,7 +62,7 @@ function StatTile({ label, value, icon: Icon }: { label: string; value: string; 
 }
 
 function EmptyState({ message }: { message: string }) {
-  return <div className="flex h-32 items-center justify-center text-sm text-muted-foreground">{message}</div>;
+  return <div className="flex h-32 items-center justify-center text-sm text-foreground">{message}</div>;
 }
 
 type MagnitudeDatum = { label: string; value: number };
@@ -114,6 +115,8 @@ function MagnitudeBarChart({
 
 /** A single-series area chart for event volume over time. */
 function VolumeChart({ data }: { data: DailyVolume[] }) {
+  const locale = useLocale();
+
   if (data.length === 0) return <EmptyState message="No data for this range." />;
 
   const config: ChartConfig = { count: { label: "Events", theme: BLUE } };
@@ -127,7 +130,7 @@ function VolumeChart({ data }: { data: DailyVolume[] }) {
           tickLine={false}
           axisLine={false}
           tickMargin={8}
-          tickFormatter={formatDay}
+          tickFormatter={(day) => formatDay(day, locale)}
           tick={{ fontSize: 11 }}
           className="fill-muted-foreground"
         />
@@ -141,7 +144,7 @@ function VolumeChart({ data }: { data: DailyVolume[] }) {
         />
         <ChartTooltip
           cursor={{ stroke: "var(--border)" }}
-          content={<ChartTooltipContent labelFormatter={(label) => formatDay(String(label))} />}
+          content={<ChartTooltipContent labelFormatter={(label) => formatDay(String(label), locale)} />}
         />
         <Area
           dataKey="count"
@@ -233,7 +236,11 @@ export default function EventCharts({
   return (
     <div className="flex flex-col gap-4">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile label="Total events" value={overview.total.toLocaleString()} icon={Activity} />
+        <StatTile
+          label="Total events"
+          value={overview.total.toLocaleString()}
+          icon={Activity}
+        />
         <StatTile
           label="Success rate"
           value={successRate !== null ? `${successRate}%` : "—"}
